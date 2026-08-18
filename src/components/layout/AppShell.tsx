@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -10,6 +10,11 @@ import clsx from "clsx";
 export function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const location = useLocation();
+  // The Inventory page ships its own filter bar (styled to match the
+  // reference sales-intelligence tool) — the generic FilterBar would
+  // duplicate it, so it's suppressed on that route only.
+  const isInventoryRoute = location.pathname === "/" || location.pathname === "/inventory";
 
   return (
     <div className="min-h-screen bg-surface">
@@ -53,8 +58,8 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          <FilterBar />
-          <div className="p-4 md:p-6">
+          {!isInventoryRoute && <FilterBar />}
+          <div className={isInventoryRoute ? "" : "p-4 md:p-6"}>
             <Outlet />
           </div>
         </main>

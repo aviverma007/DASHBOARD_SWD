@@ -37,3 +37,20 @@ export function formatDateTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/** Matches the source tool's CR() formatter: crore-denominated currency,
+ * e.g. ₹9,822 Cr for large totals or ₹1.5 Cr for single-unit values. */
+export function formatCrore(rupees: number): string {
+  const crores = rupees / 1e7;
+  const display = crores >= 100 ? Math.round(crores).toLocaleString("en-IN") : crores.toFixed(1);
+  return `₹${display} Cr`;
+}
+
+export function formatRupees(rupees: number): string {
+  return `₹${Math.round(rupees).toLocaleString("en-IN")}`;
+}
+
+export function formatRatePerSqft(rupees: number, area: number): string {
+  if (!area) return "—";
+  return `₹${Math.round(rupees / area).toLocaleString("en-IN")} / sq ft`;
+}

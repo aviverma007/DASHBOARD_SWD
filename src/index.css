@@ -17,11 +17,42 @@
   --color-charcoal: #1a2530;
   --color-charcoal-soft: #4a5a6b;
 
+  /* Inventory-module palette — matches the reference sales-intelligence
+     tool exactly (navy/gold/cream), used only within the Inventory page
+     so its look-and-feel stays faithful to the source. */
+  --color-inv-ink: #14213d;
+  --color-inv-ink-soft: #2b3553;
+  --color-inv-slate: #5a6478;
+  --color-inv-mut: #8a93a6;
+  --color-inv-gold: #b8893c;
+  --color-inv-gold-soft: #e9dcc2;
+  --color-inv-bg: #f4f2ec;
+  --color-inv-card: #ffffff;
+  --color-inv-line: #e4e0d6;
+  --color-inv-available: #2e7d6f;
+  --color-inv-booked: #8a93a6;
+  --color-inv-mgmt: #c99a3b;
+  --color-inv-clay: #c2674a;
+  --color-inv-blue: #3c6db0;
+  --color-inv-plum: #7a5c84;
+  --color-inv-red: #b5453a;
+  --color-inv-green: #4b7b3f;
+  --color-inv-gap-soldout-bg: #f6e0dd;
+  --color-inv-gap-soldout-text: #9a2f22;
+  --color-inv-gap-low-bg: #faeede;
+  --color-inv-gap-low-text: #8a5a12;
+  --color-inv-gap-available-bg: #e7f4ee;
+  --color-inv-gap-available-text: #166b53;
+  --color-inv-gap-high-bg: #cdeadd;
+  --color-inv-gap-high-text: #0f5f47;
+
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-numeric: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-serif-display: Georgia, "Times New Roman", serif;
 
   --shadow-card: 0 1px 2px rgba(11, 59, 111, 0.06), 0 1px 12px rgba(11, 59, 111, 0.04);
   --shadow-drawer: -4px 0 24px rgba(11, 59, 111, 0.12);
+  --shadow-inv-card: 0 1px 2px rgba(20, 33, 61, 0.04), 0 8px 28px rgba(20, 33, 61, 0.06);
 }
 
 @layer base {

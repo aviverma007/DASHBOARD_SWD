@@ -12,20 +12,43 @@ are updated as real SAP/Excel data and field mappings are confirmed.
 
 - ✅ Login (demo auth — see `src/store/authStore.ts`)
 - ✅ Responsive app shell (sidebar, header, filter bar, mobile drawer nav)
-- ✅ Inventory Overview page — Sold/Unsold/Total KPI cards, project comparison
-  chart, project breakup table
-- ✅ Global filters — Group, Project (multi-select/All), Period (M/Q/Y)
+- ✅ **Inventory page — now built on REAL data** (10,623 actual units across
+  all 13 live Smartworld projects), styled to match the reference
+  sales-intelligence tool exactly (navy/gold/cream palette, Georgia serif
+  numerals). See "Inventory module" below.
 - ✅ Cross-filtering — clicking a chart bar or table row filters the dashboard
-- ✅ Drill-down drawer — Group → Project → Tower → Floor → Unit → Customer,
-  with breadcrumbs, fullscreen toggle, and per-level export buttons (UI only)
 - ⏳ Placeholder modules: Sales, Collections, Revenue, Customers, Projects,
   Reports, Data Upload, Settings — awaiting requirements
-- ⏳ Real Excel/PDF export (buttons present, not yet wired)
+- ⏳ Real Excel/PDF export (buttons present on the generic dashboard scaffold,
+  not yet wired for Inventory)
 - ⏳ Data upload + validation workflow
-- ⏳ Real backend / SAP data integration
+- ⏳ Backend/live SAP sync (current inventory data is a static bundled
+  snapshot, not a live feed)
 
-**All data is currently mock/synthetic** — see `src/data/mockData.ts`. Nothing
-in this build should be treated as real inventory figures.
+## Inventory module (real data)
+
+Source: unit-level data decoded from the existing sales-intelligence HTML
+tool's embedded dataset (`src/data/smartworldInventory.json`, ~10,600 units).
+This is real inventory, not mock data — verified to reconcile exactly against
+the reference tool's own numbers (see `src/data/inventoryLoader.ts` for the
+decode logic).
+
+Features, matching the reference tool 1:1:
+- KPI strip: Total units, Available, Booked · absorption, Management units,
+  Value available, Value booked
+- Stock status donut, By category donut (Residential/Commercial)
+- Availability by project (3-segment bars), Unsold value by project
+- **Config gap analysis** matrix (project × configuration, sold-out/low/
+  available/high bands)
+- By configuration / Floor rise / By size band group-bar breakdowns
+- **Stack plan** (floors × towers grid, one square per unit, click for detail)
+- Searchable, paginated unit records table
+- Unit detail drawer (spec sheet: project/tower/floor/config/area/cost/rate/
+  payment plan)
+- Management-units breakdown by project
+
+All filters (Project multi-select, Status, Category) operate on the real
+dataset and cascade through every card on the page.
 
 ## Tech stack
 
@@ -44,31 +67,43 @@ src/
   app/                  # app-level composition (reserved)
   components/
     layout/             # AppShell, Header, Sidebar
-    filters/             # ProjectFilter, PeriodFilter, FilterBar
-    kpi/                 # KpiCard, KpiStrip
-    charts/              # ProjectComparisonChart
-    tables/              # ProjectBreakupTable
-    drilldown/           # DrilldownDrawer, DrilldownContent
+    filters/             # generic FilterBar (used by non-Inventory routes)
+    kpi/ charts/ tables/ drilldown/  # generic Phase-2 scaffold, reusable
+                                       # once other modules get real data
+    inventory/           # Inventory-specific: InvKpiCard, InvDonut,
+                          # ConfigGapMatrix, StackPlan, UnitRecordTable,
+                          # UnitDetailDrawer, InvFilterBar, etc.
     common/              # EmptyState, SkeletonBlock, ComingSoon
   features/
     authentication/      # LoginPage, RequireAuth
-    inventory/           # InventoryOverviewPage
-    sales/ projects/ reports/  # reserved for future modules
-  services/              # inventoryService.ts — mock now, real API later
+    inventory/           # InventoryPage — the real-data page (routed)
+                          # InventoryOverviewPage — earlier mock-data
+                          # version, kept as scaffold reference, not routed
+  services/              # inventoryService.ts — mock-data service layer,
+                          # not used by the current Inventory page
   store/                 # filterStore, drilldownStore, authStore (Zustand)
-  types/                 # domain.ts, filters.ts
-  utils/                 # calculations.ts (KPI math), format.ts
+  types/                 # domain.ts, filters.ts (generic scaffold)
+                          # inventoryRaw.ts (real dataset schema)
+  utils/                 # calculations.ts (generic scaffold)
+                          # inventoryStats.ts (real-data KPI math,
+                          # mirrors the reference tool's formulas exactly)
+                          # format.ts
+  data/
+    smartworldInventory.json  # REAL unit-level data, ~10,600 units
+    inventoryLoader.ts         # decodes the JSON into typed units
+    mockData.ts                 # earlier synthetic data, unused by Inventory now
   config/                # navigation.ts, filterDimensions.ts
-  data/                  # mockData.ts — clearly labeled synthetic data
 docs/
   REQUIREMENT_REGISTER.md
   DATA_DICTIONARY.md
   CALCULATION_DICTIONARY.md
 ```
 
-Components never read `mockData.ts` or call calculation functions directly —
-they go through `services/inventoryService.ts`. Swapping mock data for a
-real backend means changing that one file.
+The generic filter/drilldown/KPI scaffold from Phase 2 is intentionally kept
+(not deleted) — it's the pattern to reuse once Sales/Collections/Revenue get
+real data of their own. The Inventory page itself no longer goes through
+that generic path; it reads directly from the real dataset via
+`inventoryLoader.ts` and `inventoryStats.ts`.
 
 ## Development
 
