@@ -117,9 +117,10 @@ export interface Stats {
   bl: number;
   areaAv: number; // total super area of available units, sq ft
   areaBk: number; // total super area of booked units, sq ft
+  areaBl: number; // total super area of management units, sq ft
 }
 
-/** stats(a) — Total/Available/Booked/Management + area available/booked. */
+/** stats(a) — Total/Available/Booked/Management + area available/booked/management. */
 export function stats(a: RawUnit[]): Stats {
   const av = a.filter((u) => u[8] === 0);
   const bk = a.filter((u) => u[8] === 1);
@@ -131,6 +132,7 @@ export function stats(a: RawUnit[]): Stats {
     bl: bl.length,
     areaAv: av.reduce((s, u) => s + u[6], 0),
     areaBk: bk.reduce((s, u) => s + u[6], 0),
+    areaBl: bl.reduce((s, u) => s + u[6], 0),
   };
 }
 

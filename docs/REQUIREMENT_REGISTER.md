@@ -124,3 +124,29 @@ silently alter an earlier one — see project instructions Section 37.
 - **Requirement:** Not yet specified
 - **Status:** Placeholder — renders "coming soon" state, no logic built
 - **Open Questions:** Awaiting requirements for each module
+
+---
+
+## REQ-006
+
+- **Module:** Inventory (direct port) — area-based donut charts
+- **Requirement:** Add two more donut charts alongside the existing
+  Stock status / By category donuts, breaking down the same dimensions
+  by area (sq ft) instead of unit count.
+- **Changes:**
+  - `Stats` gained `areaBl` (management-unit area) alongside the
+    existing `areaAv`/`areaBk`, so the area-based Stock status donut can
+    show all three segments like its unit-count counterpart
+  - `SwDonut`/`SwDLegend` gained an optional `valueFormatter` prop
+    (defaults to `fNum`, unit count) so the same components render either
+    unit-count or area donuts without duplicating markup
+  - Two new cards added directly below the existing pair: "Stock status
+    by area" and "By category by area" — same click-to-drill behavior,
+    same colors, same layout
+- **Validation:** Verified against the real dataset — area splits sum
+  correctly to the grand total both ways (202.89 L sq ft). Notably the
+  area view tells a different story than the unit-count view: Available
+  is 15.4% of units but 20.2% of area, meaning available units run
+  larger on average than the overall stock.
+- **Status:** Built, type-checked, verified.
+- **Open Questions:** None.

@@ -16,10 +16,14 @@ export interface DonutSegment {
 interface SwDonutProps {
   segs: DonutSegment[];
   onSegmentClick?: (seg: DonutSegment) => void;
+  /** Formats the center total and each slice's tooltip value. Defaults
+   * to fNum (plain unit count) so existing unit-count donuts are
+   * unaffected; area donuts pass fArea instead. */
+  valueFormatter?: (n: number) => string;
 }
 
 /** donut(segs) — SVG ring chart with a center total, matching the source's donut(). */
-export function SwDonut({ segs, onSegmentClick }: SwDonutProps) {
+export function SwDonut({ segs, onSegmentClick, valueFormatter = fNum }: SwDonutProps) {
   const total = segs.reduce((a, s) => a + s.value, 0) || 1;
   const r = 54;
   const cx = 66;
@@ -51,7 +55,7 @@ export function SwDonut({ segs, onSegmentClick }: SwDonutProps) {
             onClick={() => onSegmentClick?.(s)}
           >
             <title>
-              {s.label}: {fNum(s.value)} ({((s.value / total) * 100).toFixed(1)}%)
+              {s.label}: {valueFormatter(s.value)} ({((s.value / total) * 100).toFixed(1)}%)
             </title>
           </circle>
         );
@@ -65,7 +69,7 @@ export function SwDonut({ segs, onSegmentClick }: SwDonutProps) {
         fontWeight="700"
         fill="var(--ink)"
       >
-        {fNum(total)}
+        {valueFormatter(total)}
       </text>
       <text x={cx} y={cy + 13} textAnchor="middle" fontSize="8.5" letterSpacing="1" fill="var(--mut)">
         TOTAL
@@ -77,10 +81,11 @@ export function SwDonut({ segs, onSegmentClick }: SwDonutProps) {
 interface SwDLegendProps {
   segs: DonutSegment[];
   onItemClick?: (seg: DonutSegment) => void;
+  valueFormatter?: (n: number) => string;
 }
 
 /** dlegend(segs) — legend list beside a donut, matching the source's dlegend(). */
-export function SwDLegend({ segs, onItemClick }: SwDLegendProps) {
+export function SwDLegend({ segs, onItemClick, valueFormatter = fNum }: SwDLegendProps) {
   const total = segs.reduce((a, s) => a + s.value, 0) || 1;
   return (
     <div className="dlg">
@@ -94,7 +99,7 @@ export function SwDLegend({ segs, onItemClick }: SwDLegendProps) {
         >
           <span className="sw" style={{ background: s.color }} />
           {s.label}
-          <b>{fNum(s.value)}</b>
+          <b>{valueFormatter(s.value)}</b>
           <span className="pc">{((s.value / total) * 100).toFixed(1)}%</span>
         </div>
       ))}

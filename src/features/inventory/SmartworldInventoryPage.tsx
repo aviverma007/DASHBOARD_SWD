@@ -80,9 +80,32 @@ export function SmartworldInventoryPage() {
     { label: "Management unit", value: s.bl, color: "var(--blk)", act: "kst", v: 2 },
   ].filter((x) => x.value > 0);
 
+  const statusAreaSegs = [
+    { label: "Available", value: s.areaAv, color: "var(--av)", act: "kst", v: 0 },
+    { label: "Booked", value: s.areaBk, color: "var(--bk)", act: "kst", v: 1 },
+    { label: "Management unit", value: s.areaBl, color: "var(--blk)", act: "kst", v: 2 },
+  ].filter((x) => x.value > 0);
+
   const catSegs = [
     { label: "Residential", value: arr.filter((u) => catOf(u) === 0).length, color: "var(--teal)", act: "sc_cat", v: 0 },
     { label: "Commercial", value: arr.filter((u) => catOf(u) === 1).length, color: "var(--clay)", act: "sc_cat", v: 1 },
+  ].filter((x) => x.value > 0);
+
+  const catAreaSegs = [
+    {
+      label: "Residential",
+      value: arr.filter((u) => catOf(u) === 0).reduce((sum, u) => sum + u[6], 0),
+      color: "var(--teal)",
+      act: "sc_cat",
+      v: 0,
+    },
+    {
+      label: "Commercial",
+      value: arr.filter((u) => catOf(u) === 1).reduce((sum, u) => sum + u[6], 0),
+      color: "var(--clay)",
+      act: "sc_cat",
+      v: 1,
+    },
   ].filter((x) => x.value > 0);
 
   const cfgBars = useMemo(() => groupByKey(arr, (u) => u[4]), [arr]);
@@ -166,6 +189,43 @@ export function SmartworldInventoryPage() {
               />
               <SwDLegend
                 segs={catSegs}
+                onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid g2">
+          <div className="card">
+            <h3>
+              Stock status by area <span className="hint">sq ft · click a slice → drill</span>
+            </h3>
+            <div className="donut-wrap">
+              <SwDonut
+                segs={statusAreaSegs}
+                valueFormatter={fArea}
+                onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
+              />
+              <SwDLegend
+                segs={statusAreaSegs}
+                valueFormatter={fArea}
+                onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
+              />
+            </div>
+          </div>
+          <div className="card">
+            <h3>
+              By category by area <span className="hint">sq ft · click a slice → drill</span>
+            </h3>
+            <div className="donut-wrap">
+              <SwDonut
+                segs={catAreaSegs}
+                valueFormatter={fArea}
+                onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+              />
+              <SwDLegend
+                segs={catAreaSegs}
+                valueFormatter={fArea}
                 onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
               />
             </div>
