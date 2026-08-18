@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RequireAuth } from "./features/authentication/RequireAuth";
 import { AppShell } from "./components/layout/AppShell";
-import { InventoryPage } from "./features/inventory/InventoryPage";
+import { InventoryOverviewPage } from "./features/inventory/InventoryOverviewPage";
 import { ComingSoon } from "./components/common/ComingSoon";
 
 function App() {
@@ -10,8 +10,8 @@ function App() {
       <RequireAuth>
         <Routes>
           <Route element={<AppShell />}>
-            <Route path="/" element={<InventoryPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/" element={<InventoryOverviewPage />} />
+            <Route path="/inventory" element={<InventoryOverviewPage />} />
             <Route path="/sales" element={<ComingSoon moduleName="Sales" />} />
             <Route path="/collections" element={<ComingSoon moduleName="Collections" />} />
             <Route path="/revenue" element={<ComingSoon moduleName="Revenue" />} />
