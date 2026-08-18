@@ -13,8 +13,8 @@ are updated as real SAP/Excel data and field mappings are confirmed.
 - ✅ Login (demo auth — see `src/store/authStore.ts`)
 - ✅ Responsive app shell (sidebar, header, mobile drawer nav)
 - ✅ **Inventory page — direct port of the reference sales-intelligence
-  tool**, built on real data (10,623 units across all 13 live Smartworld
-  projects). Routed at `/` and `/inventory`. See "Inventory module" below
+  tool**, built on real data — currently 3,386 units across 6 Smartworld
+  projects. Routed at `/` and `/inventory`. See "Inventory module" below
   for what this covers.
 - ⏳ Placeholder modules: Sales, Collections, Revenue, Customers, Projects,
   Reports, Data Upload, Settings — awaiting requirements
@@ -53,10 +53,11 @@ own unit records list. Clicking a stack-plan square or table row opens a
 full unit detail view (project/tower/floor/config/area/cost/rate/payment
 plan) with a "back to list" button.
 
-Source: `src/data/smartworldInventory.json` (real unit-level data, decoded
-from the reference tool's embedded dataset). Verified to reconcile exactly
-against the reference tool's own numbers — see `src/utils/smartworldLogic.ts`
-for the ported calculation functions.
+Source: `src/data/smartworldInventory.json`, generated from an INVR
+export via `scripts/convert_invr_export.py` (see REQ-007 in the
+requirement register). Re-run that script whenever a fresh INVR export
+replaces the current one — configuration buckets are always derived
+fresh from the new export's free-text config column, never carried over.
 
 **Known discrepancy from the source (by design, not oversight):** in the
 reference tool, clicking a unit row in the *main page's* records table

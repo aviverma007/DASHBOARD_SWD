@@ -380,7 +380,7 @@ export function SwUnitDetail({
   onBack: () => void;
   onClose: () => void;
 }) {
-  const { P, TW, FL, CFG, UT, RB, PP } = RD;
+  const { P, TW, FL, CFG, UT } = RD;
 
   return (
     <>
@@ -414,21 +414,11 @@ export function SwUnitDetail({
               <div className="k">Floor</div>
               <div>{FL[unit[3]]}</div>
               <div className="k">Configuration</div>
-              <div>
-                {CFG[unit[4]]} <span style={{ color: "var(--mut)" }}>({RB[unit[11]]})</span>
-              </div>
+              <div>{CFG[unit[4]]}</div>
               <div className="k">Unit type</div>
               <div>{UT[unit[5]]}</div>
               <div className="k">Total super area</div>
               <div>{unit[6].toLocaleString("en-IN")} sq ft</div>
-              <div className="k">Payment plan</div>
-              <div>
-                {unit[8] === 1 && unit[10] >= 0 ? (
-                  PP[unit[10]]
-                ) : (
-                  <span style={{ color: "var(--mut)" }}>— (applies to booked units)</span>
-                )}
-              </div>
             </div>
           </div>
         </div>

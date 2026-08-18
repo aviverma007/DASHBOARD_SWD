@@ -150,3 +150,70 @@ silently alter an earlier one — see project instructions Section 37.
   larger on average than the overall stock.
 - **Status:** Built, type-checked, verified.
 - **Open Questions:** None.
+
+---
+
+## REQ-007
+
+- **Module:** Inventory (direct port) — data source swap
+- **Requirement:** Replace the old bundled dataset entirely with a fresh
+  INVR export (`INVR-All_Project_18-8-2026.xlsx`, "Merged" sheet).
+- **Source shape:** 3,386 rows, 11 columns (Source, Project Name, Unit
+  Description, Project wise Unit Description, Status, Unit Type, Floor,
+  BHK, Tower, Total Super Area, Total Unit Cost). No Payment Plan or
+  Rate Band columns.
+- **Confirmed decisions (user, this session):**
+  1. Only the 6 projects present in this file are kept — Smartworld The
+     Edition, Sky Arc, Le Courtyard, Suites, Residencies, Trump
+     Residences Gurgaon. The other 7 projects that existed in the old
+     dataset (One DXP, One DXP Select, One DXP Street, Orchard, Gems 1,
+     Gems 2, Nature's Court) are gone. This is intentional — confirmed
+     explicitly, not an oversight.
+  2. Any status other than "Available"/"Booked" (this export has
+     "Management Unit" and one row of "N/A for Sale") folds into
+     Management.
+  3. Configuration buckets are derived fresh from the free-text `BHK`
+     column every time new data is loaded — never carried over from a
+     previous run. See `scripts/convert_invr_export.py`.
+- **Conversion:** `scripts/convert_invr_export.py` — reusable for future
+  refreshes, not a one-off. Parses `BHK` → `CFG` bucket (regex extracts
+  the leading digit before "BHK"; "Retail Shop"/"Shop" → "Commercial")
+  and `Floor` label → numeric floor value (handles ordinal text, "Ground
+  Floor", "Upper Ground Floor", "Second Floor" as a distinct mezzanine
+  level at Le Courtyard, and "12-A Floor"-style half-floors). Both
+  parsers raise loudly (`ValueError`) on any value they don't recognize
+  rather than silently bucketing into "Unspecified" — verified against
+  every one of the 50 distinct `BHK` values and 55 distinct `Floor`
+  labels in this export with zero fallback rows before trusting the
+  output.
+- **Fields with no source in this export:** Payment Plan and Rate Band.
+  `PP`/`RB` arrays are empty; `unit[10]`/`unit[11]` are always `-1`/`0`
+  (positional placeholders in the `RawUnit` tuple, unused). The unit
+  detail view's "Payment plan" row and the Configuration row's rate-band
+  parenthetical were removed from `SwDrawer.tsx` — showing them would
+  mean displaying nothing or a fake value, so they were removed rather
+  than showing empty rows. Category classification now keys off
+  `Unit Type == "Unit"` (this export's only Commercial marker; those 502
+  rows are exactly the "Retail Shop" units at Le Courtyard) instead of
+  the finer Shop/Retail/Restaurant/KIOSK distinction the old dataset had.
+- **Data quirk found and preserved as-is (not "fixed"):** `Total Unit
+  Cost` is populated only for Booked units in this export — Available
+  and Management units all show 0, plus one Booked row that's also 0.
+  Doesn't affect anything currently displayed since cost/value was
+  already removed from the app (REQ-004), but worth knowing if cost
+  displays are ever added back for this data source.
+- **Validation:** Verified the converted JSON's aggregate stats (Total
+  3,386 / Available 1,153 / Booked 2,066 / Management 167) and every
+  per-project breakdown against a direct pandas analysis of the source
+  file — exact match, including the one row of "N/A for Sale" correctly
+  folding into Smartworld The Edition's management count (11 = 10
+  Management Unit + 1 N/A for Sale). Confirmed no project exceeds the
+  drill-down's 40-tower display threshold (max is Le Courtyard at 21).
+- **Status:** Built, type-checked, verified. Bundle size dropped
+  (1.47MB vs. 1.92MB previously) since the dataset itself is smaller.
+- **Open Questions:**
+  - Whether the 7 dropped projects should eventually get their own
+    refreshed source and be merged back in, or whether they're
+    considered out of scope for this dashboard going forward
+  - Whether Payment Plan / Rate Band data exists in some other INVR
+    export variant and should be joined in if so
