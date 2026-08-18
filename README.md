@@ -11,21 +11,60 @@ are updated as real SAP/Excel data and field mappings are confirmed.
 ## Status
 
 - ✅ Login (demo auth — see `src/store/authStore.ts`)
-- ✅ Responsive app shell (sidebar, header, filter bar, mobile drawer nav)
-- ✅ Inventory Overview page — Sold/Unsold/Total KPI cards, project comparison
-  chart, project breakup table
-- ✅ Global filters — Group, Project (multi-select/All), Period (M/Q/Y)
-- ✅ Cross-filtering — clicking a chart bar or table row filters the dashboard
-- ✅ Drill-down drawer — Group → Project → Tower → Floor → Unit → Customer,
-  with breadcrumbs, fullscreen toggle, and per-level export buttons (UI only)
+- ✅ Responsive app shell (sidebar, header, mobile drawer nav)
+- ✅ **Inventory page — direct port of the reference sales-intelligence
+  tool**, built on real data (10,623 units across all 13 live Smartworld
+  projects). Routed at `/` and `/inventory`. See "Inventory module" below
+  for what this covers.
 - ⏳ Placeholder modules: Sales, Collections, Revenue, Customers, Projects,
   Reports, Data Upload, Settings — awaiting requirements
-- ⏳ Real Excel/PDF export (buttons present, not yet wired)
+- ⏳ Real Excel/PDF export
 - ⏳ Data upload + validation workflow
-- ⏳ Real backend / SAP data integration
+- ⏳ Backend/live SAP sync (current data is a static bundled snapshot)
 
-**All data is currently mock/synthetic** — see `src/data/mockData.ts`. Nothing
-in this build should be treated as real inventory figures.
+## Inventory module (direct port)
+
+The Inventory page is a line-by-line port of the reference Smartworld
+sales-intelligence tool's Inventory module — same markup structure, same
+CSS (scoped under `.sw-inv`, see `src/components/inventory/smartworldInventory.css`),
+same state machine, same click behavior. It is intentionally *not*
+restyled to match the rest of this app; it's meant to be pixel-faithful
+to the source.
+
+**Two independent state machines, matching the source exactly:**
+- `state` (top filter bar: Project multi-select, Status, Category,
+  Configuration) — drives the main page
+- `scope` (drill path: an array of `{k, v, label}` conditions) — drives
+  the right-side drawer, stacking as you drill Group → Project → Tower →
+  Floor → Unit. Independent of the top filter bar, same as the source.
+
+**Main page:** KPI strip (Total/Available/Booked·absorption/Management/
+Value available/Value booked), Stock status + By category donuts,
+Availability-by-project + Unsold-value-by-project bars, Config gap
+analysis matrix, By configuration / Floor rise / By size band / By price
+band / By unit type group-bar cards, searchable paginated unit records
+table, Management-units-by-project table (shown when Status = Management).
+
+**Drawer:** breadcrumb trail, insight line, drawer KPIs, stock-status
+donut, then contextual drill content depending on depth (project → tower
+ranking + stack plan + config/floor/size/price bars; tower → floor list +
+config bars; group/status scope → by-project + by-config bars), plus its
+own unit records list. Clicking a stack-plan square or table row opens a
+full unit detail view (project/tower/floor/config/area/cost/rate/payment
+plan) with a "back to list" button.
+
+Source: `src/data/smartworldInventory.json` (real unit-level data, decoded
+from the reference tool's embedded dataset). Verified to reconcile exactly
+against the reference tool's own numbers — see `src/utils/smartworldLogic.ts`
+for the ported calculation functions.
+
+**Known discrepancy from the source (by design, not oversight):** in the
+reference tool, clicking a unit row in the *main page's* records table
+calls `unitDetail()` without opening the drawer shell, so nothing is
+visible unless the drawer already happened to be open — even though the
+card's own hint text says "click a row → detail." This port opens the
+drawer in that case instead of replicating the silent no-op, since the
+hint text makes clear that was not the intended behavior.
 
 ## Tech stack
 
