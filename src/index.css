@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand tokens — from Smart World Developers design system */
+  --color-navy: #0b3b6f;
+  --color-navy-dark: #082a52;
+  --color-brand-blue: #105da9;
+  --color-teal: #0f9d94;
+  --color-teal-dark: #0c7d76;
+  --color-amber: #c98a1f;
+  --color-amber-dark: #a06f15;
+  --color-critical: #c2452f;
+
+  --color-surface: #f4f6f8;
+  --color-surface-raised: #ffffff;
+  --color-border-subtle: #e2e8ef;
+  --color-charcoal: #1a2530;
+  --color-charcoal-soft: #4a5a6b;
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-numeric: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  --shadow-card: 0 1px 2px rgba(11, 59, 111, 0.06), 0 1px 12px rgba(11, 59, 111, 0.04);
+  --shadow-drawer: -4px 0 24px rgba(11, 59, 111, 0.12);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-surface);
+    color: var(--color-charcoal);
+    font-family: var(--font-sans);
+  }
+
+  /* Tabular numerals for every KPI figure and table cell — numbers
+     must align visually across cards and rows. */
+  .num {
+    font-family: var(--font-numeric);
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-blue);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border-subtle);
+    border-radius: 4px;
+  }
+}
+
+/* Signature element: the data-freshness pulse bar under the header.
+   A single deliberate motion cue, everything else in the UI stays static. */
+@keyframes freshness-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.freshness-pulse {
+  animation: freshness-pulse 2.4s ease-in-out infinite;
+}
