@@ -7,9 +7,14 @@
  */
 import type { RawInventoryDataset, RawUnit, ScopeCondition, FilterState } from "../types/smartworldRaw";
 
-export function CR(r: number): string {
-  const v = r / 1e7;
-  return "₹" + (v >= 100 ? Math.round(v).toLocaleString("en-IN") : v.toFixed(1)) + " Cr";
+/** Formats a sq-ft area figure, e.g. 4.2 for large totals (in lakh sq ft)
+ * or a plain comma-separated number for smaller ones. Replaces the
+ * reference tool's CR() currency formatter — this app shows area, not value. */
+export function fArea(a: number): string {
+  if (a >= 100000) {
+    return (a / 100000).toFixed(2) + " L sq ft";
+  }
+  return Math.round(a).toLocaleString("en-IN") + " sq ft";
 }
 
 export function pct(a: number, b: number): number {
@@ -40,12 +45,6 @@ export function sizeBand(a: number): number {
 }
 export const SB = ["< 1,000 sq ft", "1,000–1,500", "1,500–2,200", "2,200+ sq ft"];
 
-export function priceBand(c: number): number {
-  const v = c / 1e7;
-  return v < 1.5 ? 0 : v < 2.5 ? 1 : v < 4 ? 2 : 3;
-}
-export const PB = ["< ₹1.5 Cr", "₹1.5–2.5 Cr", "₹2.5–4 Cr", "₹4 Cr+"];
-
 export function ordinal(f: number): string {
   if (f <= 0) return "Ground";
   if (f % 1 !== 0) return Math.floor(f) + "A";
@@ -56,12 +55,6 @@ export function ordinal(f: number): string {
 
 export const STL = ["Available", "Booked", "Management unit"];
 export const BLL = ["On hold", "In progress", "Management unit"];
-
-export function rateOut(u: RawUnit): boolean {
-  if (!u[6]) return false;
-  const r = u[7] / u[6];
-  return r > 40000 || r < 3000;
-}
 
 /** baseUnits() — applies the top filter bar (project/status/category/config). */
 export function baseUnits(
@@ -101,10 +94,6 @@ export function match(u: RawUnit, c: ScopeCondition, catOf: (u: RawUnit) => numb
       return floorBand(u[2]) === c.v;
     case "sb":
       return sizeBand(u[6]) === c.v;
-    case "pb":
-      return priceBand(u[7]) === c.v;
-    case "rate":
-      return rateOut(u);
     default:
       return true;
   }
@@ -126,12 +115,11 @@ export interface Stats {
   av: number;
   bk: number;
   bl: number;
-  vav: number;
-  vbk: number;
-  area: number;
+  areaAv: number; // total super area of available units, sq ft
+  areaBk: number; // total super area of booked units, sq ft
 }
 
-/** stats(a) — Total/Available/Booked/Management + value available/booked. */
+/** stats(a) — Total/Available/Booked/Management + area available/booked. */
 export function stats(a: RawUnit[]): Stats {
   const av = a.filter((u) => u[8] === 0);
   const bk = a.filter((u) => u[8] === 1);
@@ -141,9 +129,8 @@ export function stats(a: RawUnit[]): Stats {
     av: av.length,
     bk: bk.length,
     bl: bl.length,
-    vav: av.reduce((s, u) => s + u[7], 0),
-    vbk: bk.reduce((s, u) => s + u[7], 0),
-    area: av.reduce((s, u) => s + u[6], 0),
+    areaAv: av.reduce((s, u) => s + u[6], 0),
+    areaBk: bk.reduce((s, u) => s + u[6], 0),
   };
 }
 

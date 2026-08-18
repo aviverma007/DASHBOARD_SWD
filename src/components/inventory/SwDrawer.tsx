@@ -1,6 +1,6 @@
 import type { RawInventoryDataset, RawUnit, ScopeCondition } from "../../types/smartworldRaw";
 import {
-  CR,
+  fArea,
   pct,
   stats,
   scopedUnits,
@@ -9,11 +9,9 @@ import {
   statusBarsData,
   floorBand,
   sizeBand,
-  priceBand,
   ordinal,
   FB,
   SB,
-  PB,
   BLL,
   STL,
 } from "../../utils/smartworldLogic";
@@ -55,7 +53,7 @@ function insightLine(
   hp: ScopeCondition | undefined,
   ht: ScopeCondition | undefined
 ): string {
-  const parts = [`${s.av} of ${s.t} available (${pct(s.av, s.t)}%)`, `${CR(s.vav)} available`, `${pct(s.bk, s.t)}% sold`];
+  const parts = [`${s.av} of ${s.t} available (${pct(s.av, s.t)}%)`, `${fArea(s.areaAv)} available`, `${pct(s.bk, s.t)}% sold`];
 
   if (hp && !ht) {
     if (showTower(hp.v, arr, RD.TW)) {
@@ -141,8 +139,8 @@ export function SwDrawer({ RD, base, scope, catOf, onClose, onCrumbClick, onPush
               <div className="v">{pct(s.bk, s.t)}%</div>
             </div>
             <div className="dkpi">
-              <div className="k">Value available</div>
-              <div className="v">{CR(s.vav)}</div>
+              <div className="k">Area available</div>
+              <div className="v">{fArea(s.areaAv)}</div>
             </div>
           </div>
 
@@ -220,7 +218,6 @@ function ProjectDrillContent({
   const cfgBars = groupByKey(arr, (u) => u[4]);
   const fbBars = groupByKey(arr, (u) => floorBand(u[2]));
   const sbBars = groupByKey(arr, (u) => sizeBand(u[6]));
-  const pbBars = groupByKey(arr, (u) => priceBand(u[7]));
 
   return (
     <>
@@ -263,15 +260,9 @@ function ProjectDrillContent({
           <SwGroupBars items={fbBars} names={FB} onClick={(v) => onPushScope({ k: "fb", v, label: FB[v] })} />
         </div>
       </div>
-      <div className="grid g2">
-        <div className="card">
-          <h3>By size band</h3>
-          <SwGroupBars items={sbBars} names={SB} onClick={(v) => onPushScope({ k: "sb", v, label: SB[v] })} />
-        </div>
-        <div className="card">
-          <h3>By price band</h3>
-          <SwGroupBars items={pbBars} names={PB} onClick={(v) => onPushScope({ k: "pb", v, label: PB[v] })} />
-        </div>
+      <div className="card">
+        <h3>By size band</h3>
+        <SwGroupBars items={sbBars} names={SB} onClick={(v) => onPushScope({ k: "sb", v, label: SB[v] })} />
       </div>
     </>
   );
@@ -375,7 +366,9 @@ function GroupDrillContent({
   );
 }
 
-/** Direct port of unitDetail(idx) — replaces drawer body with a single unit's spec sheet. */
+/** Direct port of unitDetail(idx) — replaces drawer body with a single unit's spec sheet.
+ * "Total unit cost" and "Rate" (₹/sq ft) are dropped — this app shows area, not value,
+ * and there's no area-equivalent for a per-sq-ft rate. */
 export function SwUnitDetail({
   RD,
   unit,
@@ -388,7 +381,6 @@ export function SwUnitDetail({
   onClose: () => void;
 }) {
   const { P, TW, FL, CFG, UT, RB, PP } = RD;
-  const rate = unit[6] ? Math.round(unit[7] / unit[6]) : 0;
 
   return (
     <>
@@ -429,12 +421,6 @@ export function SwUnitDetail({
               <div>{UT[unit[5]]}</div>
               <div className="k">Total super area</div>
               <div>{unit[6].toLocaleString("en-IN")} sq ft</div>
-              <div className="k">Total unit cost</div>
-              <div>
-                {CR(unit[7])} <span style={{ color: "var(--mut)" }}>(₹{unit[7].toLocaleString("en-IN")})</span>
-              </div>
-              <div className="k">Rate</div>
-              <div>₹{rate.toLocaleString("en-IN")} / sq ft</div>
               <div className="k">Payment plan</div>
               <div>
                 {unit[8] === 1 && unit[10] >= 0 ? (

@@ -79,6 +79,47 @@ silently alter an earlier one — see project instructions Section 37.
     Bookings, Footfall) were out of scope for this request — only
     Inventory was ported
 
+---
+
+## REQ-004
+
+- **Module:** Inventory (direct port) — value → area conversion
+- **Requirement:** Remove every ₹-value display from the Inventory tab.
+  Replace with area (sq ft) equivalents where a sensible one exists;
+  remove the metric/card entirely where it doesn't.
+- **Changes:**
+  - KPI strip: "Value available" / "Value booked" → "Area available" /
+    "Area booked" (`stats()` now returns `areaAv`/`areaBk` instead of
+    `vav`/`vbk`)
+  - "Unsold value by project" → "Unsold area by project" (sums `u[6]`
+    area instead of `u[7]` cost)
+  - Drawer insight line and drawer mini-KPI: "₹X available" → area
+    available
+  - Unit records table: dropped the "Unit cost" column (super area is
+    already shown; showing both units would be redundant, not clearer)
+  - Unit detail spec sheet: dropped "Total unit cost" and "Rate" (₹/sq
+    ft) rows — there's no area-equivalent for a per-sq-ft rate
+  - **Removed entirely, not converted:** "By price band" card (both on
+    the main page and inside the drawer) and its underlying `priceBand()`
+    /`PB` grouping. Price bands are inherently value-denominated (`< ₹1.5
+    Cr`, `₹1.5–2.5 Cr`, etc.) with no meaningful area analog — "By size
+    band" already covers the area-grouping use case, so this wasn't
+    duplicated. Also removed the unused `rateOut()` function and the
+    dead `'rate'`/`'pb'` scope-condition keys that depended on cost.
+- **Validation:** Verified against the real dataset — total area
+  available 41.08 L sq ft, total area booked 159.13 L sq ft (raw figures:
+  4,108,078 / 15,912,624 sq ft), consistent with the previously-verified
+  1,631/8,806 available/booked unit split. Confirmed zero remaining `₹`
+  characters anywhere in the built JS bundle.
+- **Status:** Built, type-checked, and verified.
+- **Open Questions:** None — this was a subtractive/renaming change with
+  no ambiguous cases left unresolved, aside from the price-band removal
+  noted above, which was flagged rather than silently replaced.
+
+---
+
+## REQ-005 (placeholder modules)
+
 - **Module:** Sales, Collections, Revenue, Customers, Projects, Reports, Data Upload, Settings
 - **Requirement:** Not yet specified
 - **Status:** Placeholder — renders "coming soon" state, no logic built

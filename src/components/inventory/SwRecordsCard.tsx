@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import type { RawUnit } from "../../types/smartworldRaw";
-import { CR } from "../../utils/smartworldLogic";
 import { SwStatusPill } from "./swPieces";
 
 interface SwRecordsCardProps {
@@ -15,13 +14,14 @@ interface SwRecordsCardProps {
 
 const PER = 10;
 
-/** recSort(a) — available-first, then value descending. */
+/** recSort(a) — available-first, then largest area first. */
 function recSort(a: RawUnit[]): RawUnit[] {
-  return a.slice().sort((x, y) => x[8] - y[8] || y[7] - x[7]);
+  return a.slice().sort((x, y) => x[8] - y[8] || y[6] - x[6]);
 }
 
 /** Direct port of recordsCard/recFilter/pagerHTML/unitRow — search box,
- * table, and pager, matching the source's "Unit records" card. */
+ * table, and pager, matching the source's "Unit records" card. The
+ * "Unit cost" column is dropped — this app shows area, not value. */
 export function SwRecordsCard({ arr, P, TW, FL, CFG, UT, onRowClick }: SwRecordsCardProps) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -69,7 +69,6 @@ export function SwRecordsCard({ arr, P, TW, FL, CFG, UT, onRowClick }: SwRecords
             <th>Floor</th>
             <th>Config</th>
             <th className="n">Super area</th>
-            <th className="n">Unit cost</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -81,7 +80,6 @@ export function SwRecordsCard({ arr, P, TW, FL, CFG, UT, onRowClick }: SwRecords
               <td>{FL[u[3]]}</td>
               <td>{CFG[u[4]]}</td>
               <td className="n">{u[6].toLocaleString("en-IN")} sq ft</td>
-              <td className="n">{CR(u[7])}</td>
               <td>
                 <SwStatusPill status={u[8]} />
               </td>

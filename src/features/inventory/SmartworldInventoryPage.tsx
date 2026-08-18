@@ -5,15 +5,13 @@ import {
   makeCatOf,
   baseUnits,
   stats,
-  CR,
+  fArea,
   pct,
   groupByKey,
   floorBand,
   sizeBand,
-  priceBand,
   FB,
   SB,
-  PB,
 } from "../../utils/smartworldLogic";
 import { SwFilters } from "../../components/inventory/SwFilters";
 import { SwKpis } from "../../components/inventory/SwKpis";
@@ -64,14 +62,14 @@ export function SmartworldInventoryPage() {
       .sort((a, b) => b.av / b.us.length - a.av / a.us.length || b.av - a.av);
   }, [arr]);
 
-  const uv = useMemo(() => {
+  const ua = useMemo(() => {
     const rows = pae.map((x) => ({
       i: x.i,
-      v: x.us.filter((u) => u[8] === 0).reduce((sum, u) => sum + u[7], 0),
+      v: x.us.filter((u) => u[8] === 0).reduce((sum, u) => sum + u[6], 0),
     }));
     return rows.sort((a, b) => b.v - a.v);
   }, [pae]);
-  const maxUv = Math.max(...uv.map((x) => x.v), 1);
+  const maxUa = Math.max(...ua.map((x) => x.v), 1);
 
   const rowsP = pae.map((x) => x.i);
   const cols = CFG.map((_, i) => i);
@@ -90,7 +88,6 @@ export function SmartworldInventoryPage() {
   const cfgBars = useMemo(() => groupByKey(arr, (u) => u[4]), [arr]);
   const fbBars = useMemo(() => groupByKey(arr, (u) => floorBand(u[2])), [arr]);
   const sbBars = useMemo(() => groupByKey(arr, (u) => sizeBand(u[6])), [arr]);
-  const pbBars = useMemo(() => groupByKey(arr, (u) => priceBand(u[7])), [arr]);
   const utBars = useMemo(() => groupByKey(arr, (u) => u[5]), [arr]);
 
   // Drawer's own scoped units, derived from `arr` (baseUnits) + scope.
@@ -200,15 +197,15 @@ export function SmartworldInventoryPage() {
           </div>
           <div className="card">
             <h3>
-              Unsold value by project <span className="hint">₹ available · click → project</span>
+              Unsold area by project <span className="hint">sq ft available · click → project</span>
             </h3>
-            {uv.map((x) => (
+            {ua.map((x) => (
               <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
                 <div className="lbl">
                   <span className="nm">{P[x.i]}</span>
-                  <span className="r">{CR(x.v)}</span>
+                  <span className="r">{fArea(x.v)}</span>
                 </div>
-                <div className="vbar" style={{ width: `${(x.v / maxUv) * 100}%` }} />
+                <div className="vbar" style={{ width: `${(x.v / maxUa) * 100}%` }} />
               </div>
             ))}
           </div>
@@ -237,19 +234,11 @@ export function SmartworldInventoryPage() {
           </div>
         </div>
 
-        <div className="grid g2">
-          <div className="card">
-            <h3>
-              By price band <span className="hint">click → band</span>
-            </h3>
-            <SwGroupBars items={pbBars} names={PB} onClick={(v) => openScopeKey("pb", v, PB[v])} />
-          </div>
-          <div className="card">
-            <h3>
-              By unit type <span className="hint">click → type</span>
-            </h3>
-            <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
-          </div>
+        <div className="card">
+          <h3>
+            By unit type <span className="hint">click → type</span>
+          </h3>
+          <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
         </div>
 
         <SwRecordsCard

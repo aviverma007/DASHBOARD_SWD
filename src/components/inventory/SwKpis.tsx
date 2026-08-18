@@ -1,4 +1,4 @@
-import { CR, pct } from "../../utils/smartworldLogic";
+import { fArea, pct } from "../../utils/smartworldLogic";
 import type { Stats } from "../../utils/smartworldLogic";
 
 interface SwKpisProps {
@@ -7,7 +7,9 @@ interface SwKpisProps {
   onStatus: (v: number) => void;
 }
 
-/** Direct port of the KPI-cards array in renderOverview(). */
+/** Direct port of the KPI-cards array in renderOverview(), with the two
+ * ₹-value cards (Value available / Value booked) replaced by area
+ * equivalents — this app shows area, not value, throughout. */
 export function SwKpis({ s, onAll, onStatus }: SwKpisProps) {
   const items = [
     { k: "Total units", v: s.t.toLocaleString("en-IN"), u: "units", sub: "all inventory", onClick: onAll },
@@ -32,8 +34,8 @@ export function SwKpis({ s, onAll, onStatus }: SwKpisProps) {
       sub: "not for sale",
       onClick: () => onStatus(2),
     },
-    { k: "Value available", v: CR(s.vav), sub: "available stock", onClick: () => onStatus(0) },
-    { k: "Value booked", v: CR(s.vbk), sub: "sold stock", onClick: () => onStatus(1) },
+    { k: "Area available", v: fArea(s.areaAv), sub: "available stock", onClick: () => onStatus(0) },
+    { k: "Area booked", v: fArea(s.areaBk), sub: "sold stock", onClick: () => onStatus(1) },
   ];
 
   return (

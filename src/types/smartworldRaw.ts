@@ -48,7 +48,7 @@ export interface RawInventoryDataset {
  * exactly: {k, v, label}. `k` is the dimension key, `v` the value to
  * match, `label` the breadcrumb text. */
 export interface ScopeCondition {
-  k: "p" | "tw" | "fl" | "cfg" | "ut" | "st" | "cat" | "fb" | "sb" | "pb" | "rate";
+  k: "p" | "tw" | "fl" | "cfg" | "ut" | "st" | "cat" | "fb" | "sb";
   v: number;
   label: string;
 }
