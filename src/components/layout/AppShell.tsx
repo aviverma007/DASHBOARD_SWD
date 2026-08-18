@@ -11,11 +11,11 @@ export function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
-  // The Inventory page is a direct port of the reference sales-intelligence
-  // tool and ships its own header/filter bar (navy gradient, project/status/
-  // category/config selects) — the generic FilterBar and content padding
-  // would duplicate/interfere with it, so both are suppressed on this route.
-  const isInventoryRoute = location.pathname === "/" || location.pathname === "/inventory";
+  // Only /inventory is the direct-port page with its own header/filter bar
+  // (navy gradient, project/status/category/config selects) — the generic
+  // FilterBar and content padding would duplicate/interfere with it, so
+  // both are suppressed there. Overview (/) keeps the normal app chrome.
+  const isSmartworldInventoryRoute = location.pathname === "/inventory";
 
   return (
     <div className="min-h-screen bg-surface">
@@ -59,8 +59,8 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          {!isInventoryRoute && <FilterBar />}
-          <div className={isInventoryRoute ? "" : "p-4 md:p-6"}>
+          {!isSmartworldInventoryRoute && <FilterBar />}
+          <div className={isSmartworldInventoryRoute ? "" : "p-4 md:p-6"}>
             <Outlet />
           </div>
         </main>
