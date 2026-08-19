@@ -1,66 +1,91 @@
-import { OverviewFilters } from "../../components/overview/OverviewFilters";
-import { OverviewKpis } from "../../components/overview/OverviewKpis";
-import { OverviewProjectBars } from "../../components/overview/OverviewProjectBars";
-import { OverviewProjectTable } from "../../components/overview/OverviewProjectTable";
-import { useScopedData } from "../../hooks/useScopedData";
-import { useFilterStore } from "../../store/filterStore";
-import { useDrilldownStore } from "../../store/drilldownStore";
+import { useMemo, useState } from "react";
+import { calcOverall, PDRN } from "../../utils/pdrnLogic";
+import type { PeriodFilter, ProjectStats } from "../../utils/pdrnLogic";
+import { KpiTable } from "../../components/overview/KpiTable";
+import { PdrnFilters } from "../../components/overview/PdrnFilters";
+import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
 import "../../components/inventory/smartworldInventory.css";
 
-/**
- * Redesigned to match Inventory's visual language exactly — same navy
- * filter bar treatment, same .card/.kpis/.kpi/table styling (all from
- * smartworldInventory.css, imported once here), same click-to-drill
- * conventions. Underlying data/hooks (useScopedData, useFilterStore,
- * useDrilldownStore) are unchanged — this is a presentation-layer
- * redesign, not a data change.
- */
+const ACCENT_COLORS = ["#3c6db0","#2e7d6f","#b8893c","#c2674a","#7a5c84","#4b7b3f"];
+
+const DEFAULT_PERIOD: PeriodFilter = { type: "all" };
+
 export function InventoryOverviewPage() {
-  const { totals, contributions, isLoading } = useScopedData();
-  const projects = useFilterStore((s) => s.projects);
-  const openDrilldown = useDrilldownStore((s) => s.open);
-  const showComparison = projects === "ALL" || projects.length > 1;
+  const [selectedProject, setSelectedProject] = useState<"all" | string>("all");
+  const [period, setPeriod] = useState<PeriodFilter>(DEFAULT_PERIOD);
+  const [drawerProject, setDrawerProject] = useState<ProjectStats | null>(null);
+
+  const overall = useMemo(() => calcOverall(period), [period]);
+
+  // Which projects to show in the grid — all 6 INVR projects, filtered if one is selected
+  const visibleProjects = useMemo(() => {
+    if (selectedProject === "all") return overall.projects;
+    return overall.projects.filter((p) => p.projectName === selectedProject);
+  }, [overall.projects, selectedProject]);
+
+  function handleReset() {
+    setSelectedProject("all");
+    setPeriod(DEFAULT_PERIOD);
+    setDrawerProject(null);
+  }
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
-      <OverviewFilters />
+      {/* Filter bar */}
+      <PdrnFilters
+        projects={PDRN.P}
+        selectedProject={selectedProject}
+        onProjectChange={setSelectedProject}
+        period={period}
+        onPeriodChange={setPeriod}
+        years={PDRN.meta.years}
+        onReset={handleReset}
+      />
 
       <div className="wrap">
-        {isLoading && (
-          <div className="kpis">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="kpi" style={{ height: 92, background: "var(--bg)" }} />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && (!totals || (Array.isArray(projects) && projects.length === 0)) && (
-          <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
-            <h3 style={{ justifyContent: "center" }}>No data available</h3>
-            <p style={{ color: "var(--mut)", fontSize: 13 }}>
-              No data is available for the selected projects and period. Adjust your filters to
-              see results.
-            </p>
-          </div>
-        )}
-
-        {!isLoading && totals && (
-          <>
-            <OverviewKpis
-              totals={totals}
-              onOpenGroup={(kpiContext) =>
-                openDrilldown({ level: "group", id: "group", label: "All Projects" }, kpiContext)
-              }
+        {/* OVERALL card — always visible */}
+        {selectedProject === "all" && (
+          <div style={{ marginBottom: 20 }}>
+            <KpiTable
+              stats={overall}
+              label="BUSINESS OVERVIEW"
+              accent="var(--blue)"
             />
-
-            {showComparison && contributions && contributions.length > 1 && (
-              <OverviewProjectBars data={contributions} />
-            )}
-
-            {contributions && <OverviewProjectTable data={contributions} />}
-          </>
+          </div>
         )}
+
+        {/* Project cards grid — 3 columns, one per project */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {visibleProjects.map((proj) => (
+            <KpiTable
+              key={proj.invProjIdx}
+              stats={proj}
+              label={proj.projectName}
+              accent={ACCENT_COLORS[proj.invProjIdx % ACCENT_COLORS.length]}
+              onClick={() => setDrawerProject(proj)}
+              isProject
+            />
+          ))}
+        </div>
       </div>
+
+      {/* Drill-down drawer */}
+      {drawerProject && (
+        <PdrnDrawer
+          invProjIdx={drawerProject.invProjIdx}
+          projectName={drawerProject.projectName}
+          period={period}
+          onClose={() => setDrawerProject(null)}
+          unsoldUnits={drawerProject.unsold.units}
+          unsoldArea={drawerProject.unsold.area}
+        />
+      )}
     </div>
   );
 }
