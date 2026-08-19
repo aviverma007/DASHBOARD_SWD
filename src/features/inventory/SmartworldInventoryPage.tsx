@@ -165,14 +165,7 @@ export function SmartworldInventoryPage() {
 
         {filterState.status === "blk" && <SwBlkByProjCard arr={arr} P={P} onRowClick={handleProj} />}
 
-        {/* All cards flow left-to-right in a single auto-fill grid.
-            Cards that need full width get gridColumn:"1/-1". */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-          gap: 14,
-        }}>
-          {/* Stock status — dual donut */}
+        <div className="grid g2">
           <div className="card">
             <h3>
               Stock status <span className="hint">click a slice → drill</span>
@@ -208,7 +201,6 @@ export function SmartworldInventoryPage() {
             </div>
           </div>
 
-          {/* By category — dual donut */}
           <div className="card">
             <h3>
               By category <span className="hint">click a slice → drill</span>
@@ -246,13 +238,15 @@ export function SmartworldInventoryPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Availability by project */}
+        <SwLegend />
+
+        <div className="grid g2">
           <div className="card">
             <h3>
               Availability by project <span className="hint">most available first · click → project</span>
             </h3>
-            <SwLegend />
             {pae.map((x) => {
               const bk = x.us.filter((u) => u[8] === 1).length;
               const bl = x.us.length - x.av - bk;
@@ -269,8 +263,6 @@ export function SmartworldInventoryPage() {
               );
             })}
           </div>
-
-          {/* Unsold area by project */}
           <div className="card">
             <h3>
               Unsold area by project <span className="hint">sq ft available · click → project</span>
@@ -285,60 +277,56 @@ export function SmartworldInventoryPage() {
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Config gap — full width */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
-          </div>
+        <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
 
-          {/* By configuration */}
+        <div className="grid g3">
           <div className="card">
             <h3>
               By configuration <span className="hint">click → config</span>
             </h3>
             <SwGroupBars items={cfgBars} names={CFG} onClick={(v) => openScopeKey("cfg", v, CFG[v])} />
           </div>
-
-          {/* Floor rise */}
           <div className="card">
             <h3>
               Floor rise <span className="hint">click → band</span>
             </h3>
             <SwGroupBars items={fbBars} names={FB} onClick={(v) => openScopeKey("fb", v, FB[v])} />
           </div>
-
-          {/* By size band */}
           <div className="card">
             <h3>
               By size band <span className="hint">click → band</span>
             </h3>
             <SwGroupBars items={sbBars} names={SB} onClick={(v) => openScopeKey("sb", v, SB[v])} />
           </div>
-
-          {/* By unit type */}
-          <div className="card">
-            <h3>
-              By unit type <span className="hint">click → type</span>
-            </h3>
-            <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
-          </div>
-
-          {/* Unit records — full width */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <SwRecordsCard
-              arr={arr}
-              P={P}
-              TW={TW}
-              FL={RD.FL}
-              CFG={CFG}
-              UT={UT}
-              onRowClick={(u) => {
-                setScope((prev) => (prev.length ? prev : [{ k: "p", v: u[0], label: P[u[0]] }]));
-                setSelectedUnit(u);
-              }}
-            />
-          </div>
         </div>
+
+        <div className="card">
+          <h3>
+            By unit type <span className="hint">click → type</span>
+          </h3>
+          <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
+        </div>
+
+        <SwRecordsCard
+          arr={arr}
+          P={P}
+          TW={TW}
+          FL={RD.FL}
+          CFG={CFG}
+          UT={UT}
+          onRowClick={(u) => {
+            // Source calls unitDetail(idx) directly here without opening
+            // the drawer shell — in the original DOM implementation this
+            // silently does nothing unless the drawer already happens to
+            // be open, which contradicts the card's own "click a row →
+            // detail" hint. Opening the drawer here preserves the stated
+            // behavior rather than replicating that latent bug.
+            setScope((prev) => (prev.length ? prev : [{ k: "p", v: u[0], label: P[u[0]] }]));
+            setSelectedUnit(u);
+          }}
+        />
       </div>
 
       {isDrawerOpen && !selectedUnit && (
