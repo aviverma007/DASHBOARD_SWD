@@ -25,13 +25,18 @@ export function fNum(n: number): string {
   return Math.round(n).toLocaleString("en-IN");
 }
 
-// Category classification — matches isComm/catOf exactly.
-const COMMERCIAL_UNIT_TYPES = new Set(["Shop", "Retail", "Restaurant", "KIOSK"]);
+// Category classification — keyed off the actual data in the current INVR export.
+// Le Courtyard: Unit Type = "Unit", Config = "Commercial" → Commercial
+// Suites: Unit Type = "Suite" (serviced suites, commercial property) → Commercial
+// Everything else → Residential
+// The old logic keyed off unit-type values (Shop/Retail/Restaurant/KIOSK) that do not
+// exist in the current dataset — updated to reflect what's actually present.
+const COMMERCIAL_UNIT_TYPES = new Set(["Unit", "Suite"]);
+
 export const CAT = ["Residential", "Commercial"];
 
 export function makeCatOf(RD: RawInventoryDataset) {
-  const streetIndex = RD.P.indexOf("Smartworld One DXP Street");
-  const isComm = (u: RawUnit) => COMMERCIAL_UNIT_TYPES.has(RD.UT[u[5]]) || u[0] === streetIndex;
+  const isComm = (u: RawUnit) => COMMERCIAL_UNIT_TYPES.has(RD.UT[u[5]]);
   return (u: RawUnit) => (isComm(u) ? 1 : 0);
 }
 
