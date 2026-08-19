@@ -37,7 +37,7 @@ export function fNum(n: number): string {
 export const CAT = ["Residential", "Commercial"];
 
 export function makeCatOf(RD: RawInventoryDataset) {
-  const suitesIdx = RD.P.indexOf("Smartworld Suites");
+  const suitesIdx = RD.P.indexOf("SMARTWORLD SUITES");
   const commCfgIdx = RD.CFG.indexOf("Commercial");
   return (u: RawUnit) => {
     // Le Courtyard: all units have CFG = "Commercial"

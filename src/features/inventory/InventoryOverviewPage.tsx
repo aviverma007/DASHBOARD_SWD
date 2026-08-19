@@ -12,11 +12,11 @@ const DEFAULT_PERIOD: PeriodFilter = { type: "all" };
 /** Map INVR project name → site plan image path (served from /public/projects/) */
 const PROJECT_IMAGES: Record<string, string> = {
   "SMARTWORLD THE EDITION":   "/projects/the_edition.png",
-  "Smartworld Le Courtyard":  "/projects/le_courtyard.png",
-  "Smartworld Residencies":   "/projects/residencies.png",
-  "Smartworld Sky Arc":       "/projects/sky_arc.png",
-  "Smartworld Suites":        "/projects/suites.png",
-  "Trump Residences Gurgaon": "/projects/trump.png",
+  "SMARTWORLD LE COURTYARD":  "/projects/le_courtyard.png",
+  "SMARTWORLD RESIDENCIES":   "/projects/residencies.png",
+  "SMARTWORLD SKY ARC":       "/projects/sky_arc.png",
+  "SMARTWORLD SUITES":        "/projects/suites.png",
+  "TRUMP RESIDENCES GURGAON": "/projects/trump.png",
 };
 
 export function InventoryOverviewPage() {
