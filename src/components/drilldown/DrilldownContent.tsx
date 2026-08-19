@@ -11,11 +11,11 @@ import {
 } from "../../services/inventoryService";
 import type { ProjectContribution, Unit, Customer } from "../../types/domain";
 import type { InventoryTotals } from "../../utils/calculations";
-import { formatNumber, formatArea, formatPercent, formatDate } from "../../utils/format";
+import { formatNumber, formatArea, formatPercent } from "../../utils/format";
 
-const KPI_LABELS = { sold: "Sold", unsold: "Unsold", total: "Total" } as const;
+const KPI_LABELS = { available: "Available", booked: "Booked", total: "Total" } as const;
 
-function extractTotalsForKpi(totals: InventoryTotals, kpi: "sold" | "unsold" | "total") {
+function extractTotalsForKpi(totals: InventoryTotals, kpi: "available" | "booked" | "total") {
   return totals[kpi];
 }
 
@@ -87,8 +87,10 @@ export function DrilldownContent() {
           {kpiLabel} — Group Total &amp; Project Breakup
         </h3>
         {projectRows.map((row) => {
-          const value = kpiContext === "sold" ? row.soldUnits : kpiContext === "unsold" ? row.unsoldUnits : row.totalUnits;
-          const area = kpiContext === "sold" ? row.soldArea : kpiContext === "unsold" ? row.unsoldArea : row.totalArea;
+          const value =
+            kpiContext === "available" ? row.availableUnits : kpiContext === "booked" ? row.bookedUnits : row.totalUnits;
+          const area =
+            kpiContext === "available" ? row.availableArea : kpiContext === "booked" ? row.bookedArea : row.totalArea;
           return (
             <button
               key={row.projectId}
@@ -177,9 +179,7 @@ export function DrilldownContent() {
   // FLOOR LEVEL — unit list
   if (current.level === "floor" && unitRows) {
     const filtered =
-      kpiContext && kpiContext !== "total"
-        ? unitRows.filter((u) => u.status === kpiContext.toUpperCase())
-        : unitRows;
+      kpiContext && kpiContext !== "total" ? unitRows.filter((u) => u.status === kpiContext.toUpperCase()) : unitRows;
     return (
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-charcoal-soft">{kpiLabel} — Unit List</h3>
@@ -187,8 +187,7 @@ export function DrilldownContent() {
           <button
             key={unit.id}
             onClick={() => push({ level: "unit", id: unit.id, label: unit.id.split("-").pop() ?? unit.id })}
-            disabled={!unit.customerId}
-            className="flex w-full items-center justify-between rounded-lg border border-border-subtle p-3 text-left hover:border-brand-blue/40 hover:bg-surface disabled:cursor-default disabled:opacity-70 disabled:hover:border-border-subtle disabled:hover:bg-transparent"
+            className="flex w-full items-center justify-between rounded-lg border border-border-subtle p-3 text-left hover:border-brand-blue/40 hover:bg-surface"
           >
             <div>
               <div className="text-sm font-semibold text-charcoal">
@@ -198,7 +197,7 @@ export function DrilldownContent() {
             </div>
             <div className="flex items-center gap-2">
               <div className="num text-right text-xs text-charcoal-soft">{formatArea(unit.area)}</div>
-              {unit.customerId && <ChevronRight size={16} className="text-charcoal-soft" />}
+              <ChevronRight size={16} className="text-charcoal-soft" />
             </div>
           </button>
         ))}
@@ -212,7 +211,7 @@ export function DrilldownContent() {
     );
   }
 
-  // UNIT LEVEL — customer/transaction detail
+  // UNIT LEVEL — detail (no customer/booking data in this source — see realOverviewData.ts)
   if (current.level === "unit") {
     if (!unitDetail?.unit) {
       return (
@@ -221,34 +220,22 @@ export function DrilldownContent() {
         </p>
       );
     }
-    const { unit, customer } = unitDetail;
+    const { unit } = unitDetail;
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-charcoal-soft">Unit &amp; Booking Detail</h3>
+        <h3 className="text-sm font-semibold text-charcoal-soft">Unit Detail</h3>
         <div className="rounded-lg border border-border-subtle p-3">
           <div className="text-sm font-semibold text-charcoal">Unit {unit.id.split("-").pop()}</div>
           <StatusBadge status={unit.status} />
           <dl className="mt-2 space-y-1 text-sm">
             <Row label="Area" value={formatArea(unit.area)} />
             <Row label="Area type" value={unit.areaType} />
-            {unit.bookingDate && <Row label="Booking date" value={formatDate(unit.bookingDate)} />}
           </dl>
         </div>
-
-        {customer ? (
-          <div className="rounded-lg border border-border-subtle p-3">
-            <div className="text-sm font-semibold text-charcoal">Customer</div>
-            <dl className="mt-2 space-y-1 text-sm">
-              <Row label="Name" value={customer.name} />
-              <Row label="Booking date" value={formatDate(customer.bookingDate)} />
-            </dl>
-          </div>
-        ) : (
-          <p className="rounded-lg bg-surface p-3 text-sm text-charcoal-soft">
-            No customer record available — this unit may not have a booking, or the source
-            report does not include customer detail.
-          </p>
-        )}
+        <p className="rounded-lg bg-surface p-3 text-sm text-charcoal-soft">
+          No customer or booking-date detail is available for this unit — the current data
+          source doesn't include that field.
+        </p>
       </div>
     );
   }
@@ -258,9 +245,9 @@ export function DrilldownContent() {
 
 function StatusBadge({ status }: { status: Unit["status"] }) {
   const styles =
-    status === "SOLD"
+    status === "AVAILABLE"
       ? "bg-teal/10 text-teal-dark"
-      : status === "UNSOLD"
+      : status === "BOOKED"
       ? "bg-amber/10 text-amber-dark"
       : "bg-slate-200 text-charcoal-soft";
   return (

@@ -20,10 +20,10 @@ export function ProjectBreakupTable({ data }: ProjectBreakupTableProps) {
           <thead>
             <tr className="border-b border-border-subtle bg-surface text-xs font-semibold uppercase tracking-wide text-charcoal-soft">
               <th className="px-4 py-2.5 text-left">Project</th>
-              <th className="num px-4 py-2.5 text-right">Sold</th>
-              <th className="num px-4 py-2.5 text-right">Unsold</th>
+              <th className="num px-4 py-2.5 text-right">Available</th>
+              <th className="num px-4 py-2.5 text-right">Booked</th>
               <th className="num px-4 py-2.5 text-right">Total</th>
-              <th className="num px-4 py-2.5 text-right">Sold %</th>
+              <th className="num px-4 py-2.5 text-right">Booked %</th>
               <th className="num px-4 py-2.5 text-right">Contribution</th>
             </tr>
           </thead>
@@ -37,13 +37,13 @@ export function ProjectBreakupTable({ data }: ProjectBreakupTableProps) {
                 className="cursor-pointer border-b border-border-subtle last:border-0 hover:bg-surface"
               >
                 <td className="px-4 py-2.5 font-medium text-charcoal">{row.projectName}</td>
-                <td className="num px-4 py-2.5 text-right text-teal-dark">{formatNumber(row.soldUnits)}</td>
-                <td className="num px-4 py-2.5 text-right text-amber-dark">{formatNumber(row.unsoldUnits)}</td>
+                <td className="num px-4 py-2.5 text-right text-teal-dark">{formatNumber(row.availableUnits)}</td>
+                <td className="num px-4 py-2.5 text-right text-amber-dark">{formatNumber(row.bookedUnits)}</td>
                 <td className="num px-4 py-2.5 text-right font-semibold text-charcoal">
                   {formatNumber(row.totalUnits)}
                 </td>
                 <td className="num px-4 py-2.5 text-right text-charcoal-soft">
-                  {formatPercent(row.soldPercent)}
+                  {formatPercent(row.bookedPercent)}
                 </td>
                 <td className="num px-4 py-2.5 text-right text-charcoal-soft">
                   {formatPercent(row.contributionPercent)}

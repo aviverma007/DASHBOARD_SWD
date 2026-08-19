@@ -7,9 +7,9 @@ interface KpiStripProps {
 }
 
 const DEFINITIONS = {
-  sold: "Sold Units ÷ Total Units × 100. Source: SAP Sales/Booking Report (mock data pending confirmation).",
-  unsold: "Unsold Units ÷ Total Units × 100. Source: SAP Inventory Report (mock data pending confirmation).",
-  total: "Sold Units + Unsold Units. Blocked/hold units are tracked separately pending status confirmation.",
+  available: "Available Units ÷ Total Units × 100.",
+  booked: "Booked Units ÷ Total Units × 100.",
+  total: "Available Units + Booked Units. Management units are tracked separately and excluded from Total.",
 };
 
 export function KpiStrip({ totals }: KpiStripProps) {
@@ -18,19 +18,19 @@ export function KpiStrip({ totals }: KpiStripProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <KpiCard
-        kpi={totals.sold}
+        kpi={totals.available}
         accent="teal"
-        definition={DEFINITIONS.sold}
+        definition={DEFINITIONS.available}
         onClick={() =>
-          openDrilldown({ level: "group", id: "group", label: "All Projects" }, "sold")
+          openDrilldown({ level: "group", id: "group", label: "All Projects" }, "available")
         }
       />
       <KpiCard
-        kpi={totals.unsold}
+        kpi={totals.booked}
         accent="amber"
-        definition={DEFINITIONS.unsold}
+        definition={DEFINITIONS.booked}
         onClick={() =>
-          openDrilldown({ level: "group", id: "group", label: "All Projects" }, "unsold")
+          openDrilldown({ level: "group", id: "group", label: "All Projects" }, "booked")
         }
       />
       <KpiCard
@@ -41,10 +41,10 @@ export function KpiStrip({ totals }: KpiStripProps) {
           openDrilldown({ level: "group", id: "group", label: "All Projects" }, "total")
         }
       />
-      {totals.blockedUnits > 0 && (
+      {totals.managementUnits > 0 && (
         <p className="col-span-full text-xs text-charcoal-soft">
-          {totals.blockedUnits} unit(s) marked BLOCKED are excluded from Total pending status
-          confirmation — see open assumptions.
+          {totals.managementUnits} unit(s) marked Management are held back by the developer and
+          excluded from Total.
         </p>
       )}
     </div>

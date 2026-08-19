@@ -5,9 +5,9 @@ interface DrilldownStore {
   isOpen: boolean;
   isFullscreen: boolean;
   path: DrillPathSegment[]; // breadcrumb trail; last item is current level
-  kpiContext: "sold" | "unsold" | "total" | null;
+  kpiContext: "available" | "booked" | "total" | null;
 
-  open: (initialSegment: DrillPathSegment, kpiContext?: "sold" | "unsold" | "total") => void;
+  open: (initialSegment: DrillPathSegment, kpiContext?: "available" | "booked" | "total") => void;
   push: (segment: DrillPathSegment) => void;
   popTo: (index: number) => void; // jump back via breadcrumb click
   close: () => void;

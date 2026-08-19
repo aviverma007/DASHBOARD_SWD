@@ -1,8 +1,10 @@
 # DASHBOARD_SWD
 
 Real-estate project analytics BI dashboard for Smart World Developers —
-Inventory / Sales Overview with Sold/Unsold/Total KPIs and drill-down
-navigation from Group → Project → Tower → Floor → Unit → Customer.
+Overview and Inventory pages, both now backed by a real INVR export
+(6 projects, 3,386 units — see REQ-007/REQ-008 in the requirement
+register), with drill-down navigation from Group → Project → Tower →
+Floor → Unit.
 
 This is **Phase 2/3** of an incremental build. See `docs/` for the living
 requirement register, data dictionary, and calculation dictionary — these
@@ -12,15 +14,20 @@ are updated as real SAP/Excel data and field mappings are confirmed.
 
 - ✅ Login (demo auth — see `src/store/authStore.ts`)
 - ✅ Responsive app shell (sidebar, header, mobile drawer nav)
-- ✅ **Inventory page — direct port of the reference sales-intelligence
-  tool**, built on real data — currently 3,386 units across 6 Smartworld
-  projects. Routed at `/` and `/inventory`. See "Inventory module" below
-  for what this covers.
+- ✅ **Overview (`/`)** — Available/Booked/Total KPI strip, project
+  comparison chart, project breakup table, drill-down (Group → Project →
+  Tower → Floor → Unit). Real data via `src/data/realOverviewData.ts`.
+  See REQ-008.
+- ✅ **Inventory (`/inventory`) — direct port of the reference
+  sales-intelligence tool**, real data via `src/data/smartworldInventory.json`.
+  See "Inventory module" below for what this covers.
 - ⏳ Placeholder modules: Sales, Collections, Revenue, Customers, Projects,
   Reports, Data Upload, Settings — awaiting requirements
 - ⏳ Real Excel/PDF export
 - ⏳ Data upload + validation workflow
-- ⏳ Backend/live SAP sync (current data is a static bundled snapshot)
+- ⏳ Backend/live SAP sync (current data is a static bundled snapshot,
+  refreshed by re-running `scripts/convert_invr_export.py` against a new
+  export)
 
 ## Inventory module (direct port)
 
@@ -39,19 +46,20 @@ to the source.
   Floor → Unit. Independent of the top filter bar, same as the source.
 
 **Main page:** KPI strip (Total/Available/Booked·absorption/Management/
-Value available/Value booked), Stock status + By category donuts,
-Availability-by-project + Unsold-value-by-project bars, Config gap
-analysis matrix, By configuration / Floor rise / By size band / By price
-band / By unit type group-bar cards, searchable paginated unit records
-table, Management-units-by-project table (shown when Status = Management).
+Area available/Area booked), Stock status + By category donuts (unit-count
+and area variants), Availability-by-project + Unsold-area-by-project bars,
+Config gap analysis matrix, By configuration / Floor rise / By size band
+group-bar cards, searchable paginated unit records table,
+Management-units-by-project table (shown when Status = Management).
 
 **Drawer:** breadcrumb trail, insight line, drawer KPIs, stock-status
 donut, then contextual drill content depending on depth (project → tower
-ranking + stack plan + config/floor/size/price bars; tower → floor list +
+ranking + stack plan + config/floor/size bars; tower → floor list +
 config bars; group/status scope → by-project + by-config bars), plus its
 own unit records list. Clicking a stack-plan square or table row opens a
-full unit detail view (project/tower/floor/config/area/cost/rate/payment
-plan) with a "back to list" button.
+unit detail view (project/tower/floor/config/area) with a "back to list"
+button. No cost, rate, or payment-plan fields — this source doesn't
+have them (see REQ-004 and REQ-007).
 
 Source: `src/data/smartworldInventory.json`, generated from an INVR
 export via `scripts/convert_invr_export.py` (see REQ-007 in the
@@ -84,31 +92,42 @@ src/
   app/                  # app-level composition (reserved)
   components/
     layout/             # AppShell, Header, Sidebar
-    filters/             # ProjectFilter, PeriodFilter, FilterBar
-    kpi/                 # KpiCard, KpiStrip
-    charts/              # ProjectComparisonChart
-    tables/              # ProjectBreakupTable
-    drilldown/           # DrilldownDrawer, DrilldownContent
+    filters/             # ProjectFilter, PeriodFilter, FilterBar (Overview's generic filter bar)
+    kpi/                 # KpiCard, KpiStrip (Overview)
+    charts/              # ProjectComparisonChart (Overview)
+    tables/              # ProjectBreakupTable (Overview)
+    drilldown/           # DrilldownDrawer, DrilldownContent (Overview)
+    inventory/           # Sw* components — the ported Inventory tool (see below)
     common/              # EmptyState, SkeletonBlock, ComingSoon
   features/
     authentication/      # LoginPage, RequireAuth
-    inventory/           # InventoryOverviewPage
+    inventory/           # InventoryOverviewPage (Overview, routed at /)
+                          # SmartworldInventoryPage (Inventory, routed at /inventory)
     sales/ projects/ reports/  # reserved for future modules
-  services/              # inventoryService.ts — mock now, real API later
+  services/              # inventoryService.ts — real data via realOverviewData.ts,
+                          # same shape as a future real API would return
   store/                 # filterStore, drilldownStore, authStore (Zustand)
-  types/                 # domain.ts, filters.ts
-  utils/                 # calculations.ts (KPI math), format.ts
+  types/                 # domain.ts, filters.ts (Overview's generic types)
+                          # smartworldRaw.ts (Inventory's real dataset schema)
+  utils/                 # calculations.ts (Overview's KPI math)
+                          # smartworldLogic.ts (Inventory's ported KPI math)
+                          # format.ts
   config/                # navigation.ts, filterDimensions.ts
-  data/                  # mockData.ts — clearly labeled synthetic data
+  data/
+    smartworldInventory.json  # the real INVR dataset (REQ-007), shared source
+    realOverviewData.ts        # adapts it into Overview's Project/Tower/Floor/Unit shapes
+scripts/
+  convert_invr_export.py  # re-run against a fresh INVR export to refresh the data
 docs/
   REQUIREMENT_REGISTER.md
   DATA_DICTIONARY.md
   CALCULATION_DICTIONARY.md
 ```
 
-Components never read `mockData.ts` or call calculation functions directly —
-they go through `services/inventoryService.ts`. Swapping mock data for a
-real backend means changing that one file.
+Both pages read from the same underlying `smartworldInventory.json` — Overview through
+`realOverviewData.ts` + `services/inventoryService.ts`, Inventory directly through
+`smartworldLogic.ts`. Refreshing the data (re-running `scripts/convert_invr_export.py`
+against a new export) updates both pages at once.
 
 ## Development
 
@@ -118,12 +137,27 @@ npm run dev       # start dev server
 npm run build     # type-check + production build
 ```
 
-## Key assumptions awaiting confirmation
+## Confirmed facts and remaining open questions
 
-See `docs/REQUIREMENT_REGISTER.md` for the full list. Highlights:
+See `docs/REQUIREMENT_REGISTER.md` for the full history. Current state:
 
-1. Unit status values (SOLD/UNSOLD assumed; BLOCKED is a placeholder guess)
-2. Area type (carpet/saleable/super/chargeable)
-3. Financial year vs calendar year convention
-4. Whether "Floor" is a meaningful drill level for this data
-5. Whether customer/transaction detail exists in the source report
+**Confirmed (no longer assumptions):**
+- Unit status values are `Available` / `Booked` / `Management` — verified
+  against the real INVR export (REQ-007), not a guess
+- The current dataset covers 6 projects, 3,386 units — the person
+  confirmed this is intentional, not a gap to fill from the old dataset
+- No customer/booking-date or Payment Plan/Rate Band data exists in this
+  source — confirmed absent, not merely unconfirmed
+
+**Still open:**
+1. Area type (carpet/saleable/super/chargeable) — the INVR export's
+   "Total Super Area" column is used as-is; whether finer area-type
+   breakdowns exist elsewhere hasn't been checked
+2. Financial year vs calendar year convention (Overview's Period filter
+   isn't yet wired to real historical snapshots — the current data is a
+   single point-in-time snapshot)
+3. Whether the 7 projects missing from the current export should be
+   merged back in from another source, or are out of scope going forward
+4. Whether "Group" (the level above Project in the drill-down) should
+   ever represent a real multi-group structure, since the current data
+   has no such field

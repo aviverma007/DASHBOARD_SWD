@@ -1,30 +1,29 @@
 /**
  * Calculation layer. Pure functions only — no React, no fetching,
  * no presentation concerns. This is the single source of truth for
- * KPI math, matching the locked-formula discipline used elsewhere
- * (e.g. Total = Sold + Unsold, never derived any other way).
+ * KPI math on this generic Overview scaffold, matching the same
+ * locked-formula discipline as the Inventory page's own logic
+ * (src/utils/smartworldLogic.ts): Total = Available + Booked, always.
  *
- * Formulas per the confirmed spec:
- *   Sold Units    = COUNT DISTINCT(unit_id) WHERE status = SOLD
- *   Unsold Units  = COUNT DISTINCT(unit_id) WHERE status = UNSOLD
- *   Total Units   = Sold Units + Unsold Units   (BLOCKED excluded — see note)
- *   Sold %        = Sold Units / Total Units * 100
- *   Unsold %      = Unsold Units / Total Units * 100
+ * Formulas:
+ *   Available Units = COUNT DISTINCT(unit_id) WHERE status = AVAILABLE
+ *   Booked Units     = COUNT DISTINCT(unit_id) WHERE status = BOOKED
+ *   Total Units      = Available Units + Booked Units (Management excluded — see note)
+ *   Available %      = Available Units / Total Units * 100
+ *   Booked %         = Booked Units / Total Units * 100
  *   Area figures mirror the unit figures using SUM(area) instead of COUNT.
  *
- * NOTE on BLOCKED units: the spec's confirmed identity is
- * Total = Sold + Unsold. BLOCKED is an assumed status (unconfirmed)
- * and is deliberately excluded from Total here rather than silently
- * folded into either bucket. This needs explicit confirmation once
- * real status values are known — see Section 14 of the blueprint.
+ * NOTE on Management units: matches the Inventory page's own rule —
+ * Management units are held back by the developer and are not part of
+ * sellable Total. Surfaced separately, never folded into either bucket.
  */
 import type { Unit, KpiResult, ProjectContribution } from "../types/domain";
 
 export interface InventoryTotals {
-  sold: KpiResult;
-  unsold: KpiResult;
+  available: KpiResult;
+  booked: KpiResult;
   total: KpiResult;
-  blockedUnits: number; // surfaced separately, not silently merged
+  managementUnits: number; // surfaced separately, not silently merged
 }
 
 function sumArea(units: Unit[]): number {
@@ -32,39 +31,39 @@ function sumArea(units: Unit[]): number {
 }
 
 export function computeInventoryTotals(units: Unit[], previousUnits?: Unit[]): InventoryTotals {
-  const sold = units.filter((u) => u.status === "SOLD");
-  const unsold = units.filter((u) => u.status === "UNSOLD");
-  const blocked = units.filter((u) => u.status === "BLOCKED");
+  const available = units.filter((u) => u.status === "AVAILABLE");
+  const booked = units.filter((u) => u.status === "BOOKED");
+  const management = units.filter((u) => u.status === "MANAGEMENT");
 
-  const totalUnitCount = sold.length + unsold.length;
-  const totalArea = sumArea(sold) + sumArea(unsold);
+  const totalUnitCount = available.length + booked.length;
+  const totalArea = sumArea(available) + sumArea(booked);
 
-  const prevSold = previousUnits?.filter((u) => u.status === "SOLD");
-  const prevUnsold = previousUnits?.filter((u) => u.status === "UNSOLD");
+  const prevAvailable = previousUnits?.filter((u) => u.status === "AVAILABLE");
+  const prevBooked = previousUnits?.filter((u) => u.status === "BOOKED");
 
   const pct = (n: number, d: number) => (d === 0 ? 0 : (n / d) * 100);
   const changePct = (curr: number, prev?: number) =>
     prev === undefined || prev === 0 ? undefined : ((curr - prev) / prev) * 100;
 
-  const soldArea = sumArea(sold);
-  const unsoldArea = sumArea(unsold);
+  const availableArea = sumArea(available);
+  const bookedArea = sumArea(booked);
 
   return {
-    sold: {
-      label: "Sold",
-      units: sold.length,
-      area: soldArea,
-      percentage: pct(sold.length, totalUnitCount),
-      previousUnits: prevSold?.length,
-      changePercent: changePct(sold.length, prevSold?.length),
+    available: {
+      label: "Available",
+      units: available.length,
+      area: availableArea,
+      percentage: pct(available.length, totalUnitCount),
+      previousUnits: prevAvailable?.length,
+      changePercent: changePct(available.length, prevAvailable?.length),
     },
-    unsold: {
-      label: "Unsold",
-      units: unsold.length,
-      area: unsoldArea,
-      percentage: pct(unsold.length, totalUnitCount),
-      previousUnits: prevUnsold?.length,
-      changePercent: changePct(unsold.length, prevUnsold?.length),
+    booked: {
+      label: "Booked",
+      units: booked.length,
+      area: bookedArea,
+      percentage: pct(booked.length, totalUnitCount),
+      previousUnits: prevBooked?.length,
+      changePercent: changePct(booked.length, prevBooked?.length),
     },
     total: {
       label: "Total",
@@ -72,7 +71,7 @@ export function computeInventoryTotals(units: Unit[], previousUnits?: Unit[]): I
       area: totalArea,
       percentage: 100,
     },
-    blockedUnits: blocked.length,
+    managementUnits: management.length,
   };
 }
 
@@ -86,13 +85,13 @@ export function computeProjectContributions(
     return {
       projectId,
       projectName,
-      soldUnits: totals.sold.units,
-      unsoldUnits: totals.unsold.units,
+      availableUnits: totals.available.units,
+      bookedUnits: totals.booked.units,
       totalUnits: totals.total.units,
-      soldArea: totals.sold.area,
-      unsoldArea: totals.unsold.area,
+      availableArea: totals.available.area,
+      bookedArea: totals.booked.area,
       totalArea: totals.total.area,
-      soldPercent: totals.sold.percentage,
+      bookedPercent: totals.booked.percentage,
       contributionPercent:
         groupTotals.total.units === 0 ? 0 : (totals.total.units / groupTotals.total.units) * 100,
     };

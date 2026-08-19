@@ -23,13 +23,13 @@ export function ProjectComparisonChart({ data }: ProjectComparisonChartProps) {
     name: row.projectName.length > 18 ? `${row.projectName.slice(0, 16)}…` : row.projectName,
     fullName: row.projectName,
     projectId: row.projectId,
-    Sold: row.soldUnits,
-    Unsold: row.unsoldUnits,
+    Available: row.availableUnits,
+    Booked: row.bookedUnits,
   }));
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-white p-4 shadow-card">
-      <h3 className="text-sm font-semibold text-charcoal">Sold vs Unsold by Project</h3>
+      <h3 className="text-sm font-semibold text-charcoal">Available vs Booked by Project</h3>
       <p className="text-xs text-charcoal-soft">Click a bar to filter the dashboard to that project</p>
 
       <div className="mt-3 h-72">
@@ -64,8 +64,8 @@ export function ProjectComparisonChart({ data }: ProjectComparisonChartProps) {
               labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ""}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="Sold" stackId="a" fill="#0f9d94" radius={[0, 0, 0, 0]} cursor="pointer" />
-            <Bar dataKey="Unsold" stackId="a" fill="#c98a1f" radius={[0, 4, 4, 0]} cursor="pointer" />
+            <Bar dataKey="Available" stackId="a" fill="#0f9d94" radius={[0, 0, 0, 0]} cursor="pointer" />
+            <Bar dataKey="Booked" stackId="a" fill="#c98a1f" radius={[0, 4, 4, 0]} cursor="pointer" />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -1,14 +1,14 @@
 /**
  * Core domain types for the Inventory/Sales dashboard.
  *
- * IMPORTANT: Several fields below are marked with ASSUMPTION comments.
- * These are placeholders until real SAP/Excel data and field mappings
- * are confirmed. Do not treat these as final business rules.
+ * Status values (AVAILABLE/BOOKED/MANAGEMENT) match the real INVR
+ * export now powering the Inventory page — confirmed, not a guess.
+ * Area type below remains unconfirmed for this generic Overview
+ * scaffold specifically, since it doesn't yet read the real per-unit
+ * area-type field.
  */
 
-// ASSUMPTION: status enum values are a guess. Real data may include
-// BLOCKED, HOLD, CANCELLED, or other intermediate states.
-export type UnitStatus = "SOLD" | "UNSOLD" | "BLOCKED";
+export type UnitStatus = "AVAILABLE" | "BOOKED" | "MANAGEMENT";
 
 // ASSUMPTION: area type is unconfirmed. Kept configurable rather than
 // hardcoded so the source convention can be set once confirmed.
@@ -74,16 +74,16 @@ export interface PeriodSnapshot {
   period: string; // e.g. "2026-08", "FY2026-Q2", "FY2026"
   granularity: PeriodGranularity;
   projectId: string;
-  soldUnits: number;
-  unsoldUnits: number;
+  availableUnits: number;
+  bookedUnits: number;
   totalUnits: number;
-  soldArea: number;
-  unsoldArea: number;
+  availableArea: number;
+  bookedArea: number;
   totalArea: number;
 }
 
 /** Result shape for any KPI computation, kept generic so the same
- * shape can represent Sold, Unsold, or Total. */
+ * shape can represent Available, Booked, or Total. */
 export interface KpiResult {
   label: string;
   units: number;
@@ -97,13 +97,13 @@ export interface KpiResult {
 export interface ProjectContribution {
   projectId: string;
   projectName: string;
-  soldUnits: number;
-  unsoldUnits: number;
+  availableUnits: number;
+  bookedUnits: number;
   totalUnits: number;
-  soldArea: number;
-  unsoldArea: number;
+  availableArea: number;
+  bookedArea: number;
   totalArea: number;
-  soldPercent: number;
+  bookedPercent: number; // absorption — booked units as a % of total
   contributionPercent: number; // this project's share of the group total
 }
 

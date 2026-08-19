@@ -217,3 +217,70 @@ silently alter an earlier one — see project instructions Section 37.
     considered out of scope for this dashboard going forward
   - Whether Payment Plan / Rate Band data exists in some other INVR
     export variant and should be joined in if so
+
+---
+
+## REQ-008
+
+- **Module:** Overview (generic Phase 2/3 scaffold — `/`)
+- **Requirement:** Update the Overview page to use the same real data
+  now powering Inventory, instead of the synthetic mock generator it
+  had been running on since Phase 2/3.
+- **What this actually required (more than a data swap):** Overview's
+  KPI strip / comparison chart / breakup table / drill-down were built
+  around `Sold`/`Unsold`/`Blocked` terminology — an explicit,
+  documented *guess* from before any real data existed (see the
+  original ASSUMPTION comments in `domain.ts`, now removed). Now that
+  real, confirmed status values exist (`Available`/`Booked`/
+  `Management`, verified against the actual INVR export in REQ-007),
+  force-fitting real data through "Sold/Unsold" labels would have been
+  factually wrong — Available isn't the same concept as Unsold. Renamed
+  throughout rather than relabeling only the display strings:
+  - `UnitStatus`: `SOLD|UNSOLD|BLOCKED` → `AVAILABLE|BOOKED|MANAGEMENT`
+    (`types/domain.ts`)
+  - `ProjectContribution`/`PeriodSnapshot` fields: `soldUnits`/
+    `unsoldUnits`/`soldArea`/`unsoldArea`/`soldPercent` →
+    `availableUnits`/`bookedUnits`/`availableArea`/`bookedArea`/
+    `bookedPercent`
+  - `InventoryTotals`: `sold`/`unsold`/`blockedUnits` → `available`/
+    `booked`/`managementUnits` (`utils/calculations.ts`)
+  - `kpiContext` type and every consumer: `"sold"|"unsold"|"total"` →
+    `"available"|"booked"|"total"` (`drilldownStore.ts`,
+    `DrilldownContent.tsx`, `KpiStrip.tsx`)
+  - Display copy in `KpiStrip.tsx`/`ProjectComparisonChart.tsx`/
+    `ProjectBreakupTable.tsx`: "Sold vs Unsold" → "Available vs Booked",
+    "Sold %" → "Booked %" (i.e. absorption)
+- **New real-data adapter:** `src/data/realOverviewData.ts` converts
+  the same `smartworldInventory.json` (REQ-007) into the `Project`/
+  `Tower`/`Floor`/`Unit` shapes this scaffold's calculation layer
+  expects — same output shape as the old `mockData.ts` generator, real
+  source instead of synthetic. `src/services/inventoryService.ts`
+  re-pointed from `MOCK_DATA` to `REAL_DATA`; no component code needed
+  to change beyond the terminology rename above, confirming the
+  service-layer abstraction from the original blueprint did its job.
+- **Removed:** `src/data/mockData.ts` (the synthetic generator) — once
+  nothing imported it, it was a dead file with type errors against the
+  renamed `UnitStatus`, not something to keep "just in case." Recoverable
+  from git history if ever needed.
+- **Real behavioral fix, not just a rename:** the floor-level unit list
+  used to disable/grey out any unit without a `customerId`, gating the
+  deepest drill level behind customer data. The real INVR export has no
+  customer/booking-date field at all (confirmed in REQ-007), which would
+  have made every unit permanently unclickable — the deepest drill level
+  would have been unreachable for real data. Removed that gate; unit
+  detail now always opens and states plainly that no customer/booking
+  data exists in this source, rather than silently disabling the click.
+- **Validation:** Ran the same aggregation logic in Node directly
+  against the real dataset — group totals (1,153 available / 2,066
+  booked / 167 management) and every per-project breakdown match REQ-007's
+  already-verified numbers exactly.
+- **Status:** Built, type-checked, verified.
+- **Open Questions:**
+  - Whether "Booked %" (absorption) is the right framing for this
+    scaffold's "contribution/sold%" column, or whether the person wants
+    a different metric there now that real numbers are behind it
+  - This scaffold's drill-down still references a generic "Group" level
+    above Project that doesn't exist as a concept in the real INVR
+    data (there's no group-level source field) — currently just
+    labeled "All Projects," which works, but worth flagging if a real
+    multi-group structure ever needs representing
