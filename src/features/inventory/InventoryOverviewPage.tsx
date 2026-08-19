@@ -42,10 +42,9 @@ export function InventoryOverviewPage() {
   // All must fit in one screen — use flex column with no-scroll container
   return (
     <div className="sw-inv" style={{
-      height: "100vh",
+      minHeight: "100vh",
       display: "flex",
       flexDirection: "column",
-      overflow: "hidden",
     }}>
       {/* Filter bar */}
       <PdrnFilters
@@ -65,7 +64,7 @@ export function InventoryOverviewPage() {
         flexDirection: "column",
         padding: "12px 20px 12px",
         gap: 8,
-        overflow: "hidden",
+        overflowY: "auto",
         background: "var(--bg)",
       }}>
         {/* Overall card */}
