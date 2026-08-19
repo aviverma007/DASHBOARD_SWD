@@ -73,6 +73,7 @@ export function InventoryOverviewPage() {
           stats={visibleOverall}
           label={selectedProjects.size === 0 ? "BUSINESS OVERVIEW" : `Selected projects (${selectedProjects.size})`}
           accent="var(--blue)"
+          isOverall
         />
 
         {/* Project cards — each takes equal remaining height */}
