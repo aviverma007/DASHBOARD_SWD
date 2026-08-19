@@ -16,7 +16,7 @@ export function AppShell() {
   // padding would duplicate/interfere with either, so both are
   // suppressed here for every route except the still-generic
   // placeholder pages (Sales, Collections, etc.).
-  const managesOwnChrome = location.pathname === "/" || location.pathname === "/inventory";
+  const managesOwnChrome = location.pathname === "/" || location.pathname === "/inventory" || location.pathname === "/projects";
 
   return (
     <div className="min-h-screen bg-surface">

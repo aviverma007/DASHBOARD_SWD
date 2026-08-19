@@ -3,6 +3,7 @@ import { RequireAuth } from "./features/authentication/RequireAuth";
 import { AppShell } from "./components/layout/AppShell";
 import { InventoryOverviewPage } from "./features/inventory/InventoryOverviewPage";
 import { SmartworldInventoryPage } from "./features/inventory/SmartworldInventoryPage";
+import { ProjectsPage } from "./features/projects/ProjectsPage";
 import { ComingSoon } from "./components/common/ComingSoon";
 
 function App() {
@@ -17,7 +18,7 @@ function App() {
             <Route path="/collections" element={<ComingSoon moduleName="Collections" />} />
             <Route path="/revenue" element={<ComingSoon moduleName="Revenue" />} />
             <Route path="/customers" element={<ComingSoon moduleName="Customers" />} />
-            <Route path="/projects" element={<ComingSoon moduleName="Projects" />} />
+            <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/reports" element={<ComingSoon moduleName="Reports" />} />
             <Route path="/upload" element={<ComingSoon moduleName="Data Upload" />} />
             <Route path="/settings" element={<ComingSoon moduleName="Settings" />} />

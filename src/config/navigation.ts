@@ -18,7 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "collections", label: "Collections", path: "/collections", icon: "Wallet", status: "placeholder" },
   { key: "revenue", label: "Revenue", path: "/revenue", icon: "IndianRupee", status: "placeholder" },
   { key: "customers", label: "Customers", path: "/customers", icon: "Users", status: "placeholder" },
-  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "placeholder" },
+  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "placeholder" },
   { key: "upload", label: "Data Upload", path: "/upload", icon: "UploadCloud", status: "placeholder" },
   { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "placeholder" },
