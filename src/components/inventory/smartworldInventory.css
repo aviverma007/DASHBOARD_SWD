@@ -54,7 +54,6 @@
   border-bottom: 3px solid var(--gold);
 }
 .sw-inv .topbar {
-  max-width: 1200px;
   margin: 0 auto;
   padding: 15px 22px;
   display: flex;
@@ -157,15 +156,25 @@
   font-weight: 600;
 }
 .sw-inv .wrap {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   padding: 18px 22px 70px;
 }
 .sw-inv .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 14px;
+}
+@media (max-width: 1100px) {
+  .sw-inv .kpis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .sw-inv .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 .sw-inv .kpi {
   background: var(--card);
