@@ -47,12 +47,16 @@ function buildRealData(): BuiltData {
   // the rest of the pipeline (drill-down, floor/tower lookups) expects.
   const towerKeys = new Map<
     string,
-    { pIdx: number; tIdx: number; floorKeys: Map<string, { fIdx: number; floorLabelIdx: number; unitIds: string[] }> }
+    {
+      pIdx: number;
+      tIdx: number;
+      floorKeys: Map<string, { fIdx: number; floorLabelIdx: number; floorOrder: number; unitIds: string[] }>;
+    }
   >();
   const projectTowerIds = new Map<number, string[]>();
 
   RD.U.forEach((raw: RawUnit, unitIdx: number) => {
-    const [pIdx, tIdx, , flIdx, , , area, , status] = raw;
+    const [pIdx, tIdx, floorNumber, flIdx, , , area, , status] = raw;
 
     const pId = projectId(pIdx);
     const twKey = `${pIdx}|${tIdx}`;
@@ -66,7 +70,12 @@ function buildRealData(): BuiltData {
 
     const flKey = `${tIdx}|${flIdx}`;
     if (!towerEntry.floorKeys.has(flKey)) {
-      towerEntry.floorKeys.set(flKey, { fIdx: towerEntry.floorKeys.size, floorLabelIdx: flIdx, unitIds: [] });
+      towerEntry.floorKeys.set(flKey, {
+        fIdx: towerEntry.floorKeys.size,
+        floorLabelIdx: flIdx,
+        floorOrder: floorNumber,
+        unitIds: [],
+      });
     }
     const floorEntry = towerEntry.floorKeys.get(flKey)!;
 
@@ -89,7 +98,7 @@ function buildRealData(): BuiltData {
   // Materialize towers and floors from the maps built above.
   towerKeys.forEach(({ pIdx, tIdx, floorKeys }) => {
     const floorIds: string[] = [];
-    floorKeys.forEach(({ fIdx, floorLabelIdx, unitIds }) => {
+    floorKeys.forEach(({ fIdx, floorLabelIdx, floorOrder, unitIds }) => {
       const fId = floorId(pIdx, tIdx, fIdx);
       floorIds.push(fId);
       floors.push({
@@ -98,6 +107,7 @@ function buildRealData(): BuiltData {
         projectId: projectId(pIdx),
         name: RD.FL[floorLabelIdx] ?? "Floor",
         unitIds,
+        order: floorOrder,
       });
     });
     towers.push({

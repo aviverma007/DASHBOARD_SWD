@@ -3,19 +3,20 @@ import { Outlet, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
-import { FilterBar } from "../filters/FilterBar";
-import { DrilldownDrawer } from "../drilldown/DrilldownDrawer";
+import { OverviewDrawer } from "../overview/OverviewDrawer";
 import clsx from "clsx";
 
 export function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
-  // Only /inventory is the direct-port page with its own header/filter bar
-  // (navy gradient, project/status/category/config selects) — the generic
-  // FilterBar and content padding would duplicate/interfere with it, so
-  // both are suppressed there. Overview (/) keeps the normal app chrome.
-  const isSmartworldInventoryRoute = location.pathname === "/inventory";
+  // Both Overview (/) and Inventory (/inventory) now ship their own
+  // navy filter bar and full-bleed layout (redesigned to match
+  // Inventory's design system) — the generic FilterBar and content
+  // padding would duplicate/interfere with either, so both are
+  // suppressed here for every route except the still-generic
+  // placeholder pages (Sales, Collections, etc.).
+  const managesOwnChrome = location.pathname === "/" || location.pathname === "/inventory";
 
   return (
     <div className="min-h-screen bg-surface">
@@ -59,14 +60,13 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          {!isSmartworldInventoryRoute && <FilterBar />}
-          <div className={isSmartworldInventoryRoute ? "" : "p-4 md:p-6"}>
+          <div className={managesOwnChrome ? "" : "p-4 md:p-6"}>
             <Outlet />
           </div>
         </main>
       </div>
 
-      <DrilldownDrawer />
+      <OverviewDrawer />
     </div>
   );
 }

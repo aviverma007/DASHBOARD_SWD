@@ -15,7 +15,7 @@
 import { REAL_DATA } from "../data/realOverviewData";
 import { computeInventoryTotals, computeProjectContributions } from "../utils/calculations";
 import type { InventoryTotals } from "../utils/calculations";
-import type { ProjectContribution, Unit } from "../types/domain";
+import type { ProjectContribution, Unit, Floor } from "../types/domain";
 import type { ProjectSelection } from "../types/filters";
 
 // Simulated network latency so loading states are exercised even
@@ -75,6 +75,26 @@ export async function getFloorsForTower(towerId: string) {
     return { floor: f, totals: computeInventoryTotals(units) };
   });
   return delay(withTotals);
+}
+
+/** All units in a tower, across every floor — used by the drawer's stack
+ * plan (one row per floor, one square per unit), so it doesn't need to
+ * fetch floor-by-floor. */
+export async function getUnitsForTower(towerId: string): Promise<{ floors: Floor[]; units: Unit[] }> {
+  const floors = REAL_DATA.floors.filter((f) => f.towerId === towerId);
+  const units = REAL_DATA.units.filter((u) => u.towerId === towerId);
+  return delay({ floors, units });
+}
+
+/** Everything needed to render a project-wide stack plan: every tower,
+ * every floor (with numeric `order` for cross-tower row alignment), and
+ * every unit in the project — matching Inventory's stack plan semantics
+ * (columns = towers, rows = floors, spanning the whole project). */
+export async function getProjectStackData(projectId: string) {
+  const towers = REAL_DATA.towers.filter((t) => t.projectId === projectId);
+  const floors = REAL_DATA.floors.filter((f) => f.projectId === projectId);
+  const units = REAL_DATA.units.filter((u) => u.projectId === projectId);
+  return delay({ towers, floors, units });
 }
 
 export async function getUnitsForFloor(floorId: string): Promise<Unit[]> {

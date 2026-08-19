@@ -316,3 +316,109 @@ silently alter an earlier one — see project instructions Section 37.
   underlying calculation.
 - **Status:** Built, type-checked, verified.
 - **Open Questions:** None.
+
+---
+
+## REQ-010
+
+- **Module:** Overview (`/`) and its drill-down drawer — full visual/UX
+  redesign to match Inventory
+- **Requirement:** Redesign Overview and its side drawer so both feel
+  like the same product as Inventory — same cards, colors, typography,
+  filter bar, KPI styling, drill-down drawer shell — without losing any
+  existing data, calculations, or interaction. Inventory stays the
+  design reference and was not touched.
+- **Approach:** Rather than reskinning Overview's old Tailwind-based
+  components to *imitate* Inventory's look, Overview now directly reuses
+  Inventory's own stylesheet (`smartworldInventory.css`, imported once
+  by the new `.sw-inv`-wrapped page and drawer) and CSS classes (`.card`,
+  `.kpi`/`.kpis`, `.barrow`/`.track`, `.dkpis`/`.dkpi`, `.insight`,
+  `.crumbs`/`.crumb`, `#ov`/`#dw`/`.dwh`/`.dwb`, plain `table`). This is
+  a single shared design system, not two parallel implementations of the
+  same look — directly satisfying the "avoid maintaining separate
+  styling" requirement rather than approximating it.
+- **New components** (`src/components/overview/`):
+  - `OverviewFilters.tsx` — navy gradient filter bar (Project
+    multi-select + Period select + Reset dashboard), same markup
+    pattern as Inventory's `SwFilters`. No new filters introduced —
+    same two controls as before (Project, Period/FY), same
+    `useFilterStore` binding.
+  - `OverviewKpis.tsx` — replaces `KpiStrip`/`KpiCard`. Available/
+    Booked/Total each combine units + area + percentage in one `.kpi`
+    card (matching the brief's explicit ask), rather than Inventory's
+    pattern of splitting units and area into separate KPI cards — this
+    is Overview's own information design, using Inventory's card shell.
+    Management-unit note uses `.blkbar`, matching Inventory's own
+    management-units banner exactly.
+  - `OverviewProjectBars.tsx` — replaces the Recharts-based
+    `ProjectComparisonChart`. Inventory's entire design system never
+    uses a charting library for breakdowns like this — every such
+    breakdown is a sorted `.barrow`/`.track` bar-row list. Reusing that
+    pattern here (rather than reskinning Recharts to imitate it) is a
+    closer match to "feel like the same product," and drops a
+    dependency Overview no longer needs (Recharts remains in
+    package.json, unused — not worth an uninstall pass for this
+    change, flagged here for whoever next touches dependencies).
+  - `OverviewProjectTable.tsx` — replaces `ProjectBreakupTable`. Same
+    data, same row-click-to-drill, restyled to Inventory's plain
+    `table`/`th`/`td.n` markup inside a `.card`.
+  - `OverviewDrawer.tsx` — replaces `DrilldownDrawer`. Same `#ov`/`#dw`/
+    `.dwh`/`.crumbs`/`.dwb` shell as `SwDrawer`, self-contained in a
+    `.sw-inv` wrapper so it renders correctly regardless of where in the
+    DOM it's mounted. The old fullscreen toggle was dropped — Inventory's
+    own drawer doesn't have one; its fixed `min(760px, 95vw)` width is
+    already wide enough for the stack plan, so this drops UI Inventory
+    itself doesn't have rather than inventing a divergent pattern.
+  - `OverviewDrawerContent.tsx` — replaces `DrilldownContent`. Adds an
+    insight line and a `.dkpis` grid (Units / Available / Absorption /
+    Area available, per the brief) at every level; adds a **Tower
+    absorption ranking** bar list and a **project-wide stack plan** at
+    the project level — neither existed in the old drawer, which only
+    had a flat project→tower→floor→unit breakup list with no stack
+    plan at all. Floor and unit levels are preserved for list-based
+    browsing alongside the stack plan's direct click-to-unit path,
+    matching how Inventory itself offers both a ranked list and a stack
+    plan side by side.
+  - `OverviewStackPlan.tsx` — new. Adapted from Inventory's
+    `SwStackPlan` to Overview's `Tower`/`Floor`/`Unit` domain types
+    instead of raw INVR tuples. Required adding a numeric `order` field
+    to the `Floor` type (`types/domain.ts`) and populating it in
+    `realOverviewData.ts` from the raw dataset's floor-position value
+    (previously discarded during the REQ-008 adapter build) — without
+    it, floors couldn't be sorted consistently across towers for a
+    project-wide grid. Verified zero order→label collisions across the
+    full dataset before trusting this grouping key.
+  - `getUnitsForTower`/`getProjectStackData` added to
+    `inventoryService.ts` to supply the stack plan and tower ranking in
+    as few round trips as the existing per-floor functions.
+- **Removed** (fully unreferenced after the redesign, confirmed via
+  grep before deletion): `KpiCard.tsx`, `KpiStrip.tsx`,
+  `ProjectComparisonChart.tsx`, `ProjectBreakupTable.tsx`,
+  `DrilldownDrawer.tsx`, `DrilldownContent.tsx`, `FilterBar.tsx`,
+  `ProjectFilter.tsx`, `PeriodFilter.tsx`, and their now-empty parent
+  folders (`components/kpi`, `components/charts`, `components/tables`,
+  `components/drilldown`, `components/filters`).
+- **`AppShell.tsx`:** both `/` and `/inventory` now suppress the app's
+  generic `FilterBar` and content padding (renamed the guarding
+  variable from `isSmartworldInventoryRoute` to `managesOwnChrome` to
+  reflect that it's no longer Inventory-specific).
+- **Validation:**
+  - Verified project-level aggregate numbers the drawer will show (e.g.
+    Smartworld The Edition: 305 available / 640 booked / 11 management
+    / 956 total) match the per-project figures already verified in
+    REQ-007/008.
+  - Verified the stack plan's floor-grouping key (`order|name`) has zero
+    collisions across the entire dataset — confirms floors group
+    correctly across towers without merging or splitting real floor
+    levels.
+  - Type-check and production build both pass. Bundle size dropped
+    further (1.09MB vs. 1.47MB) now that Recharts is no longer imported
+    by anything.
+- **Status:** Built, type-checked, verified.
+- **Open Questions:**
+  - Whether Recharts should be uninstalled from `package.json` now that
+    nothing imports it, or kept in case a future module wants it
+  - Whether the drawer's dropped fullscreen toggle is missed on very
+    narrow desktop widths — Inventory's own drawer doesn't have one, so
+    this matches the reference exactly, but it's a behavior change from
+    the pre-redesign Overview drawer worth flagging

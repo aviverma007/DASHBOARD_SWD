@@ -46,6 +46,7 @@ export interface Floor {
   projectId: string;
   name: string;
   unitIds: string[];
+  order?: number; // numeric floor position, for sorting across towers in a stack plan
 }
 
 export interface Unit {

@@ -14,13 +14,18 @@ are updated as real SAP/Excel data and field mappings are confirmed.
 
 - ✅ Login (demo auth — see `src/store/authStore.ts`)
 - ✅ Responsive app shell (sidebar, header, mobile drawer nav)
-- ✅ **Overview (`/`)** — Available/Booked/Total KPI strip, project
-  comparison chart, project breakup table, drill-down (Group → Project →
-  Tower → Floor → Unit). Real data via `src/data/realOverviewData.ts`.
-  See REQ-008.
+- ✅ **Overview (`/`)** — Available/Booked/Total KPI cards, project bar
+  list, project breakup table, drill-down (Group → Project → Tower →
+  Floor → Unit) with a project-wide stack plan. Real data via
+  `src/data/realOverviewData.ts`. Redesigned to share Inventory's exact
+  visual system (`smartworldInventory.css`, same card/KPI/drawer
+  classes) rather than its own separate styling — see REQ-008 (data)
+  and REQ-010 (redesign).
 - ✅ **Inventory (`/inventory`) — direct port of the reference
   sales-intelligence tool**, real data via `src/data/smartworldInventory.json`.
-  See "Inventory module" below for what this covers.
+  See "Inventory module" below for what this covers. This remains the
+  visual/design reference — Overview was brought up to match it, not
+  the other way around.
 - ⏳ Placeholder modules: Sales, Collections, Revenue, Customers, Projects,
   Reports, Data Upload, Settings — awaiting requirements
 - ⏳ Real Excel/PDF export
@@ -92,12 +97,13 @@ src/
   app/                  # app-level composition (reserved)
   components/
     layout/             # AppShell, Header, Sidebar
-    filters/             # ProjectFilter, PeriodFilter, FilterBar (Overview's generic filter bar)
-    kpi/                 # KpiCard, KpiStrip (Overview)
-    charts/              # ProjectComparisonChart (Overview)
-    tables/              # ProjectBreakupTable (Overview)
-    drilldown/           # DrilldownDrawer, DrilldownContent (Overview)
-    inventory/           # Sw* components — the ported Inventory tool (see below)
+    overview/           # Overview's own components — all styled via
+                         # smartworldInventory.css (shared with Inventory,
+                         # not a separate design system): OverviewFilters,
+                         # OverviewKpis, OverviewProjectBars, OverviewProjectTable,
+                         # OverviewDrawer, OverviewDrawerContent, OverviewStackPlan
+    inventory/           # Sw* components — the ported Inventory tool (see below),
+                         # plus smartworldInventory.css, shared with overview/
     common/              # EmptyState, SkeletonBlock, ComingSoon
   features/
     authentication/      # LoginPage, RequireAuth
@@ -123,6 +129,11 @@ docs/
   DATA_DICTIONARY.md
   CALCULATION_DICTIONARY.md
 ```
+
+Overview and Inventory share one visual design system (`smartworldInventory.css`,
+scoped under `.sw-inv`) rather than maintaining two separate ones — Overview's
+page and drawer both wrap their content in a `.sw-inv` div and reuse the same
+`.card`/`.kpi`/`.barrow`/drawer classes Inventory itself uses. See REQ-010.
 
 Both pages read from the same underlying `smartworldInventory.json` — Overview through
 `realOverviewData.ts` + `services/inventoryService.ts`, Inventory directly through
