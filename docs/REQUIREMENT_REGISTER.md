@@ -284,3 +284,35 @@ silently alter an earlier one — see project instructions Section 37.
     data (there's no group-level source field) — currently just
     labeled "All Projects," which works, but worth flagging if a real
     multi-group structure ever needs representing
+
+---
+
+## REQ-009
+
+- **Module:** Inventory (direct port) — donut card consolidation
+- **Requirement:** Consolidate the 4 donut cards (Stock status, By
+  category, Stock status by area, By category by area) into 2 cards —
+  "Stock status" and "By category" — each showing Units and Area as two
+  side-by-side donuts within the same card, with no loss of information,
+  colors, percentages, or drill-down behavior.
+- **Changes:**
+  - New CSS: `.dual-donut` (2-column grid, divider between columns,
+    collapses to stacked on mobile ≤640px), `.dual-donut-label` (small
+    uppercase "Units"/"Area" header per column, with a gold "sq ft" pill
+    on the Area side)
+  - JSX: each card now renders two `.dual-donut-col` blocks instead of
+    two separate cards — same `SwDonut`/`SwDLegend` components, same
+    `statusSegs`/`statusAreaSegs`/`catSegs`/`catAreaSegs` data, same
+    click handlers (`handleKSt`, `openScopeKey("cat", ...)`) — nothing
+    about the underlying data or interactions changed, only layout
+  - Removed the now-redundant `grid g2` wrapper that held the second
+    row of area-only cards
+- **Validation:** Confirmed the old separate card titles ("Stock status
+  by area", "By category by area") no longer appear anywhere in the
+  built bundle — no leftover duplicate cards. Re-verified all
+  percentages against the dataset match the reference screenshot exactly
+  (Available 34.1%/32.3%, Booked 61.0%/65.1%, Management 4.9%/2.6% for
+  units/area respectively) — confirms only layout changed, not the
+  underlying calculation.
+- **Status:** Built, type-checked, verified.
+- **Open Questions:** None.

@@ -170,64 +170,72 @@ export function SmartworldInventoryPage() {
             <h3>
               Stock status <span className="hint">click a slice → drill</span>
             </h3>
-            <div className="donut-wrap">
-              <SwDonut
-                segs={statusSegs}
-                onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-              />
-              <SwDLegend segs={statusSegs} onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
+            <div className="dual-donut">
+              <div className="dual-donut-col">
+                <div className="dual-donut-label">Units</div>
+                <div className="donut-wrap">
+                  <SwDonut
+                    segs={statusSegs}
+                    onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
+                  />
+                  <SwDLegend segs={statusSegs} onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
+                </div>
+              </div>
+              <div className="dual-donut-col">
+                <div className="dual-donut-label">
+                  Area <span className="unit-tag">sq ft</span>
+                </div>
+                <div className="donut-wrap">
+                  <SwDonut
+                    segs={statusAreaSegs}
+                    valueFormatter={fArea}
+                    onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
+                  />
+                  <SwDLegend
+                    segs={statusAreaSegs}
+                    valueFormatter={fArea}
+                    onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
+
           <div className="card">
             <h3>
               By category <span className="hint">click a slice → drill</span>
             </h3>
-            <div className="donut-wrap">
-              <SwDonut
-                segs={catSegs}
-                onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-              />
-              <SwDLegend
-                segs={catSegs}
-                onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid g2">
-          <div className="card">
-            <h3>
-              Stock status by area <span className="hint">sq ft · click a slice → drill</span>
-            </h3>
-            <div className="donut-wrap">
-              <SwDonut
-                segs={statusAreaSegs}
-                valueFormatter={fArea}
-                onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-              />
-              <SwDLegend
-                segs={statusAreaSegs}
-                valueFormatter={fArea}
-                onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-              />
-            </div>
-          </div>
-          <div className="card">
-            <h3>
-              By category by area <span className="hint">sq ft · click a slice → drill</span>
-            </h3>
-            <div className="donut-wrap">
-              <SwDonut
-                segs={catAreaSegs}
-                valueFormatter={fArea}
-                onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-              />
-              <SwDLegend
-                segs={catAreaSegs}
-                valueFormatter={fArea}
-                onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-              />
+            <div className="dual-donut">
+              <div className="dual-donut-col">
+                <div className="dual-donut-label">Units</div>
+                <div className="donut-wrap">
+                  <SwDonut
+                    segs={catSegs}
+                    onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+                  />
+                  <SwDLegend
+                    segs={catSegs}
+                    onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+                  />
+                </div>
+              </div>
+              <div className="dual-donut-col">
+                <div className="dual-donut-label">
+                  Area <span className="unit-tag">sq ft</span>
+                </div>
+                <div className="donut-wrap">
+                  <SwDonut
+                    segs={catAreaSegs}
+                    valueFormatter={fArea}
+                    onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+                  />
+                  <SwDLegend
+                    segs={catAreaSegs}
+                    valueFormatter={fArea}
+                    onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

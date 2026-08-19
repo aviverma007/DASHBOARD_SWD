@@ -488,6 +488,54 @@
 .sw-inv .dlg .li[data-act]:hover {
   color: var(--gold);
 }
+.sw-inv .dual-donut {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.sw-inv .dual-donut-col {
+  min-width: 0;
+}
+.sw-inv .dual-donut-col + .dual-donut-col {
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+}
+.sw-inv .dual-donut-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--mut);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sw-inv .dual-donut-label .unit-tag {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--gold);
+  background: var(--gold-soft);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.sw-inv .dual-donut .donut-wrap {
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .sw-inv .dual-donut {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .sw-inv .dual-donut-col + .dual-donut-col {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+}
 .sw-inv svg circle[data-act] {
   cursor: pointer;
 }
