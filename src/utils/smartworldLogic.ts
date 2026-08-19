@@ -27,17 +27,25 @@ export function fNum(n: number): string {
 
 // Category classification — keyed off the actual data in the current INVR export.
 // Le Courtyard: Unit Type = "Unit", Config = "Commercial" → Commercial
-// Suites: Unit Type = "Suite" (serviced suites, commercial property) → Commercial
-// Everything else → Residential
-// The old logic keyed off unit-type values (Shop/Retail/Restaurant/KIOSK) that do not
-// exist in the current dataset — updated to reflect what's actually present.
-const COMMERCIAL_UNIT_TYPES = new Set(["Unit", "Suite"]);
-
+// Category classification per user instruction (confirmed):
+// Commercial = Smartworld Le Courtyard (CFG bucket "Commercial" for all 502 units)
+//              OR Smartworld Suites (480 serviced-suite units)
+// Residential = everything else
+// Uses CFG index ("Commercial" bucket) + project name match for Suites,
+// rather than Unit Type strings, because this INVR export uses "Unit"/"Suite"
+// as Unit Type values which are less self-documenting than the CFG bucket.
 export const CAT = ["Residential", "Commercial"];
 
 export function makeCatOf(RD: RawInventoryDataset) {
-  const isComm = (u: RawUnit) => COMMERCIAL_UNIT_TYPES.has(RD.UT[u[5]]);
-  return (u: RawUnit) => (isComm(u) ? 1 : 0);
+  const suitesIdx = RD.P.indexOf("Smartworld Suites");
+  const commCfgIdx = RD.CFG.indexOf("Commercial");
+  return (u: RawUnit) => {
+    // Le Courtyard: all units have CFG = "Commercial"
+    if (commCfgIdx >= 0 && u[4] === commCfgIdx) return 1;
+    // Suites: serviced suites classified as Commercial per user instruction
+    if (suitesIdx >= 0 && u[0] === suitesIdx) return 1;
+    return 0;
+  };
 }
 
 export function floorBand(f: number): number {
