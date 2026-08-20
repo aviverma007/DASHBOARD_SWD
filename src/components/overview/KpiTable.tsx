@@ -10,12 +10,11 @@ interface KpiTableProps {
   isOverall?: boolean;
 }
 
-/**
- * Full-width horizontal card — one row per card, SOLD/UNSOLD/TOTAL as
- * columns with AREA + UNITS + % inside each. Designed so 7 cards
- * (1 overall + 6 projects) stack vertically and fit on one screen.
- * isOverall gives the summary card ~2× height and larger typography.
- */
+// Fixed colors per column — independent of the inventory palette
+const SOLD_COLOR   = "#1a7a4a";   // green
+const UNSOLD_COLOR = "#c97a1a";   // orange
+const TOTAL_COLOR  = "#14213d";   // near-black
+
 export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProject, isOverall }: KpiTableProps) {
   const { sold, unsold, total, soldPct } = stats;
   const tsv = sold.tsv;
@@ -35,18 +34,9 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
     color: "var(--mut)",
     marginBottom: isOverall ? 6 : 4,
   };
-  const numStyle: React.CSSProperties = {
-    fontFamily: "Georgia,serif",
-    fontSize: isOverall ? 26 : 15,
-    fontWeight: 700,
-    whiteSpace: "nowrap",
-  };
-  const subStyle: React.CSSProperties = {
-    fontSize: isOverall ? 13 : 11.5,
-    color: "var(--mut)",
-    marginTop: isOverall ? 3 : 1,
-    whiteSpace: "nowrap",
-  };
+  // Units number — bigger, same size for all three columns
+  const numSize = isOverall ? 30 : 22;
+  const metaSize = isOverall ? 13 : 11;  // area + % — same size as each other
 
   return (
     <div
@@ -65,7 +55,7 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
         padding: isOverall ? "20px 0 20px 22px" : "12px 0 12px 16px",
         gap: 0,
         transition: "box-shadow 0.15s, transform 0.15s",
-        flex: isOverall ? "0 0 auto" : "1",          // overall is fixed height, projects share remainder
+        flex: isOverall ? "0 0 auto" : "1",
       }}
       onMouseEnter={onClick ? (e) => {
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
@@ -96,40 +86,46 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
           <div style={{ fontSize: 11, color: "var(--mut)" }}>No sales recorded</div>
         )}
         {onClick && (
-          <div style={{ fontSize: 10.5, color: "var(--gold)", marginTop: 4 }}>
-            Click to drill ›
-          </div>
+          <div style={{ fontSize: 10.5, color: "var(--gold)", marginTop: 4 }}>Click to drill ›</div>
         )}
       </div>
 
-      {/* SOLD */}
+      {/* SOLD — green */}
       <div style={colStyle}>
         <div style={labelStyle}>SOLD</div>
-        <div style={{ ...numStyle, color: "var(--av)" }}>
-          {sold.units.toLocaleString("en-IN")}{" "}
-          <span style={{ fontWeight: 400, fontSize: isOverall ? 14 : 12, color: "var(--mut)" }}>units</span>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: SOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+          {sold.units.toLocaleString("en-IN")}
+          <span style={{ fontSize: metaSize, fontWeight: 400, color: SOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
-        <div style={subStyle}>{fArea(sold.area)} · {soldPct}%</div>
+        <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, fontWeight: 700, color: SOLD_COLOR }}>{soldPct}%</span>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)", marginLeft: 8 }}>{fArea(sold.area)}</span>
+        </div>
       </div>
 
-      {/* UNSOLD */}
+      {/* UNSOLD — orange */}
       <div style={colStyle}>
         <div style={labelStyle}>UNSOLD</div>
-        <div style={{ ...numStyle, color: "var(--bk)" }}>
-          {unsold.units.toLocaleString("en-IN")}{" "}
-          <span style={{ fontWeight: 400, fontSize: isOverall ? 14 : 12, color: "var(--mut)" }}>units</span>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: UNSOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+          {unsold.units.toLocaleString("en-IN")}
+          <span style={{ fontSize: metaSize, fontWeight: 400, color: UNSOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
-        <div style={subStyle}>{fArea(unsold.area)} · {unsoldPct}%</div>
+        <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, fontWeight: 700, color: UNSOLD_COLOR }}>{unsoldPct}%</span>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)", marginLeft: 8 }}>{fArea(unsold.area)}</span>
+        </div>
       </div>
 
-      {/* TOTAL */}
+      {/* TOTAL — near-black */}
       <div style={colStyle}>
         <div style={labelStyle}>TOTAL</div>
-        <div style={{ ...numStyle, color: "var(--ink)" }}>
-          {total.units.toLocaleString("en-IN")}{" "}
-          <span style={{ fontWeight: 400, fontSize: isOverall ? 14 : 12, color: "var(--mut)" }}>units</span>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: TOTAL_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+          {total.units.toLocaleString("en-IN")}
+          <span style={{ fontSize: metaSize, fontWeight: 400, color: TOTAL_COLOR, opacity: 0.6, marginLeft: 4 }}>units</span>
         </div>
-        <div style={subStyle}>{fArea(total.area)}</div>
+        <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)" }}>{fArea(total.area)}</span>
+        </div>
       </div>
 
       {/* Absorption bar */}
@@ -142,13 +138,13 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
         <div style={{ fontSize: isOverall ? 11 : 10, color: "var(--mut)", letterSpacing: "0.5px", marginBottom: isOverall ? 8 : 5 }}>
           ABSORPTION
         </div>
-        <div className="track" style={{ height: isOverall ? 14 : 10, marginBottom: isOverall ? 6 : 4 }}>
-          <div className="a" style={{ width: `${soldPct}%` }} />
-          <div className="b" style={{ width: `${unsoldPct}%` }} />
+        <div style={{ height: isOverall ? 14 : 10, borderRadius: 3, background: "var(--bg)", display: "flex", overflow: "hidden", marginBottom: isOverall ? 6 : 4 }}>
+          <div style={{ height: "100%", width: `${soldPct}%`, background: SOLD_COLOR }} />
+          <div style={{ height: "100%", width: `${unsoldPct}%`, background: UNSOLD_COLOR, opacity: 0.55 }} />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: isOverall ? 12 : 10.5 }}>
-          <span style={{ color: "var(--av)", fontWeight: 600 }}>{soldPct}%</span>
-          <span style={{ color: "var(--bk)" }}>{unsoldPct}%</span>
+          <span style={{ color: SOLD_COLOR, fontWeight: 700 }}>{soldPct}%</span>
+          <span style={{ color: UNSOLD_COLOR, fontWeight: 700 }}>{unsoldPct}%</span>
         </div>
       </div>
     </div>
