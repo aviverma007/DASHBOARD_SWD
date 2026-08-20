@@ -1,161 +1,166 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import rawTarget from "../../data/targetData.json";
-import rawSales from "../../data/salesPDRN.json";
+import rawTV from "../../data/tvAnalytics.json";
+import "../../components/inventory/smartworldInventory.css";
 import { UnitsTargetCard } from "../../components/target/UnitsTargetCard";
 import type { TVADataPoint } from "../../components/target/UnitsTargetCard";
+import { AvgRateCard } from "../../components/target/AvgRateCard";
+import type { RatePoint } from "../../components/target/AvgRateCard";
+import { TowerSoldPctCard } from "../../components/target/TowerSoldPctCard";
+import { TowerRateMovementCard } from "../../components/target/TowerRateMovementCard";
+import { RateTrendOverTimeCard } from "../../components/target/RateTrendOverTimeCard";
+import { TypeWiseSaleCard } from "../../components/target/TypeWiseSaleCard";
 import { MonthDrillDrawer } from "../../components/target/MonthDrillDrawer";
-import "../../components/inventory/smartworldInventory.css";
+import { ScopeDrawer } from "../../components/target/ScopeDrawer";
 
-interface ProjectTarget { name: string; units: { monthly: number[]; total: number }; sale_value: { monthly: number[]; total: number }; area: { monthly: number[]; total: number }; }
-interface TargetData { months: string[]; projects: ProjectTarget[]; }
-interface PdrnData { P: string[]; R: number[][]; }
+interface MonthMeta { year: number; month: number; label: string; }
+interface ProjectTarget { name: string; units: number[]; area: number[]; rate: number[]; sale_value: number[]; }
+interface TargetData { months: MonthMeta[]; projects: ProjectTarget[]; }
+interface TowerRow { name: string; sold: number; unsold: number; total: number; sold_pct: number; tsv: number; avg_rate: number; year_rates: Record<string, number>; }
+interface CfgRow { name: string; sold: number; unsold: number; total: number; sold_pct: number; avg_area: number; }
+interface RateTrendPt { key: string; rate: number; units: number; }
+interface ProjectAnalytics { name: string; sold: number; tsv: number; area: number; avg_rate: number; monthly_units: number[]; monthly_tsv: number[]; monthly_area: number[]; towers: TowerRow[]; configs: CfgRow[]; rate_trend: RateTrendPt[]; }
+interface TVData { monthly_rates: RateTrendPt[]; projects: ProjectAnalytics[]; }
 
 const TD = rawTarget as unknown as TargetData;
-const PD = rawSales as unknown as PdrnData;
-
-const MONTHS = TD.months; // Apr-26 .. Mar-27
-const YEARS = [2026, 2027];
-const QUARTERS = ["Q1 (Apr–Jun)", "Q2 (Jul–Sep)", "Q3 (Oct–Dec)", "Q4 (Jan–Mar)"];
-const MONTHS_LIST = ["April","May","June","July","August","September","October","November","December","January","February","March"];
+const TV = rawTV as unknown as TVData;
+const TIMELINE = TD.months; // 24 months, Apr'25 .. Mar'27
 
 type PeriodType = "all" | "year" | "quarter" | "month";
+const YEAR_OPTIONS = [{ label: "FY 2025-26", start: 0, end: 11 }, { label: "FY 2026-27", start: 12, end: 23 }];
+const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"];
 
-// Map FY index (0=Apr-26..11=Mar-27) ↔ (year, month)
-function fyIdxToYM(i: number): { year: number; month: number } {
-  if (i < 9) return { year: 2026, month: i + 4 };
-  return { year: 2027, month: i - 8 };
-}
-function ymToFyIdx(year: number, month: number): number {
-  if (year === 2026 && month >= 4) return month - 4;
-  if (year === 2027 && month <= 3) return 9 + month - 1;
-  return -1;
+function todayIsFuture(year: number, month: number): boolean {
+  const now = new Date();
+  return year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1);
 }
 
-// Quarter → [startFyIdx, endFyIdx] (inclusive)
-const QUARTER_RANGES: [number, number][] = [[0,2],[3,5],[6,8],[9,11]];
-
-// Build actual monthly units from PDRN
-function buildMonthlyActuals(projectFilter: Set<string>): number[] {
-  const actuals = new Array(12).fill(0);
-  PD.R.forEach(r => {
-    const proj = PD.P[r[0]];
-    if (projectFilter.size > 0 && !projectFilter.has(proj)) return;
-    const idx = ymToFyIdx(r[7], r[8]);
-    if (idx >= 0 && idx < 12) actuals[idx]++;
-  });
-  return actuals;
-}
-
-function buildMonthlyTargets(projectFilter: Set<string>): number[] {
-  const targets = new Array(12).fill(0);
-  TD.projects.forEach(p => {
-    if (projectFilter.size > 0 && !projectFilter.has(p.name)) return;
-    p.units.monthly.forEach((v, i) => { targets[i] += v; });
-  });
-  return targets.map(Math.round);
-}
-
-// Determine which FY months are in scope for the period filter
-function periodMonthRange(type: PeriodType, year: number, quarter: number, month: number): [number, number] {
-  if (type === "all") return [0, 11];
-  if (type === "year") return year === 2026 ? [0, 8] : [9, 11];
-  if (type === "quarter") {
-    const [s, e] = QUARTER_RANGES[quarter - 1];
-    return [s, e];
-  }
-  // month: month is 0-indexed into MONTHS_LIST (Apr=0..Mar=11)
-  return [month, month];
-}
-
-// ── Project dropdown ──────────────────────────────────────────────────────────
-function ProjectDropdown({ projects, selected, onChange }: { projects: string[]; selected: Set<string>; onChange: (s: Set<string>) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-  function toggle(name: string) {
-    const next = new Set(selected);
-    next.has(name) ? next.delete(name) : next.add(name);
-    if (next.size === projects.length) onChange(new Set());
-    else onChange(next);
-  }
-  const label = selected.size === 0 ? "All projects" : selected.size === 1 ? [...selected][0].replace("SMARTWORLD ", "") : `${selected.size} projects`;
+// ── Single-select project dropdown ────────────────────────────────────────────
+function ProjectSelect({ projects, selected, onChange }: { projects: string[]; selected: string; onChange: (n: string) => void }) {
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div>
       <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Project</label>
-      <button type="button" onClick={() => setOpen(v => !v)} style={{ minWidth: 180, background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 34px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer", textAlign: "left" }}>
-        {label} <span style={{ color: "#B8893C" }}>▾</span>
-      </button>
-      {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
-            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C" }} /> All projects
-          </label>
-          {projects.map(name => (
-            <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C" }} /> {name}
-            </label>
-          ))}
-        </div>
-      )}
+      <select value={selected} onChange={e => onChange(e.target.value)} style={{ minWidth: 220, background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+        {projects.map(p => <option key={p} value={p}>{p}</option>)}
+      </select>
     </div>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function TargetActualPage() {
-  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [selectedProject, setSelectedProject] = useState<string>(TD.projects[0]?.name ?? "");
   const [periodType, setPeriodType] = useState<PeriodType>("all");
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
-  const [selectedMonth, setSelectedMonth] = useState<number>(0);
-  const [drillPoint, setDrillPoint] = useState<TVADataPoint | null>(null);
+  const [yearIdx, setYearIdx] = useState<0 | 1>(1);
+  const [quarter, setQuarter] = useState<number>(1);
+  const [month, setMonth] = useState<number>(0); // index into the selected year's 12 months
 
-  const today = new Date();
+  const [drillMonth, setDrillMonth] = useState<TVADataPoint | null>(null);
+  const [drillScope, setDrillScope] = useState<{ type: "tower" | "config"; label: string } | null>(null);
+
+  const target = TD.projects.find(p => p.name === selectedProject);
+  const actual = TV.projects.find(p => p.name === selectedProject);
 
   function handleReset() {
-    setSelectedProjects(new Set());
-    setPeriodType("all");
-    setSelectedYear(2026);
-    setSelectedQuarter(1);
-    setSelectedMonth(0);
+    setPeriodType("all"); setYearIdx(1); setQuarter(1); setMonth(0);
   }
 
-  // Build chart data — all 12 FY months, filter applied to amounts
-  const chartData = useMemo<TVADataPoint[]>(() => {
-    const actuals = buildMonthlyActuals(selectedProjects);
-    const targets = buildMonthlyTargets(selectedProjects);
-    const [rangeStart, rangeEnd] = periodMonthRange(periodType, selectedYear, selectedQuarter, selectedMonth);
+  // Visible month range (indices into the 24-month TIMELINE)
+  const [rangeStart, rangeEnd] = useMemo<[number, number]>(() => {
+    if (periodType === "all") return [0, 23];
+    if (periodType === "year") return [YEAR_OPTIONS[yearIdx].start, YEAR_OPTIONS[yearIdx].end];
+    if (periodType === "quarter") {
+      const yr = YEAR_OPTIONS[yearIdx];
+      const qStart = yr.start + (quarter - 1) * 3;
+      return [qStart, qStart + 2];
+    }
+    // month
+    const yr = YEAR_OPTIONS[yearIdx];
+    return [yr.start + month, yr.start + month];
+  }, [periodType, yearIdx, quarter, month]);
 
-    return MONTHS.map((m, i) => {
-      const { year, month } = fyIdxToYM(i);
-      const isFuture = year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth() + 1);
+  // Build Units/TSV/Area chart data
+  function buildSeries(targetArr: number[] | undefined, actualArr: number[] | undefined, scale = 1): TVADataPoint[] {
+    return TIMELINE.map((m, i) => {
       const inRange = i >= rangeStart && i <= rangeEnd;
+      const isFuture = todayIsFuture(m.year, m.month);
+      const t = targetArr?.[i] ?? 0;
+      const a = (actualArr?.[i] ?? 0) * scale;
       return {
-        month: m.replace("-", "'").replace("26", "'26").replace("27", "'27"),
-        target: inRange ? targets[i] : 0,
-        achieved: inRange && !isFuture ? actuals[i] : 0,
+        month: m.label,
+        target: inRange ? Math.round(t * 100) / 100 : 0,
+        achieved: inRange ? Math.round(a * 100) / 100 : 0,
         adjusted: null,
         isFuture: isFuture || !inRange,
-        year,
-        calMonth: month,
+        year: m.year,
+        calMonth: m.month,
       };
     }).filter(d => d.target > 0 || d.achieved > 0);
-  }, [selectedProjects, periodType, selectedYear, selectedQuarter, selectedMonth, today]);
+  }
+
+  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, rangeStart, rangeEnd]);
+  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, rangeStart, rangeEnd]);
+  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, rangeStart, rangeEnd]);
+
+  // Avg Rate series
+  const rateData = useMemo<RatePoint[]>(() => {
+    if (!target) return [];
+    const points: (RatePoint | null)[] = TIMELINE.map((m, i) => {
+      const inRange = i >= rangeStart && i <= rangeEnd;
+      if (!inRange) return null;
+      const isFuture = todayIsFuture(m.year, m.month);
+      const tgtRate = target.rate[i] || null;
+      const monthlyTsv = actual?.monthly_tsv[i] ?? 0;
+      const monthlyArea = actual?.monthly_area[i] ?? 0;
+      const achievedRate = !isFuture && monthlyArea > 0 ? Math.round((monthlyTsv * 1e7) / (monthlyArea * 1e5)) : null;
+      const point: RatePoint = { month: m.label, achievedRate, targetRate: tgtRate, adjustedRate: null, isFuture, year: m.year, calMonth: m.month };
+      return point;
+    });
+    return points.filter((d): d is RatePoint => d !== null && (d.achievedRate !== null || d.targetRate !== null));
+  }, [target, actual, rangeStart, rangeEnd]);
+
+  const avgAchievedRate = useMemo(() => {
+    const rates = rateData.filter(d => d.achievedRate !== null).map(d => d.achievedRate as number);
+    return rates.length ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0;
+  }, [rateData]);
+  const avgTargetRate = useMemo(() => {
+    const rates = rateData.filter(d => d.targetRate !== null).map(d => d.targetRate as number);
+    return rates.length ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0;
+  }, [rateData]);
+
+  const totalTargetTsvInRange = useMemo(() => {
+    if (!target) return 0;
+    return target.sale_value.slice(rangeStart, rangeEnd + 1).reduce((a, b) => a + b, 0);
+  }, [target, rangeStart, rangeEnd]);
+  const totalAchievedTsvInRange = useMemo(() => tsvData.reduce((s, d) => s + d.achieved, 0), [tsvData]);
+  const totalTargetAreaInRange = useMemo(() => {
+    if (!target) return 0;
+    return target.area.slice(rangeStart, rangeEnd + 1).reduce((a, b) => a + b, 0) / 100000;
+  }, [target, rangeStart, rangeEnd]);
+  const totalAchievedAreaInRange = useMemo(() => areaData.reduce((s, d) => s + d.achieved, 0), [areaData]);
+
+  const requiredRate = useMemo(() => {
+    const remainingTsv = totalTargetTsvInRange - totalAchievedTsvInRange;
+    const remainingArea = totalTargetAreaInRange - totalAchievedAreaInRange;
+    if (remainingArea <= 0.001) return null;
+    if (remainingTsv <= 0) return null;
+    return Math.round((remainingTsv * 1e7) / (remainingArea * 1e5));
+  }, [totalTargetTsvInRange, totalAchievedTsvInRange, totalTargetAreaInRange, totalAchievedAreaInRange]);
+
+  function handleRatePointClick(p: RatePoint) {
+    setDrillMonth({ month: p.month, target: 0, achieved: 0, adjusted: null, isFuture: p.isFuture, year: p.year, calMonth: p.calMonth });
+  }
 
   const periodLabel = periodType === "all" ? "All time"
-    : periodType === "year" ? `FY ${selectedYear}`
-    : periodType === "quarter" ? `Q${selectedQuarter} ${selectedYear}`
-    : `${MONTHS_LIST[selectedMonth]} ${selectedYear}`;
+    : periodType === "year" ? YEAR_OPTIONS[yearIdx].label
+    : periodType === "quarter" ? `${QUARTER_LABELS[quarter - 1]} ${YEAR_OPTIONS[yearIdx].label}`
+    : `${TIMELINE[YEAR_OPTIONS[yearIdx].start + month]?.label}`;
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
-        <ProjectDropdown projects={TD.projects.map(p => p.name)} selected={selectedProjects} onChange={setSelectedProjects} />
+        <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
 
         <div>
           <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
@@ -171,24 +176,24 @@ export function TargetActualPage() {
         {periodType !== "all" && (
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
-            <select value={selectedYear} onChange={e => setSelectedYear(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value) as 0 | 1)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              {YEAR_OPTIONS.map((y, i) => <option key={y.label} value={i}>{y.label}</option>)}
             </select>
           </div>
         )}
         {periodType === "quarter" && (
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Quarter</label>
-            <select value={selectedQuarter} onChange={e => setSelectedQuarter(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-              {QUARTERS.map((q, i) => <option key={i + 1} value={i + 1}>{q}</option>)}
+            <select value={quarter} onChange={e => setQuarter(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              {QUARTER_LABELS.map((q, i) => <option key={q} value={i + 1}>{q}</option>)}
             </select>
           </div>
         )}
         {periodType === "month" && (
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Month</label>
-            <select value={selectedMonth} onChange={e => setSelectedMonth(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-              {MONTHS_LIST.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            <select value={month} onChange={e => setMonth(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              {Array.from({ length: 12 }, (_, i) => TIMELINE[YEAR_OPTIONS[yearIdx].start + i]).map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
             </select>
           </div>
         )}
@@ -197,30 +202,69 @@ export function TargetActualPage() {
         <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
       </div>
 
-      {/* Content */}
       <div className="wrap">
-        <div style={{ marginBottom: 10, fontSize: 12.5, color: "var(--mut)" }}>
-          {selectedProjects.size > 0 && <><strong>{selectedProjects.size}</strong> project{selectedProjects.size > 1 ? "s" : ""} · </>}
-          <strong>{periodLabel}</strong>
+        <div style={{ marginBottom: 12, fontSize: 12.5, color: "var(--mut)" }}>
+          <strong>{selectedProject}</strong> · {periodLabel}
         </div>
 
-        {/* Units card */}
-        <UnitsTargetCard
-          data={chartData}
-          title="UNITS — TARGET VS ACHIEVED"
-          unit="Units"
-          onBarClick={setDrillPoint}
-        />
+        {!target && !actual && (
+          <div className="card"><p style={{ color: "var(--mut)" }}>No target or actual data for this project.</p></div>
+        )}
+
+        {/* Cards 1-3: Units, TSV, Area */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth} />
+          <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth} />
+        </div>
+
+        {/* Card 4: Avg Rate */}
+        <div style={{ marginBottom: 14 }}>
+          <AvgRateCard
+            data={rateData}
+            avgAchievedRate={avgAchievedRate}
+            targetRate={avgTargetRate}
+            requiredRate={requiredRate}
+            totalTargetTsv={totalTargetTsvInRange}
+            onPointClick={handleRatePointClick}
+          />
+        </div>
+
+        {/* Cards 5-6: Tower charts */}
+        {actual && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
+            <TowerRateMovementCard towers={actual.towers} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
+          </div>
+        )}
+
+        {/* Cards 7-8: Rate trend + Type wise */}
+        {actual && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <RateTrendOverTimeCard data={actual.rate_trend} />
+            <TypeWiseSaleCard configs={actual.configs} onConfigClick={name => setDrillScope({ type: "config", label: name })} />
+          </div>
+        )}
       </div>
 
-      {/* Drill-down drawer — Project → Tower → Unit for the clicked month */}
-      {drillPoint && (
+      {/* Drill-downs */}
+      {drillMonth && (
         <MonthDrillDrawer
-          year={drillPoint.year}
-          month={drillPoint.calMonth}
-          monthLabel={drillPoint.month}
-          projectFilter={selectedProjects}
-          onClose={() => setDrillPoint(null)}
+          year={drillMonth.year}
+          month={drillMonth.calMonth}
+          monthLabel={drillMonth.month}
+          projectFilter={new Set([selectedProject])}
+          onClose={() => setDrillMonth(null)}
+        />
+      )}
+      {drillScope && (
+        <ScopeDrawer
+          projectName={selectedProject}
+          scopeType={drillScope.type}
+          scopeLabel={drillScope.label}
+          onClose={() => setDrillScope(null)}
         />
       )}
     </div>
