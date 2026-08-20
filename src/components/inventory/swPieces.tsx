@@ -32,6 +32,20 @@ export function SwDonut({ segs, onSegmentClick, valueFormatter = fNum }: SwDonut
   const C = 2 * Math.PI * r;
   let off = 0;
 
+  // Split the center label into up to two lines so long area strings
+  // (e.g. "85.60 L sq ft") don't overflow the inner ring (~88px wide).
+  const rawLabel = valueFormatter(total);
+  // Split on first space after the number: "85.60 L sq ft" → ["85.60", "L sq ft"]
+  // For plain integers like "3,386" keep on one line.
+  const spaceIdx = rawLabel.search(/\s/);
+  const hasLongText = rawLabel.length > 8;
+  const line1 = hasLongText && spaceIdx > -1 ? rawLabel.slice(0, spaceIdx) : rawLabel;
+  const line2 = hasLongText && spaceIdx > -1 ? rawLabel.slice(spaceIdx + 1) : null;
+
+  // Font size: smaller when two lines or long single value
+  const fs1 = line2 ? 15 : rawLabel.length > 6 ? 14 : 18;
+  const fs2 = 10.5;
+
   return (
     <svg viewBox="0 0 132 132" width="132" height="132">
       {segs.map((s, i) => {
@@ -60,20 +74,21 @@ export function SwDonut({ segs, onSegmentClick, valueFormatter = fNum }: SwDonut
           </circle>
         );
       })}
-      <text
-        x={cx}
-        y={cy - 2}
-        textAnchor="middle"
-        fontFamily="Georgia,serif"
-        fontSize="18"
-        fontWeight="700"
-        fill="var(--ink)"
-      >
-        {valueFormatter(total)}
-      </text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="8.5" letterSpacing="1" fill="var(--mut)">
-        TOTAL
-      </text>
+      {line2 ? (
+        <>
+          <text x={cx} y={cy - 8} textAnchor="middle" fontFamily="Georgia,serif"
+            fontSize={fs1} fontWeight="700" fill="var(--ink)">{line1}</text>
+          <text x={cx} y={cy + 6} textAnchor="middle" fontFamily="Georgia,serif"
+            fontSize={fs2} fontWeight="700" fill="var(--ink)">{line2}</text>
+          <text x={cx} y={cy + 18} textAnchor="middle" fontSize="8" letterSpacing="1" fill="var(--mut)">TOTAL</text>
+        </>
+      ) : (
+        <>
+          <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="Georgia,serif"
+            fontSize={fs1} fontWeight="700" fill="var(--ink)">{line1}</text>
+          <text x={cx} y={cy + 13} textAnchor="middle" fontSize="8.5" letterSpacing="1" fill="var(--mut)">TOTAL</text>
+        </>
+      )}
     </svg>
   );
 }
