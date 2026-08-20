@@ -4,7 +4,7 @@ import { useAuthStore } from "../../store/authStore";
 
 /**
  * Settings page — two actions:
- * 1. Change Password → opens /change-password in a new tab
+ * 1. Change Password → navigates to /change-password within the same app
  * 2. Logout → inline confirmation popup, then signs out
  */
 export function SettingsPage() {
@@ -59,7 +59,7 @@ export function SettingsPage() {
       >
         {/* Change Password */}
         <button
-          onClick={() => window.open("/change-password", "_blank")}
+          onClick={() => navigate("/change-password")}
           style={{
             width: "100%",
             display: "flex",
@@ -95,7 +95,7 @@ export function SettingsPage() {
               Change password
             </div>
             <div style={{ fontSize: 12.5, color: "#8a8f9e" }}>
-              Update your account password in a new tab
+              Update your account password
             </div>
           </div>
           <span style={{ fontSize: 18, color: "#c0bbb0" }}>›</span>

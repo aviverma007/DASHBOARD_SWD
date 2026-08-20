@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 /**
- * Change Password page — opened in a new tab from Settings.
+ * Change Password — rendered inside the app shell (same tab, same layout).
  * DEMO ONLY: no backend, no real password change.
  */
 export function ChangePasswordPage() {
+  const navigate = useNavigate();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,7 +20,6 @@ export function ChangePasswordPage() {
     if (!current) { setError("Please enter your current password."); return; }
     if (next.length < 6) { setError("New password must be at least 6 characters."); return; }
     if (next !== confirm) { setError("Passwords do not match."); return; }
-    // DEMO: just show success
     setDone(true);
   }
 
@@ -25,38 +27,51 @@ export function ChangePasswordPage() {
     width: "100%",
     padding: "11px 14px",
     borderRadius: 9,
-    border: "1px solid #ddd8ce",
+    border: "1.5px solid #ddd8ce",
     fontSize: 14,
     fontFamily: "inherit",
     outline: "none",
     background: "#faf9f6",
     boxSizing: "border-box",
+    transition: "border-color 0.15s",
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f4f2ed",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-        fontFamily: "inherit",
-      }}
-    >
+    <div style={{ maxWidth: 480, margin: "40px auto", padding: "0 20px", fontFamily: "inherit" }}>
+      {/* Back button */}
+      <button
+        onClick={() => navigate("/settings")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 13.5,
+          color: "#6b7280",
+          fontFamily: "inherit",
+          padding: 0,
+          marginBottom: 24,
+        }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#14213d")}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")}
+      >
+        <ArrowLeft size={16} />
+        Back to Settings
+      </button>
+
+      {/* Card */}
       <div
         style={{
           background: "#fff",
+          border: "1px solid #e4e0d6",
           borderRadius: 16,
-          padding: "36px 32px",
-          width: "100%",
-          maxWidth: 420,
-          boxShadow: "0 4px 32px rgba(20,33,61,.12)",
+          padding: "32px 28px",
+          boxShadow: "0 4px 24px rgba(20,33,61,.09)",
         }}
       >
-        {/* Logo area */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ marginBottom: 24 }}>
           <div
             style={{
               fontFamily: "Georgia,serif",
@@ -66,14 +81,16 @@ export function ChangePasswordPage() {
               marginBottom: 4,
             }}
           >
-            SWD Analytics
+            Change password
           </div>
-          <div style={{ fontSize: 13, color: "#8a8f9e" }}>Change your password</div>
+          <div style={{ fontSize: 13, color: "#8a8f9e" }}>
+            Update your account password below.
+          </div>
         </div>
 
         {done ? (
-          <div style={{ textAlign: "center", padding: "16px 0" }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+          <div style={{ textAlign: "center", padding: "12px 0 8px" }}>
+            <div style={{ fontSize: 42, marginBottom: 14 }}>✅</div>
             <div
               style={{
                 fontFamily: "Georgia,serif",
@@ -85,17 +102,16 @@ export function ChangePasswordPage() {
             >
               Password updated
             </div>
-            <div style={{ fontSize: 13.5, color: "#8a8f9e", lineHeight: 1.5 }}>
-              Your password has been changed. You can close this tab.
+            <div style={{ fontSize: 13.5, color: "#8a8f9e", lineHeight: 1.5, marginBottom: 22 }}>
+              Your password has been changed successfully.
             </div>
             <button
-              onClick={() => window.close()}
+              onClick={() => navigate("/settings")}
               style={{
-                marginTop: 22,
                 padding: "11px 28px",
                 borderRadius: 9,
                 border: "none",
-                background: "#B8893C",
+                background: "#1E3163",
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 600,
@@ -103,13 +119,13 @@ export function ChangePasswordPage() {
                 fontFamily: "inherit",
               }}
             >
-              Close tab
+              Back to Settings
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#14213d", marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#4a5568", marginBottom: 6 }}>
                 Current password
               </label>
               <input
@@ -119,10 +135,12 @@ export function ChangePasswordPage() {
                 placeholder="Enter current password"
                 style={inputStyle}
                 autoFocus
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#1E3163")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#ddd8ce")}
               />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#14213d", marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#4a5568", marginBottom: 6 }}>
                 New password
               </label>
               <input
@@ -131,10 +149,12 @@ export function ChangePasswordPage() {
                 onChange={(e) => setNext(e.target.value)}
                 placeholder="At least 6 characters"
                 style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#1E3163")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#ddd8ce")}
               />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#14213d", marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#4a5568", marginBottom: 6 }}>
                 Confirm new password
               </label>
               <input
@@ -143,6 +163,8 @@ export function ChangePasswordPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat new password"
                 style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#1E3163")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#ddd8ce")}
               />
             </div>
 
@@ -152,11 +174,15 @@ export function ChangePasswordPage() {
                   fontSize: 13,
                   color: "#c0392b",
                   background: "#fef0ee",
+                  border: "1px solid #f5c6c0",
                   borderRadius: 8,
                   padding: "9px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
                 }}
               >
-                {error}
+                <span>⚠</span> {error}
               </div>
             )}
 
@@ -167,13 +193,16 @@ export function ChangePasswordPage() {
                 padding: "12px 0",
                 borderRadius: 9,
                 border: "none",
-                background: "#14213d",
+                background: "#1E3163",
                 color: "#fff",
                 fontSize: 14.5,
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: "inherit",
+                transition: "background 0.15s",
               }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#B8893C")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#1E3163")}
             >
               Update password
             </button>

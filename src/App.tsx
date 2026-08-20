@@ -13,7 +13,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route path="/" element={<InventoryOverviewPage />} />
           <Route path="/inventory" element={<SmartworldInventoryPage />} />
@@ -24,6 +23,7 @@ function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
