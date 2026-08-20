@@ -27,8 +27,31 @@ const TV = rawTV as unknown as TVData;
 const TIMELINE = TD.months; // 24 months, Apr'25 .. Mar'27
 
 type PeriodType = "all" | "year" | "quarter" | "month";
-const YEAR_OPTIONS = [{ label: "FY 2025-26", start: 0, end: 11 }, { label: "FY 2026-27", start: 12, end: 23 }];
 const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"];
+
+// FY label = the year the fiscal year ENDS in (Apr'25→Mar'26 = "FY 2025-26").
+function fyEndYear(year: number, month: number): number {
+  return month >= 4 ? year + 1 : year;
+}
+function fyQuarter(month: number): number {
+  // FY quarters: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
+  return month >= 4 ? Math.floor((month - 4) / 3) : Math.floor((month + 8) / 3);
+}
+
+// Build the list of fiscal years actually present in the timeline (works
+// regardless of where the timeline starts — no hardcoded indices).
+const YEAR_OPTIONS = (() => {
+  const seen = new Map<number, { start: number; end: number }>();
+  TD.months.forEach((m, i) => {
+    const fy = fyEndYear(m.year, m.month);
+    const existing = seen.get(fy);
+    if (existing) existing.end = i;
+    else seen.set(fy, { start: i, end: i });
+  });
+  return [...seen.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([fy, range]) => ({ label: `FY ${fy - 1}-${String(fy).slice(-2)}`, start: range.start, end: range.end }));
+})();
 
 function todayIsFuture(year: number, month: number): boolean {
   const now = new Date();
@@ -52,7 +75,7 @@ export function TargetActualPage() {
   const [selectedProject, setSelectedProject] = useState<string>(TD.projects[0]?.name ?? "");
   const [chartGranularity, setChartGranularity] = useState<"month" | "quarter" | "year">("month");
   const [periodType, setPeriodType] = useState<PeriodType>("all");
-  const [yearIdx, setYearIdx] = useState<0 | 1>(1);
+  const [yearIdx, setYearIdx] = useState<number>(YEAR_OPTIONS.length - 1);
   const [quarter, setQuarter] = useState<number>(1);
   const [month, setMonth] = useState<number>(0); // index into the selected year's 12 months
 
@@ -68,12 +91,12 @@ export function TargetActualPage() {
 
   // Visible month range (indices into the 24-month TIMELINE)
   const [rangeStart, rangeEnd] = useMemo<[number, number]>(() => {
-    if (periodType === "all") return [0, 23];
+    if (periodType === "all") return [0, TIMELINE.length - 1];
     if (periodType === "year") return [YEAR_OPTIONS[yearIdx].start, YEAR_OPTIONS[yearIdx].end];
     if (periodType === "quarter") {
       const yr = YEAR_OPTIONS[yearIdx];
       const qStart = yr.start + (quarter - 1) * 3;
-      return [qStart, qStart + 2];
+      return [Math.min(qStart, yr.end), Math.min(qStart + 2, yr.end)];
     }
     // month
     const yr = YEAR_OPTIONS[yearIdx];
@@ -108,29 +131,40 @@ export function TargetActualPage() {
       });
     }
     if (chartGranularity === "quarter") {
-      const out: Bucket[] = [];
-      for (let q = 0; q < 8; q++) {
-        const idxs = [0, 1, 2].map(k => q * 3 + k).filter(i => i >= rangeStart && i <= rangeEnd);
-        if (idxs.length === 0 || !idxs.some(i => activeIdxs.includes(i))) continue;
-        const last = idxs[idxs.length - 1];
-        const m = TIMELINE[last];
-        const fyLabel = q < 4 ? "FY26" : "FY27";
-        out.push({ label: `Q${(q % 4) + 1} ${fyLabel}`, idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month });
+      // Group by (fyEndYear, fyQuarter) computed from each month's real
+      // calendar date — works no matter where the timeline starts/ends,
+      // unlike a hardcoded index/3 loop which assumed index 0 = April.
+      const groups = new Map<string, { idxs: number[]; fy: number; q: number }>();
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        const m = TIMELINE[i];
+        const fy = fyEndYear(m.year, m.month);
+        const q = fyQuarter(m.month);
+        const key = `${fy}-${q}`;
+        const g = groups.get(key) ?? { idxs: [], fy, q };
+        g.idxs.push(i);
+        groups.set(key, g);
       }
-      return out;
+      return [...groups.values()]
+        .sort((a, b) => a.fy - b.fy || a.q - b.q)
+        .filter(g => g.idxs.some(i => activeIdxs.includes(i)))
+        .map(g => {
+          const last = g.idxs[g.idxs.length - 1];
+          const m = TIMELINE[last];
+          return { label: `${QUARTER_LABELS[g.q]} FY${String(g.fy).slice(-2)}`, idxs: g.idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+        });
     }
-    // year
+    // year — one bucket per fiscal year actually present in the range
     return YEAR_OPTIONS.map(y => {
       const idxs: number[] = [];
       for (let i = y.start; i <= y.end; i++) if (i >= rangeStart && i <= rangeEnd) idxs.push(i);
       if (idxs.length === 0 || !idxs.some(i => activeIdxs.includes(i))) return null;
       const last = idxs[idxs.length - 1];
       const m = TIMELINE[last];
-      return { label: y.label.replace("FY ", "FY"), idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+      return { label: y.label, idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
     }).filter((b): b is Bucket => b !== null);
   }, [chartGranularity, activeIdxs, rangeStart, rangeEnd]);
 
-  const WINDOW_SIZE = chartGranularity === "month" ? 6 : chartGranularity === "quarter" ? 4 : 2;
+  const WINDOW_SIZE = chartGranularity === "month" ? 6 : chartGranularity === "quarter" ? 4 : 4;
 
   // Default window: rightmost = latest non-future bucket (or the latest
   // bucket at all, if every bucket is entirely in the future).
@@ -245,7 +279,7 @@ export function TargetActualPage() {
         {periodType !== "all" && (
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
-            <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value) as 0 | 1)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value))} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
               {YEAR_OPTIONS.map((y, i) => <option key={y.label} value={i}>{y.label}</option>)}
             </select>
           </div>
@@ -262,7 +296,11 @@ export function TargetActualPage() {
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Month</label>
             <select value={month} onChange={e => setMonth(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-              {Array.from({ length: 12 }, (_, i) => TIMELINE[YEAR_OPTIONS[yearIdx].start + i]).map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
+              {(() => {
+                const yr = YEAR_OPTIONS[yearIdx];
+                const len = yr.end - yr.start + 1;
+                return Array.from({ length: len }, (_, i) => TIMELINE[yr.start + i]).map((m, i) => <option key={m.label} value={i}>{m.label}</option>);
+              })()}
             </select>
           </div>
         )}
