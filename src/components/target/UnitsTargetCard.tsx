@@ -8,7 +8,9 @@ export interface TVADataPoint {
   month: string;
   target: number;
   achieved: number;
-  adjusted: number | null;
+  adjusted: number | null;   // balance-target spread across remaining future periods
+  catchUp: number | null;    // adjusted - this period's own target, only if > 0
+  showBadge: boolean;        // true only on the first future period with a catch-up
   isFuture: boolean;
   year: number;   // actual calendar year, for drill-down
   calMonth: number; // actual calendar month (1-12), for drill-down
@@ -99,20 +101,17 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
         {fmt(value)}
       </text>
     );
-    if (d.adjusted && !d.isFuture) {
-      const catchUp = d.adjusted - d.achieved;
-      if (catchUp > 0) {
-        const bw = 40, bh = 20;
-        const cx2 = (x as number) + (width as number) / 2 - bw / 2;
-        const cy2 = (y as number) - bh - 24;
-        return (
-          <g>
-            {label}
-            <rect x={cx2} y={cy2} width={bw} height={bh} rx={4} fill="#fff" stroke="#d32f2f" strokeWidth={1.5} />
-            <text x={cx2 + bw / 2} y={cy2 + 14} textAnchor="middle" fill="#d32f2f" fontSize={11} fontWeight="700">▲{fmt(catchUp)}</text>
-          </g>
-        );
-      }
+    if (d.showBadge && d.catchUp != null && d.catchUp > 0) {
+      const bw = 40, bh = 20;
+      const cx2 = (x as number) + (width as number) / 2 - bw / 2;
+      const cy2 = (y as number) - bh - 24;
+      return (
+        <g>
+          {label}
+          <rect x={cx2} y={cy2} width={bw} height={bh} rx={4} fill="#fff" stroke="#d32f2f" strokeWidth={1.5} />
+          <text x={cx2 + bw / 2} y={cy2 + 14} textAnchor="middle" fill="#d32f2f" fontSize={11} fontWeight="700">▲{fmt(d.catchUp)}</text>
+        </g>
+      );
     }
     return <>{label}</>;
   };
@@ -144,6 +143,12 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
           <span style={{ color: "#a9b2c7" }}>Achieved</span>
           <span style={{ fontWeight: 700, color: "#4ade80" }}>{d.achieved > 0 ? `${fmt(d.achieved)} ${unit}` : "No data"}</span>
         </div>
+        {d.adjusted != null && (
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ color: "#a9b2c7" }}>Adjusted (balance/mo)</span>
+            <span style={{ fontWeight: 700, color: "#5eead4" }}>{fmt(d.adjusted)} {unit}</span>
+          </div>
+        )}
       </div>
     );
   }

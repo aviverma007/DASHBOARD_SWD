@@ -188,7 +188,7 @@ export function TargetActualPage() {
   useEffect(() => { setSharedOffset(defaultOffset); }, [defaultOffset]);
 
   // Build Units/TSV/Area chart data — sums each bucket's underlying months
-  function buildSeries(targetArr: number[] | undefined, actualArr: number[] | undefined, scale = 1): TVADataPoint[] {
+  function buildSeries(targetArr: number[] | undefined, actualArr: number[] | undefined, scale = 1): Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[] {
     return buckets.map(b => {
       const t = b.idxs.reduce((s, i) => s + (targetArr?.[i] ?? 0), 0);
       const a = b.idxs.reduce((s, i) => s + (actualArr?.[i] ?? 0), 0) * scale;
@@ -196,7 +196,6 @@ export function TargetActualPage() {
         month: b.label,
         target: Math.round(t * 100) / 100,
         achieved: Math.round(a * 100) / 100,
-        adjusted: null,
         isFuture: b.isFuture,
         year: b.year,
         calMonth: b.month,
@@ -204,9 +203,39 @@ export function TargetActualPage() {
     });
   }
 
-  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, buckets]);
-  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, buckets]);
-  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, buckets]);
+  // Balance target = totalTarget (whole PLAN window) - totalAchieved (past+
+  // current, within that same plan window). Scoped to start at the first
+  // bucket where a target actually exists — otherwise, in "All time" view,
+  // achieved history that predates the target plan entirely (e.g. Edition's
+  // real sales from Nov'23, long before any target was set) would get
+  // counted into "achieved", producing a nonsensical negative balance.
+  // Adjusted target = that balance spread evenly across the remaining
+  // future periods, so each future bar/point shows what pace is actually
+  // needed — not just the original monthly plan. Catch-up badge = how much
+  // MORE than the original target that adjusted pace requires, shown only
+  // on the first future period (not every one, to avoid repeating the same
+  // signal).
+  function enrichWithAdjusted(points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[], round = 100): TVADataPoint[] {
+    const planStart = points.findIndex(d => d.target > 0);
+    const planPoints = planStart >= 0 ? points.slice(planStart) : points;
+    const totalTarget = planPoints.reduce((s, d) => s + d.target, 0);
+    const totalAchieved = planPoints.filter(d => !d.isFuture).reduce((s, d) => s + d.achieved, 0);
+    const balance = totalTarget - totalAchieved;
+    const futureCount = planPoints.filter(d => d.isFuture).length;
+    const adjPerPeriod = futureCount > 0 ? balance / futureCount : 0;
+    const firstFutureIdx = points.findIndex(d => d.isFuture);
+
+    return points.map((d, i) => {
+      if (!d.isFuture) return { ...d, adjusted: null, catchUp: null, showBadge: false };
+      const adjusted = Math.round(adjPerPeriod * round) / round;
+      const catchUp = adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
+      return { ...d, adjusted, catchUp, showBadge: i === firstFutureIdx && catchUp != null && catchUp > 0 };
+    });
+  }
+
+  const unitsData = useMemo(() => enrichWithAdjusted(buildSeries(target?.units, actual?.monthly_units), 1), [target, actual, buckets]);
+  const tsvData = useMemo(() => enrichWithAdjusted(buildSeries(target?.sale_value, actual?.monthly_tsv), 10), [target, actual, buckets]);
+  const areaData = useMemo(() => enrichWithAdjusted(buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), 100), [target, actual, buckets]);
 
   // Avg Rate series — same bucket order, so it's always aligned with the
   // other three charts regardless of granularity
@@ -273,7 +302,7 @@ export function TargetActualPage() {
   }, [totalTargetTsvInRange, totalAchievedTsvInRange, totalTargetAreaInRange, totalAchievedAreaInRange]);
 
   function handleRatePointClick(p: RatePoint) {
-    setDrillMonth({ month: p.month, target: 0, achieved: 0, adjusted: null, isFuture: p.isFuture, year: p.year, calMonth: p.calMonth });
+    setDrillMonth({ month: p.month, target: 0, achieved: 0, adjusted: null, catchUp: null, showBadge: false, isFuture: p.isFuture, year: p.year, calMonth: p.calMonth });
   }
 
   const periodLabel = periodType === "all" ? "All time"

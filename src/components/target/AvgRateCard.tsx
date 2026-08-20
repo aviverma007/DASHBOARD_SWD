@@ -150,9 +150,11 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, t
         <div style={{ background: "#FDF3E3", border: "1px solid #f0d9a8", borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
           <span style={{ fontSize: 22, fontWeight: 700, color: badgeColor }}>{achievedPct}%</span>
         </div>
-        <div style={{ background: "#F5EFFB", border: "1px solid #ddd0f0", borderRadius: 8, padding: "10px 14px", fontSize: 12, fontWeight: 700, color: "#6d3ba8", textAlign: "center" }}>
-          TARGET BUSINESS PLAN TSV AT RISK WITH CURRENT RATE
-        </div>
+        {avgAchievedRate > 0 && targetRate > 0 && avgAchievedRate < targetRate && (
+          <div style={{ background: "#F5EFFB", border: "1px solid #ddd0f0", borderRadius: 8, padding: "10px 14px", fontSize: 12, fontWeight: 700, color: "#6d3ba8", textAlign: "center" }}>
+            TARGET BUSINESS PLAN TSV AT RISK WITH CURRENT RATE
+          </div>
+        )}
         <div style={{ background: "#fff", border: "1px solid #e4e0d6", borderRadius: 8, padding: "12px 14px", fontSize: 12.5 }}>
           <div style={{ fontWeight: 700, color: "#14213d", marginBottom: 6 }}>Rate (Target Vs Actual)</div>
           {requiredRate != null ? (
