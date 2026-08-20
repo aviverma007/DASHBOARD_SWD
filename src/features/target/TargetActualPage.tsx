@@ -550,7 +550,7 @@ export function TargetActualPage() {
           {agg.rows.filter(r=>r.tgtU>0||r.actU>0).map(row=>{
             const pct=row.tgtU>0?Math.round(row.actU/row.tgtU*100):0;
             const color=pct>=100?'#1a7a4a':pct>=75?'#B8893C':'#c0392b';
-            const hasPdrn=TV.projects.some(x=>x.name===row.name);
+            
             return (
               <div className="barrow" key={row.name} onClick={()=>{setDrillCtx({type:'project',projectName:TARGET_TO_PDRN(row.name)});}} style={{ cursor:'pointer' }}>
                 <div className="lbl">
