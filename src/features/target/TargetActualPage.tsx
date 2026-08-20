@@ -233,7 +233,7 @@ export function TargetActualPage() {
         {/* Cards 5-6: Tower charts */}
         {actual && (
           <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
-            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
+            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
             <TowerRateMovementCard towers={actual.towers} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
           </div>
         )}

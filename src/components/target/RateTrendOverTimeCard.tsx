@@ -36,12 +36,19 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
             const yv = PAD.t + innerH * t, v = max - (max - min) * t;
             return <g key={t}><line x1={PAD.l} x2={W - PAD.r} y1={yv} y2={yv} stroke="#eceff1" strokeDasharray="3,3" /><text x={PAD.l - 6} y={yv + 3} fontSize="9" fill="#9ca3af" textAnchor="end">₹{Math.round(v / 1000)}k</text></g>;
           })}
-          <line x1={PAD.l} x2={W - PAD.r} y1={avgY} y2={avgY} stroke="#22c55e" strokeWidth="1.6" strokeDasharray="5,3" />
+          <line x1={PAD.l} x2={W - PAD.r} y1={avgY} y2={avgY} stroke="#22c55e" strokeWidth="1.6" strokeDasharray="5,3">
+            <title>Overall Average: ₹{Math.round(avg).toLocaleString("en-IN")}/sqft</title>
+          </line>
           <path d={line} fill="none" stroke="#0e7490" strokeWidth="1.8" />
           {data.map((d, i) => (
-            <circle key={d.key} cx={x(i)} cy={y(d.rate)} r="3.5" fill="#0e7490"
-              style={{ cursor: onPointClick ? "pointer" : "default" }}
-              onClick={() => onPointClick?.(d.key)} />
+            <g key={d.key}>
+              <circle cx={x(i)} cy={y(d.rate)} r="10" fill="transparent"
+                style={{ cursor: onPointClick ? "pointer" : "default" }}
+                onClick={() => onPointClick?.(d.key)}>
+                <title>Month: {d.key}{"\n"}Average Rate: ₹{d.rate.toLocaleString("en-IN")}/sqft{"\n"}Units booked: {d.units}</title>
+              </circle>
+              <circle cx={x(i)} cy={y(d.rate)} r="4" fill="#0e7490" style={{ pointerEvents: "none" }} />
+            </g>
           ))}
           {data.filter((_, i) => i % Math.ceil(data.length / 12) === 0).map(d => {
             const i = data.indexOf(d);

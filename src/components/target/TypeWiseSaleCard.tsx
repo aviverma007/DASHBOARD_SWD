@@ -46,9 +46,15 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
             const dotY = PAD.t + innerH - (c.sold_pct / 100) * innerH;
             return (
               <g key={c.name} onClick={() => onConfigClick?.(c.name)} style={{ cursor: onConfigClick ? "pointer" : "default" }}>
-                <rect x={gx} y={baseY - soldH} width={BAR_W} height={soldH} fill="#0e7490" rx="2" />
-                <rect x={gx + BAR_W + GAP_IN_PAIR} y={baseY - unsoldH} width={BAR_W} height={unsoldH} fill="#a5f3fc" rx="2" />
-                <circle cx={gx + groupW / 2} cy={dotY} r="4" fill="#fff" stroke="#0e7490" strokeWidth="2" />
+                <rect x={gx} y={baseY - soldH} width={BAR_W} height={soldH} fill="#0e7490" rx="2">
+                  <title>Type: {c.name}{"\n"}Status: Units Sold{"\n"}Units: {c.sold}{"\n"}Avg area: {c.avg_area?.toLocaleString("en-IN")} sqft</title>
+                </rect>
+                <rect x={gx + BAR_W + GAP_IN_PAIR} y={baseY - unsoldH} width={BAR_W} height={unsoldH} fill="#a5f3fc" rx="2">
+                  <title>Type: {c.name}{"\n"}Status: Unsold Units{"\n"}Units: {c.unsold}</title>
+                </rect>
+                <circle cx={gx + groupW / 2} cy={dotY} r="5" fill="#fff" stroke="#0e7490" strokeWidth="2">
+                  <title>Type: {c.name}{"\n"}% Sold: {c.sold_pct}%</title>
+                </circle>
                 <text x={gx + groupW / 2} y={dotY - 8} fontSize="10" fill="#0e7490" fontWeight="700" textAnchor="middle">{c.sold_pct}%</text>
                 <text x={gx + groupW / 2} y={H - 18} fontSize="10.5" fill="#14213d" textAnchor="middle" fontWeight="600">{c.name}</text>
                 <text x={gx + groupW / 2} y={H - 6} fontSize="9" fill="#9ca3af" textAnchor="middle">{c.avg_area ? `${c.avg_area.toLocaleString("en-IN")} sqft` : ""}</text>

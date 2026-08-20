@@ -73,8 +73,10 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
             d={filtered.map((_, i) => `${i === 0 ? "M" : "L"}${groupX(i) + groupW / 2} ${avgY(avgByTower[i])}`).join(" ")}
             fill="none" stroke="#22c55e" strokeWidth="1.8" strokeDasharray="5,3"
           />
-          {filtered.map((_, i) => (
-            <circle key={i} cx={groupX(i) + groupW / 2} cy={avgY(avgByTower[i])} r="3.5" fill="#22c55e" stroke="#fff" strokeWidth="1" />
+          {filtered.map((tw, i) => (
+            <circle key={i} cx={groupX(i) + groupW / 2} cy={avgY(avgByTower[i])} r="4" fill="#22c55e" stroke="#fff" strokeWidth="1.5">
+              <title>{tw.name} — Average rate: ₹{Math.round(avgByTower[i]).toLocaleString("en-IN")}/sqft</title>
+            </circle>
           ))}
 
           {filtered.map((tw, ti) => (
@@ -87,7 +89,9 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
                 const baseY = PAD.t + innerH;
                 return (
                   <g key={yr}>
-                    <rect x={bx} y={baseY - bh} width={BAR_W} height={bh} fill={YEAR_COLORS[yr] ?? "#94a3b8"} rx="2" />
+                    <rect x={bx} y={baseY - bh} width={BAR_W} height={bh} fill={YEAR_COLORS[yr] ?? "#94a3b8"} rx="2">
+                      <title>Tower: {tw.name}{"\n"}Year: {yr}{"\n"}Rate: ₹{v.toLocaleString("en-IN")}/sqft</title>
+                    </rect>
                     <text x={bx + BAR_W / 2} y={baseY - bh - 4} fontSize="8" fill="#475569" textAnchor="middle">{v.toLocaleString("en-IN")}</text>
                   </g>
                 );
