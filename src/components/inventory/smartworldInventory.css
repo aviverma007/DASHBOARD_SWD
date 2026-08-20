@@ -240,6 +240,7 @@
 .sw-inv .grid {
   display: grid;
   gap: 14px;
+  align-items: start; /* each cell sizes to its own content, not the tallest sibling */
 }
 .sw-inv .g2 {
   grid-template-columns: 1fr 1fr;
