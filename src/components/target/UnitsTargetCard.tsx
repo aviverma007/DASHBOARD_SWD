@@ -10,6 +10,8 @@ export interface TVADataPoint {
   achieved: number;
   adjusted: number | null;
   isFuture: boolean;
+  year: number;   // actual calendar year, for drill-down
+  calMonth: number; // actual calendar month (1-12), for drill-down
 }
 
 interface UnitsCardProps {
@@ -18,6 +20,7 @@ interface UnitsCardProps {
   achievedLabel?: string;
   formatVal?: (n: number) => string;
   unit?: string;
+  onBarClick?: (point: TVADataPoint) => void;
 }
 
 const WINDOW = 6;
@@ -73,7 +76,7 @@ function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOff
 }
 
 // ── Main card ─────────────────────────────────────────────────────────────────
-export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units" }: UnitsCardProps) {
+export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units", onBarClick }: UnitsCardProps) {
   const [offset, setOffset] = useState(0);
   const maxOffset = Math.max(0, data.length - WINDOW);
   const visible = data.slice(offset, offset + WINDOW);
@@ -127,7 +130,10 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
-        <div style={{ fontSize: 10.5, color: "#90a4ae" }}>Double-click to zoom</div>
+        <div style={{ fontSize: 10.5, color: "#90a4ae", textAlign: "right" }}>
+          Double-click to zoom
+          {onBarClick && <div style={{ color: "#0097a7", marginTop: 2 }}>click a green bar → drill down</div>}
+        </div>
       </div>
 
       {/* Badge */}
@@ -160,7 +166,12 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
           {/* Achieved bars */}
           <Bar dataKey="achieved" name="Achieved" maxBarSize={22}>
             {visible.map((d, i) => (
-              <Cell key={i} fill={d.isFuture || d.achieved === 0 ? "transparent" : "#2e7d32"} />
+              <Cell
+                key={i}
+                fill={d.isFuture || d.achieved === 0 ? "transparent" : "#2e7d32"}
+                style={{ cursor: !d.isFuture && d.achieved > 0 && onBarClick ? "pointer" : "default" }}
+                onClick={() => { if (!d.isFuture && d.achieved > 0 && onBarClick) onBarClick(d); }}
+              />
             ))}
             <LabelList content={<AchievedLabel />} />
           </Bar>

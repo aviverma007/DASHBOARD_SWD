@@ -3,6 +3,7 @@ import rawTarget from "../../data/targetData.json";
 import rawSales from "../../data/salesPDRN.json";
 import { UnitsTargetCard } from "../../components/target/UnitsTargetCard";
 import type { TVADataPoint } from "../../components/target/UnitsTargetCard";
+import { MonthDrillDrawer } from "../../components/target/MonthDrillDrawer";
 import "../../components/inventory/smartworldInventory.css";
 
 interface ProjectTarget { name: string; units: { monthly: number[]; total: number }; sale_value: { monthly: number[]; total: number }; area: { monthly: number[]; total: number }; }
@@ -111,6 +112,7 @@ export function TargetActualPage() {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  const [drillPoint, setDrillPoint] = useState<TVADataPoint | null>(null);
 
   const today = new Date();
 
@@ -138,6 +140,8 @@ export function TargetActualPage() {
         achieved: inRange && !isFuture ? actuals[i] : 0,
         adjusted: null,
         isFuture: isFuture || !inRange,
+        year,
+        calMonth: month,
       };
     }).filter(d => d.target > 0 || d.achieved > 0);
   }, [selectedProjects, periodType, selectedYear, selectedQuarter, selectedMonth, today]);
@@ -201,8 +205,24 @@ export function TargetActualPage() {
         </div>
 
         {/* Units card */}
-        <UnitsTargetCard data={chartData} title="UNITS — TARGET VS ACHIEVED" unit="Units" />
+        <UnitsTargetCard
+          data={chartData}
+          title="UNITS — TARGET VS ACHIEVED"
+          unit="Units"
+          onBarClick={setDrillPoint}
+        />
       </div>
+
+      {/* Drill-down drawer — Project → Tower → Unit for the clicked month */}
+      {drillPoint && (
+        <MonthDrillDrawer
+          year={drillPoint.year}
+          month={drillPoint.calMonth}
+          monthLabel={drillPoint.month}
+          projectFilter={selectedProjects}
+          onClose={() => setDrillPoint(null)}
+        />
+      )}
     </div>
   );
 }
