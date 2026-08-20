@@ -1,11 +1,17 @@
 interface CfgRow { name: string; sold: number; unsold: number; total: number; sold_pct: number; avg_area: number; }
 
+const CARD_STYLE: React.CSSProperties = {
+  background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)",
+  padding: "16px 18px 14px", height: 400, display: "flex", flexDirection: "column",
+  boxSizing: "border-box", minWidth: 0, width: "100%",
+};
+
 export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]; onConfigClick?: (name: string) => void }) {
   const filtered = configs.filter(c => c.total > 0);
   if (filtered.length === 0) {
     return (
-      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px" }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10 }}>TYPE WISE % SALE</div>
+      <div style={CARD_STYLE}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
         <p style={{ color: "#9ca3af", fontSize: 13 }}>No configuration data.</p>
       </div>
     );
@@ -14,16 +20,16 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
   const BAR_W = 30, GAP_IN_PAIR = 4, GROUP_GAP = 34, PAD = { l: 26, r: 40, t: 34, b: 34 };
   const groupW = BAR_W * 2 + GAP_IN_PAIR;
   const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
-  const H = 190;
+  const H = 220;
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
   const maxUnits = Math.max(...filtered.map(c => c.total), 1);
 
   return (
-    <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px" }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10 }}>TYPE WISE % SALE</div>
-      <div style={{ overflowX: "auto" }}>
-        <svg width={Math.max(W, 360)} height={H} style={{ display: "block" }}>
+    <div style={CARD_STYLE}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
           {/* % sold trend line */}
           <path
             d={filtered.map((c, i) => {
@@ -51,7 +57,7 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
           })}
         </svg>
       </div>
-      <div style={{ display: "flex", gap: 14, fontSize: 10.5, marginTop: 6 }}>
+      <div style={{ display: "flex", gap: 14, fontSize: 10.5, marginTop: 6, flexShrink: 0 }}>
         <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#0e7490", marginRight: 4 }} />Units Sold</span>
         <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#a5f3fc", marginRight: 4 }} />Unsold Units</span>
         <span><span style={{ display: "inline-block", width: 14, height: 2, background: "#0e7490", marginRight: 4, verticalAlign: "middle", borderTop: "1.6px dashed #0e7490" }} />% Sold</span>

@@ -16,12 +16,18 @@ const YEAR_COLORS: Record<string, string> = {
   "2027": "#082f49",
 };
 
+const CARD_STYLE: React.CSSProperties = {
+  background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)",
+  padding: "16px 18px 14px", height: 400, display: "flex", flexDirection: "column",
+  boxSizing: "border-box", minWidth: 0, width: "100%",
+};
+
 export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovementProps) {
   const filtered = towers.filter(t => Object.keys(t.year_rates).length > 0);
   if (filtered.length === 0) {
     return (
-      <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px" }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10 }}>TOWER WISE RATE MOVEMENT</div>
+      <div style={CARD_STYLE}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TOWER WISE RATE MOVEMENT</div>
         <p style={{ color: "#9ca3af", fontSize: 13 }}>No booking-rate history available for this project's towers.</p>
       </div>
     );
@@ -40,7 +46,7 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
   const BAR_W = 16, GROUP_GAP = 26, PAD = { l: 46, r: 16, t: 30, b: 30 };
   const groupW = allYears.length * (BAR_W + 3);
   const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
-  const H = 190;
+  const H = 220;
   const innerH = H - PAD.t - PAD.b;
 
   const barH = (v: number) => ((v - minRate) / (maxRate - minRate)) * innerH;
@@ -48,10 +54,10 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
   const avgY = (v: number) => PAD.t + innerH - ((v - minRate) / (maxRate - minRate)) * innerH;
 
   return (
-    <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px" }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10 }}>TOWER WISE RATE MOVEMENT</div>
-      <div style={{ overflowX: "auto" }}>
-        <svg width={Math.max(W, 380)} height={H} style={{ display: "block" }}>
+    <div style={CARD_STYLE}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TOWER WISE RATE MOVEMENT</div>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
           {[0, 0.5, 1].map(t => {
             const yv = PAD.t + innerH * t;
             const v = maxRate - (maxRate - minRate) * t;
@@ -91,7 +97,7 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
           ))}
         </svg>
       </div>
-      <div style={{ display: "flex", gap: 12, fontSize: 10.5, marginTop: 6, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, fontSize: 10.5, marginTop: 6, flexWrap: "wrap", flexShrink: 0 }}>
         <span><span style={{ display: "inline-block", width: 14, height: 2, background: "#22c55e", marginRight: 4, verticalAlign: "middle", borderTop: "2px dashed #22c55e" }} />Average</span>
         {allYears.map(yr => (
           <span key={yr}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: YEAR_COLORS[yr] ?? "#94a3b8", marginRight: 4 }} />{yr}</span>

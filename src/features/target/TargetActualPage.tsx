@@ -157,7 +157,7 @@ export function TargetActualPage() {
     : `${TIMELINE[YEAR_OPTIONS[yearIdx].start + month]?.label}`;
 
   return (
-    <div className="sw-inv" style={{ minHeight: "100vh", zoom: 0.9 } as React.CSSProperties}>
+    <div className="sw-inv" style={{ minHeight: "100vh", zoom: 0.9, overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
@@ -232,7 +232,7 @@ export function TargetActualPage() {
 
         {/* Cards 5-6: Tower charts */}
         {actual && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
             <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
             <TowerRateMovementCard towers={actual.towers} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
           </div>
@@ -240,7 +240,7 @@ export function TargetActualPage() {
 
         {/* Cards 7-8: Rate trend + Type wise */}
         {actual && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
             <RateTrendOverTimeCard data={actual.rate_trend} />
             <TypeWiseSaleCard configs={actual.configs} onConfigClick={name => setDrillScope({ type: "config", label: name })} />
           </div>
