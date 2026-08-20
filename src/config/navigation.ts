@@ -21,5 +21,5 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "placeholder" },
   { key: "upload", label: "Data Upload", path: "/upload", icon: "UploadCloud", status: "placeholder" },
-  { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "placeholder" },
+  { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "active" },
 ];
