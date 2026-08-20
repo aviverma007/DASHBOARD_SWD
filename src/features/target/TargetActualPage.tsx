@@ -32,16 +32,25 @@ const PD = rawSales as unknown as PdrnData;
 
 const MONTHS = TD.months; // ['Apr-26'..'Mar-27']
 
-// Map PDRN booking year/month to a month index (0=Apr-26, 11=Mar-27)
+// Map Target Excel project names → PDRN project names.
+// Only the 5 below have matching PDRN data in the current dataset;
+// the Noida/GIC/Lofts projects are not yet in the PDRN file.
+const TARGET_TO_PDRN: Record<string, string> = {
+  "The Edition":        "SMARTWORLD THE EDITION",
+  "SKY ARC":            "SMARTWORLD SKY ARC",
+  "Trump":              "TRUMP RESIDENCES GURGAON",
+  "Orchard":            "SMARTWORLD LE COURTYARD",
+  "Noida_Suits":        "SMARTWORLD SUITES",
+};
+
+// Map PDRN booking year/month → FY 2026-27 month index (0=Apr-26 … 11=Mar-27)
 function pdrnMonthIdx(year: number, month: number): number {
-  // Apr-26=0, May-26=1, ..., Mar-26=12-ish
-  // FY Apr 2026 = year 2026 month 4
-  if (year === 2026) return month - 4; // Apr=0, May=1 ... Dec=8
-  if (year === 2027) return 9 + month - 1; // Jan=9, Feb=10, Mar=11
-  return -1;
+  if (year === 2026 && month >= 4) return month - 4;    // Apr=0 … Dec=8
+  if (year === 2027 && month <= 3) return 9 + month - 1; // Jan=9, Feb=10, Mar=11
+  return -1; // outside FY 2026-27
 }
 
-// Compute actual bookings from PDRN per project and per month
+// Compute actual bookings from PDRN keyed by PDRN project name
 function buildActuals(): Record<string, { units: number[]; value: number[] }> {
   const result: Record<string, { units: number[]; value: number[] }> = {};
   PD.R.forEach((r) => {
@@ -54,6 +63,18 @@ function buildActuals(): Record<string, { units: number[]; value: number[] }> {
     }
   });
   return result;
+}
+
+// Look up actuals for a target project name (handles name mapping)
+function getActuals(
+  actuals: Record<string, { units: number[]; value: number[] }>,
+  targetName: string
+): { units: number[]; value: number[] } {
+  const pdrnName = TARGET_TO_PDRN[targetName];
+  if (pdrnName && actuals[pdrnName]) return actuals[pdrnName];
+  // direct match (in case names ever align)
+  if (actuals[targetName]) return actuals[targetName];
+  return { units: Array(12).fill(0), value: Array(12).fill(0) };
 }
 
 // ── Filter state ─────────────────────────────────────────────────────────────
@@ -221,7 +242,7 @@ export function TargetActualPage() {
     const rows: { name: string; tgtUnits: number; actUnits: number; tgtValue: number; actValue: number }[] = [];
 
     visibleProjects.forEach((p) => {
-      const act = actuals[p.name] ?? { units: Array(12).fill(0), value: Array(12).fill(0) };
+      const act = getActuals(actuals, p.name);
       const mRange = selectedMonth === "all" ? Array.from({ length: 12 }, (_, i) => i) : [MONTHS.indexOf(selectedMonth)];
 
       const pTgtU = mRange.reduce((s, i) => s + (p.units.monthly[i] ?? 0), 0);
@@ -257,7 +278,7 @@ export function TargetActualPage() {
   // Month-wise trend data for visible projects
   const monthTrend = MONTHS.map((m, i) => {
     const tgt = visibleProjects.reduce((s, p) => s + (p.units.monthly[i] ?? 0), 0);
-    const act = visibleProjects.reduce((s, p) => s + (actuals[p.name]?.units[i] ?? 0), 0);
+    const act = visibleProjects.reduce((s, p) => s + (getActuals(actuals, p.name).units[i] ?? 0), 0);
     return { month: m, tgt, act };
   });
 
@@ -461,7 +482,7 @@ export function TargetActualPage() {
                   const pct = row.tgt > 0 ? Math.round((row.act / row.tgt) * 100) : 0;
                   const color = pct >= 100 ? "#1a7a4a" : pct >= 75 ? "#B8893C" : "#c0392b";
                   const tgtV = visibleProjects.reduce((s, p) => s + (p.sale_value.monthly[i] ?? 0), 0);
-                  const actV = visibleProjects.reduce((s, p) => s + (actuals[p.name]?.value[i] ?? 0), 0);
+                  const actV = visibleProjects.reduce((s, p) => s + (getActuals(actuals, p.name).value[i] ?? 0), 0);
                   return (
                     <tr key={i} style={{ background: selectedMonth === MONTHS[i] ? "#FBF8F1" : undefined }}>
                       <td>{row.month}</td>
