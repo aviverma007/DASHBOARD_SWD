@@ -1,33 +1,51 @@
+import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
+
 interface CfgRow { name: string; sold: number; unsold: number; total: number; sold_pct: number; avg_area: number; }
 
 const CARD_STYLE: React.CSSProperties = {
   background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)",
-  padding: "16px 18px 14px", height: 400, display: "flex", flexDirection: "column",
+  padding: "16px 18px 14px", height: 420, display: "flex", flexDirection: "column",
   boxSizing: "border-box", minWidth: 0, width: "100%",
 };
 
 export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]; onConfigClick?: (name: string) => void }) {
+  const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
   const filtered = configs.filter(c => c.total > 0);
+
   if (filtered.length === 0) {
     return (
       <div style={CARD_STYLE}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
+        <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
         <p style={{ color: "#9ca3af", fontSize: 13 }}>No configuration data.</p>
       </div>
     );
   }
 
-  const BAR_W = 30, GAP_IN_PAIR = 4, GROUP_GAP = 34, PAD = { l: 26, r: 40, t: 34, b: 34 };
+  // Wider bars, generous group spacing, extra top padding for % labels + dashed line
+  const BAR_W = 46, GAP_IN_PAIR = 6, GROUP_GAP = 56, PAD = { l: 20, r: 20, t: 46, b: 46 };
   const groupW = BAR_W * 2 + GAP_IN_PAIR;
   const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
-  const H = 220;
+  const H = 280;
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
   const maxUnits = Math.max(...filtered.map(c => c.total), 1);
 
+  function cfgTooltip(c: CfgRow, e: React.MouseEvent) {
+    const content = (
+      <>
+        <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13.5 }}>{c.name}</div>
+        {tRow("Units Sold", c.sold.toLocaleString("en-IN"), "#0e7490")}
+        {tRow("Unsold Units", c.unsold.toLocaleString("en-IN"), "#7dd3ea")}
+        {tRow("% Sold", `${c.sold_pct}%`)}
+        {c.avg_area > 0 && tRow("Avg area", `${c.avg_area.toLocaleString("en-IN")} sqft`)}
+      </>
+    );
+    showTooltip(e, content);
+  }
+
   return (
     <div style={CARD_STYLE}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
+      <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
       <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
           {/* % sold trend line */}
@@ -37,7 +55,7 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
               const py = PAD.t + innerH - (c.sold_pct / 100) * innerH;
               return `${i === 0 ? "M" : "L"}${gx} ${py}`;
             }).join(" ")}
-            fill="none" stroke="#0e7490" strokeWidth="1.6" strokeDasharray="5,3"
+            fill="none" stroke="#0e7490" strokeWidth="2" strokeDasharray="6,4"
           />
           {filtered.map((c, i) => {
             const gx = PAD.l + i * (groupW + GROUP_GAP);
@@ -45,29 +63,33 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
             const unsoldH = (c.unsold / maxUnits) * innerH;
             const dotY = PAD.t + innerH - (c.sold_pct / 100) * innerH;
             return (
-              <g key={c.name} onClick={() => onConfigClick?.(c.name)} style={{ cursor: onConfigClick ? "pointer" : "default" }}>
-                <rect x={gx} y={baseY - soldH} width={BAR_W} height={soldH} fill="#0e7490" rx="2">
-                  <title>Type: {c.name}{"\n"}Status: Units Sold{"\n"}Units: {c.sold}{"\n"}Avg area: {c.avg_area?.toLocaleString("en-IN")} sqft</title>
-                </rect>
-                <rect x={gx + BAR_W + GAP_IN_PAIR} y={baseY - unsoldH} width={BAR_W} height={unsoldH} fill="#a5f3fc" rx="2">
-                  <title>Type: {c.name}{"\n"}Status: Unsold Units{"\n"}Units: {c.unsold}</title>
-                </rect>
-                <circle cx={gx + groupW / 2} cy={dotY} r="5" fill="#fff" stroke="#0e7490" strokeWidth="2">
-                  <title>Type: {c.name}{"\n"}% Sold: {c.sold_pct}%</title>
-                </circle>
-                <text x={gx + groupW / 2} y={dotY - 8} fontSize="10" fill="#0e7490" fontWeight="700" textAnchor="middle">{c.sold_pct}%</text>
-                <text x={gx + groupW / 2} y={H - 18} fontSize="10.5" fill="#14213d" textAnchor="middle" fontWeight="600">{c.name}</text>
-                <text x={gx + groupW / 2} y={H - 6} fontSize="9" fill="#9ca3af" textAnchor="middle">{c.avg_area ? `${c.avg_area.toLocaleString("en-IN")} sqft` : ""}</text>
+              <g
+                key={c.name}
+                onClick={() => onConfigClick?.(c.name)}
+                onMouseEnter={e => cfgTooltip(c, e)}
+                onMouseMove={moveTooltip}
+                onMouseLeave={hideTooltip}
+                style={{ cursor: onConfigClick ? "pointer" : "default" }}
+              >
+                {/* Invisible wider hit-zone spanning the whole group */}
+                <rect x={gx - GROUP_GAP / 2} y={PAD.t} width={groupW + GROUP_GAP} height={innerH} fill="transparent" />
+                <rect x={gx} y={baseY - soldH} width={BAR_W} height={soldH} fill="#0e7490" rx="3" />
+                <rect x={gx + BAR_W + GAP_IN_PAIR} y={baseY - unsoldH} width={BAR_W} height={unsoldH} fill="#a5f3fc" rx="3" />
+                <circle cx={gx + groupW / 2} cy={dotY} r="6" fill="#fff" stroke="#0e7490" strokeWidth="2.5" />
+                <text x={gx + groupW / 2} y={dotY - 12} fontSize="14" fill="#0e7490" fontWeight="700" textAnchor="middle">{c.sold_pct}%</text>
+                <text x={gx + groupW / 2} y={H - 28} fontSize="14" fill="#14213d" textAnchor="middle" fontWeight="700">{c.name}</text>
+                <text x={gx + groupW / 2} y={H - 10} fontSize="11.5" fill="#94a3b8" textAnchor="middle">{c.avg_area ? `${c.avg_area.toLocaleString("en-IN")} sqft` : ""}</text>
               </g>
             );
           })}
         </svg>
       </div>
-      <div style={{ display: "flex", gap: 14, fontSize: 10.5, marginTop: 6, flexShrink: 0 }}>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#0e7490", marginRight: 4 }} />Units Sold</span>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#a5f3fc", marginRight: 4 }} />Unsold Units</span>
-        <span><span style={{ display: "inline-block", width: 14, height: 2, background: "#0e7490", marginRight: 4, verticalAlign: "middle", borderTop: "1.6px dashed #0e7490" }} />% Sold</span>
+      <div style={{ display: "flex", gap: 16, fontSize: 12, marginTop: 8, flexShrink: 0, color: "#4a5568" }}>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: "#0e7490", marginRight: 5, verticalAlign: "middle" }} />Units Sold</span>
+        <span><span style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: "#a5f3fc", marginRight: 5, verticalAlign: "middle" }} />Unsold Units</span>
+        <span><span style={{ display: "inline-block", width: 16, height: 3, background: "#0e7490", marginRight: 5, verticalAlign: "middle", borderTop: "2px dashed #0e7490" }} />% Sold</span>
       </div>
+      <ChartTooltip tooltip={tooltip} />
     </div>
   );
 }
