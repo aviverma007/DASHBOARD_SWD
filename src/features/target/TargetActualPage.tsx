@@ -50,6 +50,7 @@ function ProjectSelect({ projects, selected, onChange }: { projects: string[]; s
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function TargetActualPage() {
   const [selectedProject, setSelectedProject] = useState<string>(TD.projects[0]?.name ?? "");
+  const [chartGranularity, setChartGranularity] = useState<"month" | "quarter" | "year">("month");
   const [periodType, setPeriodType] = useState<PeriodType>("all");
   const [yearIdx, setYearIdx] = useState<0 | 1>(1);
   const [quarter, setQuarter] = useState<number>(1);
@@ -62,7 +63,7 @@ export function TargetActualPage() {
   const actual = TV.projects.find(p => p.name === selectedProject);
 
   function handleReset() {
-    setPeriodType("all"); setYearIdx(1); setQuarter(1); setMonth(0);
+    setPeriodType("all"); setYearIdx(1); setQuarter(1); setMonth(0); setChartGranularity("month");
   }
 
   // Visible month range (indices into the 24-month TIMELINE)
@@ -79,13 +80,9 @@ export function TargetActualPage() {
     return [yr.start + month, yr.start + month];
   }, [periodType, yearIdx, quarter, month]);
 
-  // ── Shared master timeline ──────────────────────────────────────────────
+  // ── Shared master timeline, aggregated by the selected granularity ─────
   // A month is "active" if ANY of target-units/actual-units/target-TSV/
-  // actual-TSV/target-area/actual-area is non-zero. Building every series
-  // (units/TSV/area/rate) from this SAME index list — instead of each
-  // series filtering its own zero-rows independently — guarantees all
-  // four charts are always index-aligned, so one shared offset always
-  // points at the same real months in every chart.
+  // actual-TSV/target-area/actual-area is non-zero.
   const activeIdxs = useMemo(() => {
     const idxs: number[] = [];
     for (let i = rangeStart; i <= rangeEnd; i++) {
@@ -97,65 +94,99 @@ export function TargetActualPage() {
     return idxs;
   }, [target, actual, rangeStart, rangeEnd]);
 
-  const WINDOW_SIZE = 3; // current month + previous 2, per spec
+  interface Bucket { label: string; idxs: number[]; isFuture: boolean; year: number; month: number; }
 
-  // Default window: rightmost = latest non-future active month (or the
-  // latest active month at all, if every active month is in the future).
+  // Buckets: one per visible month/quarter/year, each carrying the list of
+  // TIMELINE indices to sum over. Every chart (units/TSV/area/rate) derives
+  // from this SAME bucket list, so they stay perfectly index-aligned no
+  // matter which granularity is selected.
+  const buckets = useMemo<Bucket[]>(() => {
+    if (chartGranularity === "month") {
+      return activeIdxs.map(i => {
+        const m = TIMELINE[i];
+        return { label: m.label, idxs: [i], isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+      });
+    }
+    if (chartGranularity === "quarter") {
+      const out: Bucket[] = [];
+      for (let q = 0; q < 8; q++) {
+        const idxs = [0, 1, 2].map(k => q * 3 + k).filter(i => i >= rangeStart && i <= rangeEnd);
+        if (idxs.length === 0 || !idxs.some(i => activeIdxs.includes(i))) continue;
+        const last = idxs[idxs.length - 1];
+        const m = TIMELINE[last];
+        const fyLabel = q < 4 ? "FY26" : "FY27";
+        out.push({ label: `Q${(q % 4) + 1} ${fyLabel}`, idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month });
+      }
+      return out;
+    }
+    // year
+    return YEAR_OPTIONS.map(y => {
+      const idxs: number[] = [];
+      for (let i = y.start; i <= y.end; i++) if (i >= rangeStart && i <= rangeEnd) idxs.push(i);
+      if (idxs.length === 0 || !idxs.some(i => activeIdxs.includes(i))) return null;
+      const last = idxs[idxs.length - 1];
+      const m = TIMELINE[last];
+      return { label: y.label.replace("FY ", "FY"), idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+    }).filter((b): b is Bucket => b !== null);
+  }, [chartGranularity, activeIdxs, rangeStart, rangeEnd]);
+
+  const WINDOW_SIZE = chartGranularity === "month" ? 6 : chartGranularity === "quarter" ? 4 : 2;
+
+  // Default window: rightmost = latest non-future bucket (or the latest
+  // bucket at all, if every bucket is entirely in the future).
   const defaultOffset = useMemo(() => {
-    if (activeIdxs.length === 0) return 0;
+    if (buckets.length === 0) return 0;
     const now = new Date();
     let pos = -1;
-    for (let p = 0; p < activeIdxs.length; p++) {
-      const m = TIMELINE[activeIdxs[p]];
-      const notFuture = m.year < now.getFullYear() || (m.year === now.getFullYear() && m.month <= now.getMonth() + 1);
+    for (let p = 0; p < buckets.length; p++) {
+      const b = buckets[p];
+      const notFuture = b.year < now.getFullYear() || (b.year === now.getFullYear() && b.month <= now.getMonth() + 1);
       if (notFuture) pos = p;
     }
-    if (pos === -1) pos = activeIdxs.length - 1;
-    const maxOffset = Math.max(0, activeIdxs.length - WINDOW_SIZE);
+    if (pos === -1) pos = buckets.length - 1;
+    const maxOffset = Math.max(0, buckets.length - WINDOW_SIZE);
     return Math.max(0, Math.min(maxOffset, pos - (WINDOW_SIZE - 1)));
-  }, [activeIdxs]);
+  }, [buckets, WINDOW_SIZE]);
 
   // Single shared offset drives all 4 charts — scrolling/dragging/
   // clicking the arrow in any one of them moves all four together.
   const [sharedOffset, setSharedOffset] = useState(0);
   useEffect(() => { setSharedOffset(defaultOffset); }, [defaultOffset]);
 
-  // Build Units/TSV/Area chart data — same activeIdxs order for all three
+  // Build Units/TSV/Area chart data — sums each bucket's underlying months
   function buildSeries(targetArr: number[] | undefined, actualArr: number[] | undefined, scale = 1): TVADataPoint[] {
-    return activeIdxs.map(i => {
-      const m = TIMELINE[i];
-      const isFuture = todayIsFuture(m.year, m.month);
-      const t = targetArr?.[i] ?? 0;
-      const a = (actualArr?.[i] ?? 0) * scale;
+    return buckets.map(b => {
+      const t = b.idxs.reduce((s, i) => s + (targetArr?.[i] ?? 0), 0);
+      const a = b.idxs.reduce((s, i) => s + (actualArr?.[i] ?? 0), 0) * scale;
       return {
-        month: m.label,
+        month: b.label,
         target: Math.round(t * 100) / 100,
         achieved: Math.round(a * 100) / 100,
         adjusted: null,
-        isFuture,
-        year: m.year,
-        calMonth: m.month,
+        isFuture: b.isFuture,
+        year: b.year,
+        calMonth: b.month,
       };
     });
   }
 
-  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, activeIdxs]);
-  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, activeIdxs]);
-  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, activeIdxs]);
+  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, buckets]);
+  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, buckets]);
+  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, buckets]);
 
-  // Avg Rate series — same activeIdxs order, so it's always aligned too
+  // Avg Rate series — same bucket order, so it's always aligned with the
+  // other three charts regardless of granularity
   const rateData = useMemo<RatePoint[]>(() => {
     if (!target) return [];
-    return activeIdxs.map(i => {
-      const m = TIMELINE[i];
-      const isFuture = todayIsFuture(m.year, m.month);
-      const tgtRate = target.rate[i] || null;
-      const monthlyTsv = actual?.monthly_tsv[i] ?? 0;
-      const monthlyArea = actual?.monthly_area[i] ?? 0;
-      const achievedRate = !isFuture && monthlyArea > 0 ? Math.round((monthlyTsv * 1e7) / (monthlyArea * 1e5)) : null;
-      return { month: m.label, achievedRate, targetRate: tgtRate, adjustedRate: null, isFuture, year: m.year, calMonth: m.month };
+    return buckets.map(b => {
+      const tsvSum = b.idxs.reduce((s, i) => s + (actual?.monthly_tsv[i] ?? 0), 0);
+      const areaSum = b.idxs.reduce((s, i) => s + (actual?.monthly_area[i] ?? 0), 0);
+      const achievedRate = !b.isFuture && areaSum > 0 ? Math.round((tsvSum * 1e7) / (areaSum * 1e5)) : null;
+      const tgtRates = b.idxs.map(i => target.rate[i]).filter(v => v > 0);
+      const targetRate = tgtRates.length ? Math.round(tgtRates.reduce((a, v) => a + v, 0) / tgtRates.length) : null;
+      return { month: b.label, achievedRate, targetRate, adjustedRate: null, isFuture: b.isFuture, year: b.year, calMonth: b.month };
     });
-  }, [target, actual, activeIdxs]);
+  }, [target, actual, buckets]);
 
   const avgAchievedRate = useMemo(() => {
     const rates = rateData.filter(d => d.achievedRate !== null).map(d => d.achievedRate as number);
@@ -241,8 +272,38 @@ export function TargetActualPage() {
       </div>
 
       <div className="wrap">
-        <div style={{ marginBottom: 12, fontSize: 12.5, color: "var(--mut)" }}>
-          <strong>{selectedProject}</strong> · {periodLabel}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+          <div style={{ fontSize: 12.5, color: "var(--mut)" }}>
+            <strong>{selectedProject}</strong> · {periodLabel}
+          </div>
+
+          {/* Chart granularity toggle — shared across all 4 Target vs Achieved charts */}
+          <div style={{
+            display: "inline-flex", background: "#fff", borderRadius: 999, padding: 4,
+            boxShadow: "0 1px 3px rgba(20,33,61,.08), 0 4px 14px rgba(20,33,61,.08)", border: "1px solid #e4e0d6",
+          }}>
+            {(["month", "quarter", "year"] as const).map(g => (
+              <button
+                key={g}
+                onClick={() => setChartGranularity(g)}
+                style={{
+                  border: "none",
+                  background: chartGranularity === g ? "#0097a7" : "transparent",
+                  color: chartGranularity === g ? "#fff" : "#0097a7",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: "8px 20px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  transition: "background 0.15s, color 0.15s",
+                  textTransform: "capitalize",
+                }}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
         </div>
 
         {!target && !actual && (
