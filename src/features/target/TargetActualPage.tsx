@@ -211,17 +211,15 @@ export function TargetActualPage() {
           <div className="card"><p style={{ color: "var(--mut)" }}>No target or actual data for this project.</p></div>
         )}
 
-        {/* Cards 1-3: Units, TSV, Area */}
+        {/* Cards 1-2: Units, TSV */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
           <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth} />
           <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth} />
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth} />
-        </div>
 
-        {/* Card 4: Avg Rate */}
-        <div style={{ marginBottom: 14 }}>
+        {/* Cards 3-4: Area, Avg Rate — same 2-column size as above */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth} />
           <AvgRateCard
             data={rateData}
             avgAchievedRate={avgAchievedRate}
