@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { SalesRecord, PeriodFilter } from "../../utils/pdrnLogic";
 import { getSoldRecords, PDRN, fArea, fCr } from "../../utils/pdrnLogic";
+import { CollapsibleCard } from "../common/CollapsibleCard";
 
 interface DrillPath {
   level: "project" | "tower" | "floor" | "unit";
@@ -171,8 +172,7 @@ function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx
   const maxTsv = Math.max(...towers.map((t) => t.tsv), 1);
 
   return (
-    <div className="card">
-      <h3>By tower <span className="hint">click → tower</span></h3>
+    <CollapsibleCard defaultOpen title={<>By tower <span className="hint">click → tower</span></>}>
       {towers.map((t) => (
         <div className="barrow" key={t.idx} onClick={() => onDrill(t.idx)}>
           <div className="lbl">
@@ -182,7 +182,7 @@ function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx
           <div className="vbar" style={{ width: `${(t.tsv / maxTsv) * 100}%` }} />
         </div>
       ))}
-    </div>
+    </CollapsibleCard>
   );
 }
 
@@ -202,8 +202,7 @@ function FloorList({ records, onDrill }: { records: SalesRecord[]; onDrill: (num
   const maxUnits = Math.max(...floors.map((f) => f.units), 1);
 
   return (
-    <div className="card">
-      <h3>By floor <span className="hint">click → floor</span></h3>
+    <CollapsibleCard defaultOpen title={<>By floor <span className="hint">click → floor</span></>}>
       {floors.map((f) => (
         <div className="barrow" key={f.num} onClick={() => onDrill(f.num, f.label)}>
           <div className="lbl">
@@ -215,14 +214,13 @@ function FloorList({ records, onDrill }: { records: SalesRecord[]; onDrill: (num
           </div>
         </div>
       ))}
-    </div>
+    </CollapsibleCard>
   );
 }
 
 function UnitList({ records, onUnitClick }: { records: SalesRecord[]; onUnitClick: (r: SalesRecord) => void }) {
   return (
-    <div className="card">
-      <h3>Units on this floor <span className="hint">click → unit detail</span></h3>
+    <CollapsibleCard defaultOpen title={<>Units on this floor <span className="hint">click → unit detail</span></>}>
       <table>
         <thead>
           <tr>
@@ -243,7 +241,7 @@ function UnitList({ records, onUnitClick }: { records: SalesRecord[]; onUnitClic
           ))}
         </tbody>
       </table>
-    </div>
+    </CollapsibleCard>
   );
 }
 
@@ -251,7 +249,7 @@ function UnitDetail({ record, onBack }: { record: SalesRecord; onBack: () => voi
   return (
     <>
       <button className="back" onClick={onBack}>‹ back to list</button>
-      <div className="card">
+      <CollapsibleCard defaultOpen title="Unit detail">
         <span className="pill pav" style={{ marginBottom: 10, display: "inline-block" }}>Sold</span>
         <div className="kv">
           <div className="k">Unit</div>
@@ -275,7 +273,7 @@ function UnitDetail({ record, onBack }: { record: SalesRecord; onBack: () => voi
           <div className="k">Booking month</div>
           <div>{["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][record.month - 1]}</div>
         </div>
-      </div>
+      </CollapsibleCard>
     </>
   );
 }

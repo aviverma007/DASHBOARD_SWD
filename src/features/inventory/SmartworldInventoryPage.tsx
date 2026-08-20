@@ -22,6 +22,7 @@ import { SwConfigGap } from "../../components/inventory/SwConfigGap";
 import { SwRecordsCard } from "../../components/inventory/SwRecordsCard";
 import { SwDrawer, SwUnitDetail } from "../../components/inventory/SwDrawer";
 import { SwBlkByProjCard } from "../../components/inventory/SwBlkByProjCard";
+import { CollapsibleCard } from "../../components/common/CollapsibleCard";
 import "../../components/inventory/smartworldInventory.css";
 
 const RD = rawData as unknown as RawInventoryDataset;
@@ -166,87 +167,49 @@ export function SmartworldInventoryPage() {
         {filterState.status === "blk" && <SwBlkByProjCard arr={arr} P={P} onRowClick={handleProj} />}
 
         <div className="grid g2">
-          <div className="card">
-            <h3>
-              Stock status <span className="hint">click a slice → drill</span>
-            </h3>
+          <CollapsibleCard defaultOpen title={<>Stock status <span className="hint">click a slice → drill</span></>}>
             <div className="dual-donut">
               <div className="dual-donut-col">
                 <div className="dual-donut-label">Units</div>
                 <div className="donut-wrap">
-                  <SwDonut
-                    segs={statusSegs}
-                    onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-                  />
+                  <SwDonut segs={statusSegs} onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
                   <SwDLegend segs={statusSegs} onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
                 </div>
               </div>
               <div className="dual-donut-col">
-                <div className="dual-donut-label">
-                  Area <span className="unit-tag">sq ft</span>
-                </div>
+                <div className="dual-donut-label">Area <span className="unit-tag">sq ft</span></div>
                 <div className="donut-wrap">
-                  <SwDonut
-                    segs={statusAreaSegs}
-                    valueFormatter={fArea}
-                    onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-                  />
-                  <SwDLegend
-                    segs={statusAreaSegs}
-                    valueFormatter={fArea}
-                    onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)}
-                  />
+                  <SwDonut segs={statusAreaSegs} valueFormatter={fArea} onSegmentClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
+                  <SwDLegend segs={statusAreaSegs} valueFormatter={fArea} onItemClick={(seg) => seg.v !== undefined && handleKSt(seg.v)} />
                 </div>
               </div>
             </div>
-          </div>
+          </CollapsibleCard>
 
-          <div className="card">
-            <h3>
-              By category <span className="hint">click a slice → drill</span>
-            </h3>
+          <CollapsibleCard defaultOpen title={<>By category <span className="hint">click a slice → drill</span></>}>
             <div className="dual-donut">
               <div className="dual-donut-col">
                 <div className="dual-donut-label">Units</div>
                 <div className="donut-wrap">
-                  <SwDonut
-                    segs={catSegs}
-                    onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-                  />
-                  <SwDLegend
-                    segs={catSegs}
-                    onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-                  />
+                  <SwDonut segs={catSegs} onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])} />
+                  <SwDLegend segs={catSegs} onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])} />
                 </div>
               </div>
               <div className="dual-donut-col">
-                <div className="dual-donut-label">
-                  Area <span className="unit-tag">sq ft</span>
-                </div>
+                <div className="dual-donut-label">Area <span className="unit-tag">sq ft</span></div>
                 <div className="donut-wrap">
-                  <SwDonut
-                    segs={catAreaSegs}
-                    valueFormatter={fArea}
-                    onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-                  />
-                  <SwDLegend
-                    segs={catAreaSegs}
-                    valueFormatter={fArea}
-                    onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])}
-                  />
+                  <SwDonut segs={catAreaSegs} valueFormatter={fArea} onSegmentClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])} />
+                  <SwDLegend segs={catAreaSegs} valueFormatter={fArea} onItemClick={(seg) => seg.v !== undefined && openScopeKey("cat", seg.v, ["Residential", "Commercial"][seg.v])} />
                 </div>
               </div>
             </div>
-          </div>
+          </CollapsibleCard>
         </div>
 
         <SwLegend />
 
         <div className="grid g2">
-          <div className="card">
-            <h3>
-              Availability by project <span className="hint">most available first · click → project</span>
-            </h3>
+          <CollapsibleCard defaultOpen title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
             {pae.map((x) => {
               const bk = x.us.filter((u) => u[8] === 1).length;
               const bl = x.us.length - x.av - bk;
@@ -254,19 +217,15 @@ export function SmartworldInventoryPage() {
                 <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
                   <div className="lbl">
                     <span className="nm">{P[x.i]}</span>
-                    <span className="r">
-                      {pct(x.av, x.us.length)}% avail · {x.av} units
-                    </span>
+                    <span className="r">{pct(x.av, x.us.length)}% avail · {x.av} units</span>
                   </div>
                   <SwBar3 av={x.av} bk={bk} bl={bl} />
                 </div>
               );
             })}
-          </div>
-          <div className="card">
-            <h3>
-              Unsold area by project <span className="hint">sq ft available · click → project</span>
-            </h3>
+          </CollapsibleCard>
+
+          <CollapsibleCard defaultOpen title={<>Unsold area by project <span className="hint">sq ft available · click → project</span></>}>
             {ua.map((x) => (
               <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
                 <div className="lbl">
@@ -276,38 +235,26 @@ export function SmartworldInventoryPage() {
                 <div className="vbar" style={{ width: `${(x.v / maxUa) * 100}%` }} />
               </div>
             ))}
-          </div>
+          </CollapsibleCard>
         </div>
 
         <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
 
         <div className="grid g3">
-          <div className="card">
-            <h3>
-              By configuration <span className="hint">click → config</span>
-            </h3>
+          <CollapsibleCard title={<>By configuration <span className="hint">click → config</span></>}>
             <SwGroupBars items={cfgBars} names={CFG} onClick={(v) => openScopeKey("cfg", v, CFG[v])} />
-          </div>
-          <div className="card">
-            <h3>
-              Floor rise <span className="hint">click → band</span>
-            </h3>
+          </CollapsibleCard>
+          <CollapsibleCard title={<>Floor rise <span className="hint">click → band</span></>}>
             <SwGroupBars items={fbBars} names={FB} onClick={(v) => openScopeKey("fb", v, FB[v])} />
-          </div>
-          <div className="card">
-            <h3>
-              By size band <span className="hint">click → band</span>
-            </h3>
+          </CollapsibleCard>
+          <CollapsibleCard title={<>By size band <span className="hint">click → band</span></>}>
             <SwGroupBars items={sbBars} names={SB} onClick={(v) => openScopeKey("sb", v, SB[v])} />
-          </div>
+          </CollapsibleCard>
         </div>
 
-        <div className="card">
-          <h3>
-            By unit type <span className="hint">click → type</span>
-          </h3>
+        <CollapsibleCard title={<>By unit type <span className="hint">click → type</span></>}>
           <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
-        </div>
+        </CollapsibleCard>
 
         <SwRecordsCard
           arr={arr}

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ProjectCardData } from "./ProjectCard";
 import { fArea } from "../../utils/smartworldLogic";
+import { CollapsibleCard } from "../common/CollapsibleCard";
 
 interface RawUnit {
   projectIndex: number;
@@ -113,16 +114,11 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
             </div>
           )}
 
-          {/* Stack plan */}
-          <div className="card" style={{ padding: "14px 16px" }}>
-            <h3 style={{ marginBottom: 10 }}>
-              Stack plan{" "}
-              <span className="hint">
-                rows = floors · columns = towers · hover for detail
-              </span>
-            </h3>
-
-            {/* Legend */}
+          {/* Stack plan — open by default */}
+          <CollapsibleCard defaultOpen
+            title={<>Stack plan <span className="hint">rows = floors · columns = towers · hover for detail</span></>}
+            style={{ marginTop: 4 }}
+          >
             <div className="legend" style={{ marginBottom: 10 }}>
               <span><span className="sw" style={{ background: "var(--av)" }} /> Available</span>
               <span><span className="sw" style={{ background: "var(--bk)" }} /> Booked</span>
@@ -130,35 +126,26 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                 <span><span className="sw" style={{ background: "var(--blk)" }} /> Management</span>
               )}
             </div>
-
             {towers.length === 0 ? (
               <p style={{ color: "var(--mut)", fontSize: 13 }}>No tower data available.</p>
             ) : (
               <div className="stack">
-                {/* Tower headers */}
                 <div style={{ ...gridStyle, marginBottom: 5 }}>
                   <div />
                   {towers.map((t) => (
                     <div key={t} className="sthd">{towerNames[t]}</div>
                   ))}
                 </div>
-
-                {/* Floor rows */}
                 {floors.map(([floorNum, floorLabel]) => (
                   <div key={floorNum} className="strow" style={gridStyle}>
-                    <div className="stf">
-                      {floorLabel.replace(/ ?floor/i, "")}
-                    </div>
+                    <div className="stf">{floorLabel.replace(/ ?floor/i, "")}</div>
                     {towers.map((t) => {
                       const cellUnits = cellMap.get(`${t}|${floorNum}`) ?? [];
                       return (
                         <div className="stcell" key={t}>
                           {cellUnits.map((u, idx) => (
-                            <div
-                              key={idx}
-                              className={`ucell ${CELL_CLASS[u.status]}`}
-                              title={`${u.unitLabel} · ${u.configName} · ${STATUS_LABEL[u.status]}`}
-                            />
+                            <div key={idx} className={`ucell ${CELL_CLASS[u.status]}`}
+                              title={`${u.unitLabel} · ${u.configName} · ${STATUS_LABEL[u.status]}`} />
                           ))}
                         </div>
                       );
@@ -167,11 +154,10 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                 ))}
               </div>
             )}
-          </div>
+          </CollapsibleCard>
 
-          {/* Config breakdown inside the drawer */}
-          <div className="card" style={{ marginTop: 14 }}>
-            <h3>By configuration</h3>
+          {/* Config breakdown — collapsed */}
+          <CollapsibleCard title="By configuration" style={{ marginTop: 8 }}>
             {project.configs.map((cfg) => {
               const cfgUnits = units.filter((u) => u.configName === cfg);
               const cfgAv = cfgUnits.filter((u) => u.status === 0).length;
@@ -181,9 +167,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                 <div className="barrow" key={cfg} style={{ cursor: "default" }}>
                   <div className="lbl">
                     <span className="nm">{cfg}</span>
-                    <span className="r">
-                      {cfgAv} avail · {pct(cfgAv, cfgTotal)}% · {cfgTotal} total
-                    </span>
+                    <span className="r">{cfgAv} avail · {pct(cfgAv, cfgTotal)}% · {cfgTotal} total</span>
                   </div>
                   <div className="track">
                     <div className="a" style={{ width: `${(cfgAv / cfgTotal) * 100}%` }} />
@@ -192,12 +176,11 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                 </div>
               );
             })}
-          </div>
+          </CollapsibleCard>
 
-          {/* Tower breakdown inside the drawer */}
+          {/* Tower breakdown — collapsed */}
           {towers.length > 1 && (
-            <div className="card" style={{ marginTop: 14 }}>
-              <h3>By tower</h3>
+            <CollapsibleCard title="By tower" style={{ marginTop: 8 }}>
               {towers.map((t) => {
                 const twUnits = units.filter((u) => u.towerIndex === t);
                 const twAv = twUnits.filter((u) => u.status === 0).length;
@@ -208,9 +191,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                   <div className="barrow" key={t} style={{ cursor: "default" }}>
                     <div className="lbl">
                       <span className="nm">{towerNames[t]}</span>
-                      <span className="r">
-                        {twAv} avail · {pct(twAv, twTotal)}% · {twTotal} units
-                      </span>
+                      <span className="r">{twAv} avail · {pct(twAv, twTotal)}% · {twTotal} units</span>
                     </div>
                     <div className="track">
                       <div className="a" style={{ width: `${(twAv / twTotal) * 100}%` }} />
@@ -220,7 +201,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
                   </div>
                 );
               })}
-            </div>
+            </CollapsibleCard>
           )}
         </div>
       </div>
