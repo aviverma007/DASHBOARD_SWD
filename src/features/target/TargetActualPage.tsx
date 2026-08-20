@@ -231,22 +231,44 @@ export function TargetActualPage() {
     return rates.length ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0;
   }, [rateData]);
 
-  const totalTargetTsvInRange = useMemo(() => {
-    if (!target) return 0;
-    return target.sale_value.slice(rangeStart, rangeEnd + 1).reduce((a, b) => a + b, 0);
+  // Scope the risk-panel calc to months where a TARGET actually exists,
+  // not the full extended achieved history. After extending the shared
+  // timeline back to Nov'23 for chart display, "All time" now spans many
+  // pre-target months with real achieved sales but no target at all — if
+  // those get summed into "achieved", it looks like every project has
+  // already exceeded its target (false "on track"), when really those
+  // sales simply predate the target plan and aren't part of it.
+  const targetCoveredIdxs = useMemo(() => {
+    if (!target) return [];
+    const idxs: number[] = [];
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      if (target.sale_value[i] > 0 || target.units[i] > 0 || target.area[i] > 0) idxs.push(i);
+    }
+    return idxs;
   }, [target, rangeStart, rangeEnd]);
-  const totalAchievedTsvInRange = useMemo(() => tsvData.reduce((s, d) => s + d.achieved, 0), [tsvData]);
-  const totalTargetAreaInRange = useMemo(() => {
-    if (!target) return 0;
-    return target.area.slice(rangeStart, rangeEnd + 1).reduce((a, b) => a + b, 0) / 100000;
-  }, [target, rangeStart, rangeEnd]);
-  const totalAchievedAreaInRange = useMemo(() => areaData.reduce((s, d) => s + d.achieved, 0), [areaData]);
+
+  const totalTargetTsvInRange = useMemo(
+    () => targetCoveredIdxs.reduce((s, i) => s + (target?.sale_value[i] ?? 0), 0),
+    [targetCoveredIdxs, target]
+  );
+  const totalAchievedTsvInRange = useMemo(
+    () => targetCoveredIdxs.reduce((s, i) => s + (actual?.monthly_tsv[i] ?? 0), 0),
+    [targetCoveredIdxs, actual]
+  );
+  const totalTargetAreaInRange = useMemo(
+    () => targetCoveredIdxs.reduce((s, i) => s + (target?.area[i] ?? 0), 0) / 100000,
+    [targetCoveredIdxs, target]
+  );
+  const totalAchievedAreaInRange = useMemo(
+    () => targetCoveredIdxs.reduce((s, i) => s + (actual?.monthly_area[i] ?? 0), 0),
+    [targetCoveredIdxs, actual]
+  );
 
   const requiredRate = useMemo(() => {
     const remainingTsv = totalTargetTsvInRange - totalAchievedTsvInRange;
     const remainingArea = totalTargetAreaInRange - totalAchievedAreaInRange;
-    if (remainingArea <= 0.001) return null;
-    if (remainingTsv <= 0) return null;
+    if (remainingArea <= 0.001) return null; // all target-scoped area already sold
+    if (remainingTsv <= 0) return null; // value target already met with area still available
     return Math.round((remainingTsv * 1e7) / (remainingArea * 1e5));
   }, [totalTargetTsvInRange, totalAchievedTsvInRange, totalTargetAreaInRange, totalAchievedAreaInRange]);
 
