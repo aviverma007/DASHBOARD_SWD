@@ -157,7 +157,7 @@ export function TargetActualPage() {
     : `${TIMELINE[YEAR_OPTIONS[yearIdx].start + month]?.label}`;
 
   return (
-    <div className="sw-inv" style={{ minHeight: "100vh" }}>
+    <div className="sw-inv" style={{ minHeight: "100vh", zoom: 0.9 } as React.CSSProperties}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
