@@ -5,6 +5,7 @@ import { InventoryOverviewPage } from "./features/inventory/InventoryOverviewPag
 import { SmartworldInventoryPage } from "./features/inventory/SmartworldInventoryPage";
 import { ProjectsPage } from "./features/projects/ProjectsPage";
 import { ReportsPage } from "./features/reports/ReportsPage";
+import { TargetActualPage } from "./features/target/TargetActualPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
 import { ComingSoon } from "./components/common/ComingSoon";
@@ -16,6 +17,7 @@ function App() {
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route path="/" element={<InventoryOverviewPage />} />
           <Route path="/inventory" element={<SmartworldInventoryPage />} />
+          <Route path="/target" element={<TargetActualPage />} />
           <Route path="/sales" element={<ComingSoon moduleName="Sales" />} />
           <Route path="/collections" element={<ComingSoon moduleName="Collections" />} />
           <Route path="/revenue" element={<ComingSoon moduleName="Revenue" />} />
