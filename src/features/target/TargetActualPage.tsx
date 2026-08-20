@@ -20,13 +20,8 @@ const TD = rawTarget as TargetData;
 const TV = rawTV as unknown as TVData;
 const MONTHS = TD.months;
 
-const TARGET_TO_PDRN: Record<string,string> = {
-  "The Edition": "SMARTWORLD THE EDITION",
-  "SKY ARC": "SMARTWORLD SKY ARC",
-  "Trump": "TRUMP RESIDENCES GURGAON",
-  "Orchard": "SMARTWORLD LE COURTYARD",
-  "Noida_Suits": "SMARTWORLD SUITES",
-};
+// Target project names now exactly match PDRN names — no mapping needed
+const TARGET_TO_PDRN = (name: string) => name;
 
 // @ts-ignore
 function fy_idx(y:number,m:number){
@@ -410,8 +405,7 @@ export function TargetActualPage() {
     let tU=0,tV=0,tA=0,aU=0,aV=0,aA=0;
     const rows: {name:string;tgtU:number;actU:number;tgtV:number;actV:number}[] = [];
     visTargetProjs.forEach(p=>{
-      const pdrnName = TARGET_TO_PDRN[p.name];
-      const pdrnData = pdrnName ? TV.projects.find(x=>x.name===pdrnName) : null;
+      const pdrnData = TV.projects.find(x=>x.name===TARGET_TO_PDRN(p.name)) ?? null;
       const ptu=mRange.reduce((s,i)=>s+(p.units.monthly[i]??0),0);
       const ptv=mRange.reduce((s,i)=>s+(p.sale_value.monthly[i]??0),0);
       const pta=mRange.reduce((s,i)=>s+(p.area.monthly[i]??0),0)/100000;
@@ -423,20 +417,17 @@ export function TargetActualPage() {
     });
     const monthlyTgt=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>s+(p.units.monthly[i]??0),0));
     const monthlyAct=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>{
-      const pn=TARGET_TO_PDRN[p.name];
-      const pd2=pn?TV.projects.find(x=>x.name===pn):null;
+      const pd2=TV.projects.find(x=>x.name===TARGET_TO_PDRN(p.name))??null;
       return s+(pd2?pd2.monthly_units[i]??0:0);
     },0));
     const monthlyTgtV=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>s+(p.sale_value.monthly[i]??0),0));
     const monthlyActV=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>{
-      const pn=TARGET_TO_PDRN[p.name];
-      const pd2=pn?TV.projects.find(x=>x.name===pn):null;
+      const pd2=TV.projects.find(x=>x.name===TARGET_TO_PDRN(p.name))??null;
       return s+(pd2?pd2.monthly_tsv[i]??0:0);
     },0));
     const monthlyTgtA=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>s+(p.area.monthly[i]??0)/100000,0));
     const monthlyActA=MONTHS.map((_,i)=>visTargetProjs.reduce((s,p)=>{
-      const pn=TARGET_TO_PDRN[p.name];
-      const pd2=pn?TV.projects.find(x=>x.name===pn):null;
+      const pd2=TV.projects.find(x=>x.name===TARGET_TO_PDRN(p.name))??null;
       return s+(pd2?pd2.monthly_area[i]??0:0);
     },0));
     return { tU,tV,tA,aU,aV,aA,rows,monthlyTgt,monthlyAct,monthlyTgtV,monthlyActV,monthlyTgtA,monthlyActA };
@@ -559,11 +550,11 @@ export function TargetActualPage() {
           {agg.rows.filter(r=>r.tgtU>0||r.actU>0).map(row=>{
             const pct=row.tgtU>0?Math.round(row.actU/row.tgtU*100):0;
             const color=pct>=100?'#1a7a4a':pct>=75?'#B8893C':'#c0392b';
-            const hasPdrn=TARGET_TO_PDRN[row.name];
+            const hasPdrn=TV.projects.some(x=>x.name===row.name);
             return (
-              <div className="barrow" key={row.name} onClick={()=>{if(hasPdrn)setDrillCtx({type:'project',projectName:TARGET_TO_PDRN[row.name]});}} style={{ cursor:hasPdrn?'pointer':'default' }}>
+              <div className="barrow" key={row.name} onClick={()=>{setDrillCtx({type:'project',projectName:TARGET_TO_PDRN(row.name)});}} style={{ cursor:'pointer' }}>
                 <div className="lbl">
-                  <span className="nm">{row.name}{!hasPdrn&&<span style={{ fontSize:10,color:'#9ca3af',marginLeft:6 }}>no PDRN</span>}</span>
+                  <span className="nm">{row.name}</span>
                   <span className="r" style={{ display:'flex',gap:12 }}>
                     <span style={{ color:'#c0bbb0' }}>Tgt: {row.tgtU}</span>
                     <span style={{ color }}>Act: {row.actU} ({pct}%)</span>
