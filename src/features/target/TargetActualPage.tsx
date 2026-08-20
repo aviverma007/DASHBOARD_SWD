@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import rawTarget from "../../data/targetData.json";
 import rawTV from "../../data/tvAnalytics.json";
 import "../../components/inventory/smartworldInventory.css";
@@ -79,45 +79,83 @@ export function TargetActualPage() {
     return [yr.start + month, yr.start + month];
   }, [periodType, yearIdx, quarter, month]);
 
-  // Build Units/TSV/Area chart data
+  // ── Shared master timeline ──────────────────────────────────────────────
+  // A month is "active" if ANY of target-units/actual-units/target-TSV/
+  // actual-TSV/target-area/actual-area is non-zero. Building every series
+  // (units/TSV/area/rate) from this SAME index list — instead of each
+  // series filtering its own zero-rows independently — guarantees all
+  // four charts are always index-aligned, so one shared offset always
+  // points at the same real months in every chart.
+  const activeIdxs = useMemo(() => {
+    const idxs: number[] = [];
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      const tU = target?.units[i] ?? 0, aU = actual?.monthly_units[i] ?? 0;
+      const tV = target?.sale_value[i] ?? 0, aV = actual?.monthly_tsv[i] ?? 0;
+      const tA = target?.area[i] ?? 0, aA = actual?.monthly_area[i] ?? 0;
+      if (tU > 0 || aU > 0 || tV > 0 || aV > 0 || tA > 0 || aA > 0) idxs.push(i);
+    }
+    return idxs;
+  }, [target, actual, rangeStart, rangeEnd]);
+
+  const WINDOW_SIZE = 3; // current month + previous 2, per spec
+
+  // Default window: rightmost = latest non-future active month (or the
+  // latest active month at all, if every active month is in the future).
+  const defaultOffset = useMemo(() => {
+    if (activeIdxs.length === 0) return 0;
+    const now = new Date();
+    let pos = -1;
+    for (let p = 0; p < activeIdxs.length; p++) {
+      const m = TIMELINE[activeIdxs[p]];
+      const notFuture = m.year < now.getFullYear() || (m.year === now.getFullYear() && m.month <= now.getMonth() + 1);
+      if (notFuture) pos = p;
+    }
+    if (pos === -1) pos = activeIdxs.length - 1;
+    const maxOffset = Math.max(0, activeIdxs.length - WINDOW_SIZE);
+    return Math.max(0, Math.min(maxOffset, pos - (WINDOW_SIZE - 1)));
+  }, [activeIdxs]);
+
+  // Single shared offset drives all 4 charts — scrolling/dragging/
+  // clicking the arrow in any one of them moves all four together.
+  const [sharedOffset, setSharedOffset] = useState(0);
+  useEffect(() => { setSharedOffset(defaultOffset); }, [defaultOffset]);
+
+  // Build Units/TSV/Area chart data — same activeIdxs order for all three
   function buildSeries(targetArr: number[] | undefined, actualArr: number[] | undefined, scale = 1): TVADataPoint[] {
-    return TIMELINE.map((m, i) => {
-      const inRange = i >= rangeStart && i <= rangeEnd;
+    return activeIdxs.map(i => {
+      const m = TIMELINE[i];
       const isFuture = todayIsFuture(m.year, m.month);
       const t = targetArr?.[i] ?? 0;
       const a = (actualArr?.[i] ?? 0) * scale;
       return {
         month: m.label,
-        target: inRange ? Math.round(t * 100) / 100 : 0,
-        achieved: inRange ? Math.round(a * 100) / 100 : 0,
+        target: Math.round(t * 100) / 100,
+        achieved: Math.round(a * 100) / 100,
         adjusted: null,
-        isFuture: isFuture || !inRange,
+        isFuture,
         year: m.year,
         calMonth: m.month,
       };
-    }).filter(d => d.target > 0 || d.achieved > 0);
+    });
   }
 
-  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, rangeStart, rangeEnd]);
-  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, rangeStart, rangeEnd]);
-  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, rangeStart, rangeEnd]);
+  const unitsData = useMemo(() => buildSeries(target?.units, actual?.monthly_units), [target, actual, activeIdxs]);
+  const tsvData = useMemo(() => buildSeries(target?.sale_value, actual?.monthly_tsv), [target, actual, activeIdxs]);
+  const areaData = useMemo(() => buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), [target, actual, activeIdxs]);
 
-  // Avg Rate series
+  // Avg Rate series — same activeIdxs order, so it's always aligned too
   const rateData = useMemo<RatePoint[]>(() => {
     if (!target) return [];
-    const points: (RatePoint | null)[] = TIMELINE.map((m, i) => {
-      const inRange = i >= rangeStart && i <= rangeEnd;
-      if (!inRange) return null;
+    return activeIdxs.map(i => {
+      const m = TIMELINE[i];
       const isFuture = todayIsFuture(m.year, m.month);
       const tgtRate = target.rate[i] || null;
       const monthlyTsv = actual?.monthly_tsv[i] ?? 0;
       const monthlyArea = actual?.monthly_area[i] ?? 0;
       const achievedRate = !isFuture && monthlyArea > 0 ? Math.round((monthlyTsv * 1e7) / (monthlyArea * 1e5)) : null;
-      const point: RatePoint = { month: m.label, achievedRate, targetRate: tgtRate, adjustedRate: null, isFuture, year: m.year, calMonth: m.month };
-      return point;
+      return { month: m.label, achievedRate, targetRate: tgtRate, adjustedRate: null, isFuture, year: m.year, calMonth: m.month };
     });
-    return points.filter((d): d is RatePoint => d !== null && (d.achievedRate !== null || d.targetRate !== null));
-  }, [target, actual, rangeStart, rangeEnd]);
+  }, [target, actual, activeIdxs]);
 
   const avgAchievedRate = useMemo(() => {
     const rates = rateData.filter(d => d.achievedRate !== null).map(d => d.achievedRate as number);
@@ -213,13 +251,16 @@ export function TargetActualPage() {
 
         {/* Cards 1-2: Units, TSV */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-          <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth} />
-          <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth} />
+          <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth}
+            offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
+          <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth}
+            offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
         </div>
 
-        {/* Cards 3-4: Area, Avg Rate — same 2-column size as above */}
+        {/* Cards 3-4: Area, Avg Rate — same 2-column size as above, same shared offset */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth} />
+          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
+            offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
           <AvgRateCard
             data={rateData}
             avgAchievedRate={avgAchievedRate}
@@ -227,6 +268,7 @@ export function TargetActualPage() {
             requiredRate={requiredRate}
             totalTargetTsv={totalTargetTsvInRange}
             onPointClick={handleRatePointClick}
+            offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset}
           />
         </div>
 

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
@@ -21,9 +21,13 @@ interface UnitsCardProps {
   formatVal?: (n: number) => string;
   unit?: string;
   onBarClick?: (point: TVADataPoint) => void;
+  /** Controlled shared window position — same offset/windowSize passed to
+   * every Target-vs-Actual chart on the page so they always show the
+   * exact same months. */
+  offset: number;
+  windowSize: number;
+  onOffsetChange: (o: number) => void;
 }
-
-const WINDOW = 6;
 
 // ── Custom adjusted dot ───────────────────────────────────────────────────────
 function AdjustedDot(props: Record<string, unknown>) {
@@ -33,11 +37,11 @@ function AdjustedDot(props: Record<string, unknown>) {
 }
 
 // ── Slider ────────────────────────────────────────────────────────────────────
-function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOffset: number; total: number; onOffset: (o: number) => void }) {
+function Slider({ offset, maxOffset, total, windowSize, onOffset }: { offset: number; maxOffset: number; total: number; windowSize: number; onOffset: (o: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const thumbPct = (WINDOW / total) * 100;
+  const thumbPct = Math.min(100, (windowSize / total) * 100);
   const thumbLeft = maxOffset > 0 ? (offset / maxOffset) * (100 - thumbPct) : 0;
 
   function offsetFromX(clientX: number) {
@@ -50,7 +54,7 @@ function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOff
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 2px" }}>
       <button onClick={() => onOffset(Math.max(0, offset - 1))} disabled={offset === 0}
-        style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === 0 ? "#f5f5f5" : "#fff", cursor: offset === 0 ? "default" : "pointer", fontSize: 13, color: "#546e7a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === 0 ? "#f5f5f5" : "#fff", cursor: offset === 0 ? "default" : "pointer", fontSize: 14, color: "#546e7a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         ‹
       </button>
       <div ref={trackRef} onClick={e => offsetFromX(e.clientX)}
@@ -68,7 +72,7 @@ function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOff
         />
       </div>
       <button onClick={() => onOffset(Math.min(maxOffset, offset + 1))} disabled={offset === maxOffset}
-        style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === maxOffset ? "#f5f5f5" : "#fff", cursor: offset === maxOffset ? "default" : "pointer", fontSize: 13, color: "#546e7a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === maxOffset ? "#f5f5f5" : "#fff", cursor: offset === maxOffset ? "default" : "pointer", fontSize: 14, color: "#546e7a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         ›
       </button>
     </div>
@@ -76,10 +80,10 @@ function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOff
 }
 
 // ── Main card ─────────────────────────────────────────────────────────────────
-export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units", onBarClick }: UnitsCardProps) {
-  const [offset, setOffset] = useState(0);
-  const maxOffset = Math.max(0, data.length - WINDOW);
-  const visible = data.slice(offset, offset + WINDOW);
+export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units", onBarClick, offset, windowSize, onOffsetChange }: UnitsCardProps) {
+  const maxOffset = Math.max(0, data.length - windowSize);
+  const clampedOffset = Math.min(offset, maxOffset);
+  const visible = data.slice(clampedOffset, clampedOffset + windowSize);
   const fmt = formatVal ?? ((n: number) => n.toString());
 
   const totalAchieved = useMemo(() => data.filter(d => !d.isFuture).reduce((s, d) => s + d.achieved, 0), [data]);
@@ -89,25 +93,23 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
   const TargetLabel = (props: Record<string, unknown>) => {
     const { x, y, width, value, index } = props as { x: number; y: number; width: number; value: number; index: number };
     const d = visible[index];
-    if (!d) return null;
-    // Numeric label
+    if (!d || !value) return null;
     const label = (
-      <text key="lbl" x={(x as number) + (width as number) / 2} y={(y as number) - 4} textAnchor="middle" fill="#546e7a" fontSize={10}>
-        {value}
+      <text key="lbl" x={(x as number) + (width as number) / 2} y={(y as number) - 6} textAnchor="middle" fill="#546e7a" fontSize={12} fontWeight={600}>
+        {fmt(value)}
       </text>
     );
-    // Catch-up badge
     if (d.adjusted && !d.isFuture) {
       const catchUp = d.adjusted - d.achieved;
       if (catchUp > 0) {
-        const bw = 36, bh = 18;
+        const bw = 40, bh = 20;
         const cx2 = (x as number) + (width as number) / 2 - bw / 2;
-        const cy2 = (y as number) - bh - 22;
+        const cy2 = (y as number) - bh - 24;
         return (
           <g>
             {label}
-            <rect x={cx2} y={cy2} width={bw} height={bh} rx={3} fill="#fff" stroke="#d32f2f" strokeWidth={1.5} />
-            <text x={cx2 + bw / 2} y={cy2 + 12} textAnchor="middle" fill="#d32f2f" fontSize={10} fontWeight="700">▲{catchUp}</text>
+            <rect x={cx2} y={cy2} width={bw} height={bh} rx={4} fill="#fff" stroke="#d32f2f" strokeWidth={1.5} />
+            <text x={cx2 + bw / 2} y={cy2 + 14} textAnchor="middle" fill="#d32f2f" fontSize={11} fontWeight="700">▲{fmt(catchUp)}</text>
           </g>
         );
       }
@@ -119,18 +121,39 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
     const { x, y, width, value } = props as { x: number; y: number; width: number; value: number };
     if (!value) return null;
     return (
-      <text x={(x as number) + (width as number) / 2} y={(y as number) - 4} textAnchor="middle" fill="#1b5e20" fontSize={10} fontWeight="700">
+      <text x={(x as number) + (width as number) / 2 + 10} y={(y as number) - 6} textAnchor="middle" fill="#1b5e20" fontSize={13} fontWeight="700">
         {fmt(value)}
       </text>
     );
   };
 
+  // Shared tooltip: shows Target + Achieved together for the hovered month
+  function renderTooltip(props: Record<string, unknown>) {
+    const active = props.active as boolean | undefined;
+    const payload = props.payload as { payload: TVADataPoint }[] | undefined;
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: "#14213d", color: "#fff", borderRadius: 8, padding: "9px 12px", fontSize: 12.5, lineHeight: 1.6, boxShadow: "0 6px 24px rgba(0,0,0,.28)" }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.month}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ color: "#a9b2c7" }}>Target</span>
+          <span style={{ fontWeight: 700 }}>{d.target > 0 ? `${fmt(d.target)} ${unit}` : "No target available"}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ color: "#a9b2c7" }}>Achieved</span>
+          <span style={{ fontWeight: 700, color: "#4ade80" }}>{d.achieved > 0 ? `${fmt(d.achieved)} ${unit}` : "No data"}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px", minWidth: 0 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
-        <div style={{ fontSize: 10.5, color: "#90a4ae", textAlign: "right" }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
+        <div style={{ fontSize: 11, color: "#90a4ae", textAlign: "right" }}>
           Double-click to zoom
           {onBarClick && <div style={{ color: "#0097a7", marginTop: 2 }}>click a green bar → drill down</div>}
         </div>
@@ -138,33 +161,30 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
 
       {/* Badge */}
       <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#00838f", color: "#fff", borderRadius: 6, padding: "4px 12px 4px 10px", fontSize: 12, marginBottom: 8 }}>
-        <span style={{ fontSize: 10.5, opacity: 0.85 }}>ACHIEVED (THIS FILTER)</span>
+        <span style={{ fontSize: 11, opacity: 0.85 }}>ACHIEVED (THIS FILTER)</span>
         <span style={{ fontSize: 16, fontWeight: 700 }}>{badge}</span>
       </div>
 
-      {/* Slider */}
-      <Slider offset={offset} maxOffset={maxOffset} total={data.length} onOffset={setOffset} />
+      {/* Shared slider */}
+      <Slider offset={clampedOffset} maxOffset={maxOffset} total={data.length} windowSize={windowSize} onOffset={onOffsetChange} />
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={visible} margin={{ top: 36, right: 8, left: -20, bottom: 0 }} barCategoryGap="25%" barGap={2}>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={visible} margin={{ top: 40, right: 14, left: -6, bottom: 4 }} barCategoryGap="22%" barGap={3}>
           <CartesianGrid vertical={false} stroke="#eceff1" strokeDasharray="3 3" />
-          <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#78909c" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "#90a4ae" }} axisLine={false} tickLine={false} width={28} />
-          <Tooltip
-            contentStyle={{ background: "#fff", border: "1.5px solid #0097a7", borderRadius: 6, fontSize: 11.5, color: "#1a3752" }}
-            formatter={(val, name) => [fmt(Number(val ?? 0)), String(name)]}
-          />
+          <XAxis dataKey="month" tick={{ fontSize: 13, fill: "#374151", fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 12, fill: "#64748b", fontWeight: 600 }} axisLine={false} tickLine={false} width={36} />
+          <Tooltip content={renderTooltip} />
 
-          {/* Target bars */}
-          <Bar dataKey="target" name="Target" maxBarSize={22} label={<TargetLabel />}>
+          {/* Target bars — always render regardless of Achieved */}
+          <Bar dataKey="target" name="Target" maxBarSize={26} label={<TargetLabel />}>
             {visible.map((d, i) => (
               <Cell key={i} fill={d.isFuture ? "#eceff1" : "#cfd8dc"} opacity={d.isFuture ? 0.7 : 1} />
             ))}
           </Bar>
 
-          {/* Achieved bars */}
-          <Bar dataKey="achieved" name="Achieved" maxBarSize={22}>
+          {/* Achieved bars — render whenever achieved>0, independent of target */}
+          <Bar dataKey="achieved" name="Achieved" maxBarSize={26}>
             {visible.map((d, i) => (
               <Cell
                 key={i}
@@ -182,26 +202,26 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
             name="Adjusted"
             stroke="#00897b"
             strokeDasharray="5 4"
-            strokeWidth={1.8}
+            strokeWidth={2}
             dot={<AdjustedDot />}
-            activeDot={{ r: 5, fill: "#43a047" }}
+            activeDot={{ r: 6, fill: "#43a047" }}
             connectNulls={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
 
       {/* Legend */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 6, fontSize: 11, color: "#546e7a" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: "#2e7d32", display: "inline-block" }} />
+      <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6, fontSize: 12, color: "#4a5568" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 13, height: 13, borderRadius: 2, background: "#2e7d32", display: "inline-block" }} />
           Achieved
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <svg width="24" height="12"><line x1="0" y1="6" x2="14" y2="6" stroke="#00897b" strokeWidth="2" strokeDasharray="5 3" /><circle cx="19" cy="6" r="4" fill="#43a047" /></svg>
           Adjusted
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <span style={{ width: 12, height: 12, borderRadius: 2, background: "#cfd8dc", display: "inline-block" }} />
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 13, height: 13, borderRadius: 2, background: "#cfd8dc", display: "inline-block" }} />
           Target
         </span>
       </div>
