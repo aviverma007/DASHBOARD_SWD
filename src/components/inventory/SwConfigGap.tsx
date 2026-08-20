@@ -31,12 +31,8 @@ export function SwConfigGap({ arr, rowsP, cols, P, CFG, onCellClick }: SwConfigG
   });
 
   return (
-    <div className="card">
-      <h3>
-        Config gap analysis <span className="hint">available units by project × config · click a cell</span>
-      </h3>
-      <div className="mxwrap">
-        <table className="mx">
+    <div className="mxwrap">
+      <table className="mx">
           <thead>
             <tr>
               <th>Project</th>

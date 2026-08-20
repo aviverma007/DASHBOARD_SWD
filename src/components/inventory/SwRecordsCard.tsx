@@ -50,11 +50,7 @@ export function SwRecordsCard({ arr, P, TW, FL, CFG, UT, onRowClick }: SwRecords
   }
 
   return (
-    <div className="card">
-      <h3>
-        Unit records{" "}
-        <span className="hint">{arr.length.toLocaleString("en-IN")} units · available first · click a row → detail</span>
-      </h3>
+    <div>
       <input
         className="search"
         placeholder="Search project, tower, config, floor…"

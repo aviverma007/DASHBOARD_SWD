@@ -282,13 +282,12 @@
   background: var(--gold);
   flex: none;
 }
-/* Collapsible cards: replace ::before dash with the toggle button */
-.sw-inv .collapsible-card > h3 {
-  margin-bottom: 0;
-  cursor: default;
-}
-.sw-inv .collapsible-card > h3::before {
+.sw-inv .card h3:has(.cc-toggle)::before {
   display: none;
+}
+/* Collapsible cards: replace ::before dash with the toggle button */
+.sw-inv .card > h3 > .cc-toggle ~ * {
+  /* sibling hint text inherits normally */
 }
 .sw-inv .cc-toggle {
   width: 20px;

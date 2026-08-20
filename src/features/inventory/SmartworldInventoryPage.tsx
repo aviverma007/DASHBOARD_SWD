@@ -209,7 +209,7 @@ export function SmartworldInventoryPage() {
         <SwLegend />
 
         <div className="grid g2">
-          <CollapsibleCard defaultOpen title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
+          <CollapsibleCard title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
             {pae.map((x) => {
               const bk = x.us.filter((u) => u[8] === 1).length;
               const bl = x.us.length - x.av - bk;
@@ -225,7 +225,7 @@ export function SmartworldInventoryPage() {
             })}
           </CollapsibleCard>
 
-          <CollapsibleCard defaultOpen title={<>Unsold area by project <span className="hint">sq ft available · click → project</span></>}>
+          <CollapsibleCard title={<>Unsold area by project <span className="hint">sq ft available · click → project</span></>}>
             {ua.map((x) => (
               <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
                 <div className="lbl">
@@ -238,7 +238,9 @@ export function SmartworldInventoryPage() {
           </CollapsibleCard>
         </div>
 
-        <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
+        <CollapsibleCard title={<>Config gap analysis <span className="hint">available units by project × config · click a cell</span></>}>
+          <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
+        </CollapsibleCard>
 
         <div className="grid g3">
           <CollapsibleCard title={<>By configuration <span className="hint">click → config</span></>}>
@@ -256,24 +258,20 @@ export function SmartworldInventoryPage() {
           <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
         </CollapsibleCard>
 
-        <SwRecordsCard
-          arr={arr}
-          P={P}
-          TW={TW}
-          FL={RD.FL}
-          CFG={CFG}
-          UT={UT}
-          onRowClick={(u) => {
-            // Source calls unitDetail(idx) directly here without opening
-            // the drawer shell — in the original DOM implementation this
-            // silently does nothing unless the drawer already happens to
-            // be open, which contradicts the card's own "click a row →
-            // detail" hint. Opening the drawer here preserves the stated
-            // behavior rather than replicating that latent bug.
-            setScope((prev) => (prev.length ? prev : [{ k: "p", v: u[0], label: P[u[0]] }]));
-            setSelectedUnit(u);
-          }}
-        />
+        <CollapsibleCard title={<>Unit records <span className="hint">{arr.length.toLocaleString("en-IN")} units · available first · click a row → detail</span></>}>
+          <SwRecordsCard
+            arr={arr}
+            P={P}
+            TW={TW}
+            FL={RD.FL}
+            CFG={CFG}
+            UT={UT}
+            onRowClick={(u) => {
+              setScope((prev) => (prev.length ? prev : [{ k: "p", v: u[0], label: P[u[0]] }]));
+              setSelectedUnit(u);
+            }}
+          />
+        </CollapsibleCard>
       </div>
 
       {isDrawerOpen && !selectedUnit && (
