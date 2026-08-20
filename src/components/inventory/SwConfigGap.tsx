@@ -31,8 +31,9 @@ export function SwConfigGap({ arr, rowsP, cols, P, CFG, onCellClick }: SwConfigG
   });
 
   return (
-    <div className="mxwrap">
-      <table className="mx">
+    <div>
+      <div className="mxwrap">
+        <table className="mx">
           <thead>
             <tr>
               <th>Project</th>
@@ -47,9 +48,7 @@ export function SwConfigGap({ arr, rowsP, cols, P, CFG, onCellClick }: SwConfigG
                 <td>{P[row.i]}</td>
                 {row.cells.map((cell) =>
                   cell.empty ? (
-                    <td key={cell.b} style={{ color: "#cfc9ba" }}>
-                      ·
-                    </td>
+                    <td key={cell.b} style={{ color: "#cfc9ba" }}>·</td>
                   ) : (
                     <td
                       key={cell.b}
@@ -67,18 +66,10 @@ export function SwConfigGap({ arr, rowsP, cols, P, CFG, onCellClick }: SwConfigG
         </table>
       </div>
       <div className="legend" style={{ marginTop: 12 }}>
-        <span>
-          <span className="sw g_0" /> sold out
-        </span>
-        <span>
-          <span className="sw g_1" /> low (&lt;15% available)
-        </span>
-        <span>
-          <span className="sw g_2" /> available
-        </span>
-        <span>
-          <span className="sw g_3" /> high availability (&gt;60%)
-        </span>
+        <span><span className="sw g_0" /> sold out</span>
+        <span><span className="sw g_1" /> low (&lt;15% available)</span>
+        <span><span className="sw g_2" /> available</span>
+        <span><span className="sw g_3" /> high availability (&gt;60%)</span>
       </div>
       {gaps.length > 0 && (
         <div className="insight" style={{ marginTop: 10 }}>
