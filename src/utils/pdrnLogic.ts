@@ -1,8 +1,9 @@
 /**
  * Pure calculation layer for the PDRN (sales bookings) dataset.
  * SOLD   = active bookings in salesPDRN.json (PDRN active records)
- * UNSOLD = INVR available units (from smartworldInventory.json)
- * TOTAL  = SOLD + UNSOLD  (sellable inventory, management excluded)
+ * UNSOLD = INVR available units + INVR management units
+ *          (management units are held back and also not sold, so included)
+ * TOTAL  = SOLD + UNSOLD
  * TSV    = sum of Total Basic Selling Price (sold units only)
  *
  * Period filter applies to SFDC Booking Date (year/month on each record).
@@ -136,9 +137,10 @@ export function calcProjectStats(
   const invAvail = invUnits.filter((u) => u[8] === 0);
   const invMgmt = invUnits.filter((u) => u[8] === 2);
 
+  // UNSOLD = available + management (held-back units are also not sold)
   const unsold = {
-    units: invAvail.length,
-    area: invAvail.reduce((s, u) => s + u[6], 0),
+    units: invAvail.length + invMgmt.length,
+    area: invAvail.reduce((s, u) => s + u[6], 0) + invMgmt.reduce((s, u) => s + u[6], 0),
   };
 
   // TOTAL = SOLD + UNSOLD (from INVR excl. management)
