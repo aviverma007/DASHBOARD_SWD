@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { LoginPage } from "./LoginPage";
 
-export function RequireAuth({ children }: { children: ReactNode }) {
+interface RequireAuthProps {
+  children: ReactNode;
+}
+
+export function RequireAuth({ children }: RequireAuthProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  if (!isAuthenticated) {
-    return <LoginPage />;
-  }
-
+  if (!isAuthenticated) return <LoginPage />;
   return <>{children}</>;
 }

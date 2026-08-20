@@ -1,13 +1,16 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 /**
  * DEMO AUTHENTICATION ONLY.
  *
- * This is not production security. There is no backend, no password
- * hashing, no token verification, no session expiry. It exists so the
- * login UI/UX can be built and demoed. When a real backend exists,
- * this store's actions should call /api/auth/login and /api/auth/otp
- * and store a real session token — see blueprint Section 25.
+ * Auth state is persisted to localStorage so a page refresh does NOT
+ * force the user back to the login screen. The session only ends when
+ * the user explicitly clicks Logout in Settings.
+ *
+ * This is not production security — no backend, no token verification,
+ * no session expiry. When a real backend exists, replace login/logout
+ * with real API calls and store a real session token.
  */
 interface AuthState {
   isAuthenticated: boolean;
@@ -16,9 +19,16 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
-  userLabel: null,
-  login: (label) => set({ isAuthenticated: true, userLabel: label }),
-  logout: () => set({ isAuthenticated: false, userLabel: null }),
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      isAuthenticated: false,
+      userLabel: null,
+      login: (label) => set({ isAuthenticated: true, userLabel: label }),
+      logout: () => set({ isAuthenticated: false, userLabel: null }),
+    }),
+    {
+      name: "swd-auth", // localStorage key
+    }
+  )
+);
