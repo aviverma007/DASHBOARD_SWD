@@ -232,6 +232,54 @@ export function TargetActualPage() {
     });
   }
 
+  // ── Quarter rollover: previous quarter's shortfall folds into current quarter ──
+  // Used only for Month granularity. Finds the fiscal quarter containing
+  // "today" and the one immediately before it, sums target/achieved across
+  // the FULL raw arrays (not the filtered/bucketed `points`, so this is
+  // correct no matter what the Period filter is currently scoped to), and
+  // distributes any shortfall evenly across the current quarter's months —
+  // remainder to the last month(s), e.g. a shortfall of 10 over 3 months
+  // becomes +3, +3, +4.
+  function computeQuarterRollover(targetArr: number[] | undefined, actualArr: number[] | undefined, scale: number, round: number) {
+    const empty = { curIdxs: [] as number[], shareByIdx: new Map<number, number>() };
+    if (todayIdx < 0 || !targetArr) return empty;
+
+    const t = TIMELINE[todayIdx];
+    const curFy = fyEndYear(t.year, t.month), curQ = fyQuarter(t.month);
+    let prevFy = curFy, prevQ = curQ - 1;
+    if (prevQ < 0) { prevQ = 3; prevFy = curFy - 1; }
+
+    const curIdxs: number[] = [];
+    const prevIdxs: number[] = [];
+    TIMELINE.forEach((m, i) => {
+      const fy = fyEndYear(m.year, m.month), q = fyQuarter(m.month);
+      if (fy === curFy && q === curQ) curIdxs.push(i);
+      else if (fy === prevFy && q === prevQ) prevIdxs.push(i);
+    });
+    if (curIdxs.length === 0 || prevIdxs.length === 0) return empty;
+
+    const prevTarget = prevIdxs.reduce((s, i) => s + (targetArr[i] ?? 0), 0);
+    const prevAchieved = prevIdxs.reduce((s, i) => s + (actualArr?.[i] ?? 0), 0) * scale;
+    const shortfall = Math.round((prevTarget - prevAchieved) * round) / round;
+    if (shortfall <= 0) return empty; // last quarter met or beat its target — nothing to roll forward
+
+    const n = curIdxs.length;
+    const shareByIdx = new Map<number, number>();
+    if (round === 1) {
+      // Whole-number series (Units): integer split, remainder to the LAST
+      // month(s) — e.g. shortfall=10 over 3 months → 3, 3, 4.
+      const base = Math.floor(shortfall / n);
+      const remainder = Math.round(shortfall - base * n);
+      curIdxs.forEach((idx, j) => shareByIdx.set(idx, base + (j >= n - remainder ? 1 : 0)));
+    } else {
+      // Fractional series (TSV ₹Cr, Area L sqft): plain even split is
+      // natural since these aren't whole-unit counts.
+      const share = Math.round((shortfall / n) * round) / round;
+      curIdxs.forEach(idx => shareByIdx.set(idx, share));
+    }
+    return { curIdxs, shareByIdx };
+  }
+
   // Balance target = totalTarget (whole PLAN window) - totalAchieved (past+
   // current, within that same plan window). Scoped to start at the first
   // bucket where a target actually exists — otherwise, in "All time" view,
@@ -243,7 +291,8 @@ export function TargetActualPage() {
   // needed — not just the original monthly plan. Catch-up badge = how much
   // MORE than the original target that adjusted pace requires, shown only
   // on the first future period (not every one, to avoid repeating the same
-  // signal).
+  // signal). Used for Quarter and Year granularity, where "roll forward
+  // one quarter" doesn't map cleanly onto a single bucket.
   //
   // IMPORTANT: adjusted is set on the CURRENT period (as an anchor) AND
   // every future period — not just the first future one. Recharts needs
@@ -252,7 +301,7 @@ export function TargetActualPage() {
   // bucket in range) rendered a lone dot with no visible line. Anchoring
   // on the current period guarantees a second point whenever at least one
   // future period exists.
-  function enrichWithAdjusted(points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[], round = 100): TVADataPoint[] {
+  function enrichWithAdjustedPlanWide(points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[], round = 100): TVADataPoint[] {
     const planStart = points.findIndex(d => d.target > 0);
     const planPoints = planStart >= 0 ? points.slice(planStart) : points;
     const totalTarget = planPoints.reduce((s, d) => s + d.target, 0);
@@ -268,15 +317,75 @@ export function TargetActualPage() {
         return { ...d, adjusted: null, catchUp: null, showBadge: false };
       }
       const adjusted = Math.round(adjPerPeriod * round) / round;
-      // Badge only on the first strictly-future period, never on the anchor
       const catchUp = d.isFuture && adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
       return { ...d, adjusted, catchUp, showBadge: i === firstFutureIdx && catchUp != null && catchUp > 0 };
     });
   }
 
-  const unitsData = useMemo(() => enrichWithAdjusted(buildSeries(target?.units, actual?.monthly_units), 1), [target, actual, buckets]);
-  const tsvData = useMemo(() => enrichWithAdjusted(buildSeries(target?.sale_value, actual?.monthly_tsv), 10), [target, actual, buckets]);
-  const areaData = useMemo(() => enrichWithAdjusted(buildSeries(target?.area?.map(v => v / 100000), actual?.monthly_area), 100), [target, actual, buckets]);
+  // Month granularity: roll only the immediately preceding quarter's
+  // shortfall into the current quarter, per-month. The line and badge
+  // only span the current quarter's own months (not the whole rest of
+  // the plan) — a deliberately narrower, more actionable "catch up this
+  // quarter" signal rather than "here's the pace for the entire year".
+  function enrichWithAdjustedQuarterRollover(
+    points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[],
+    targetArr: number[] | undefined,
+    actualArr: number[] | undefined,
+    scale: number,
+    round: number
+  ): TVADataPoint[] {
+    const { curIdxs, shareByIdx } = computeQuarterRollover(targetArr, actualArr, scale, round);
+    if (curIdxs.length === 0) return points.map(d => ({ ...d, adjusted: null, catchUp: null, showBadge: false }));
+
+    const curIdxSet = new Set(curIdxs);
+    // Map each TIMELINE index to its point's position in the displayed
+    // `points` array, using calMonth/year (buildSeries carries these
+    // straight through 1:1 for month granularity).
+    const timelineIdxOf = (d: { year: number; calMonth: number }) =>
+      TIMELINE.findIndex(m => m.year === d.year && m.month === d.calMonth);
+
+    const firstFutureInCurQuarter = points.find(d => d.isFuture && curIdxSet.has(timelineIdxOf(d)));
+    const firstFutureTimelineIdx = firstFutureInCurQuarter ? timelineIdxOf(firstFutureInCurQuarter) : -1;
+
+    return points.map(d => {
+      const tIdx = timelineIdxOf(d);
+      const isAnchorOrFuture = d.isCurrent || d.isFuture;
+      if (!isAnchorOrFuture || !curIdxSet.has(tIdx)) {
+        return { ...d, adjusted: null, catchUp: null, showBadge: false };
+      }
+      const share = shareByIdx.get(tIdx) ?? 0;
+      const adjusted = Math.round((d.target + share) * round) / round;
+      const catchUp = d.isFuture && share > 0 ? Math.round(share * round) / round : null;
+      const showBadge = tIdx === firstFutureTimelineIdx && catchUp != null && catchUp > 0;
+      return { ...d, adjusted, catchUp, showBadge };
+    });
+  }
+
+  function enrichWithAdjusted(
+    points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[],
+    targetArr: number[] | undefined,
+    actualArr: number[] | undefined,
+    scale = 1,
+    round = 100
+  ): TVADataPoint[] {
+    return chartGranularity === "month"
+      ? enrichWithAdjustedQuarterRollover(points, targetArr, actualArr, scale, round)
+      : enrichWithAdjustedPlanWide(points, round);
+  }
+
+  const unitsData = useMemo(
+    () => enrichWithAdjusted(buildSeries(target?.units, actual?.monthly_units), target?.units, actual?.monthly_units, 1, 1),
+    [target, actual, buckets, chartGranularity]
+  );
+  const tsvData = useMemo(
+    () => enrichWithAdjusted(buildSeries(target?.sale_value, actual?.monthly_tsv), target?.sale_value, actual?.monthly_tsv, 1, 10),
+    [target, actual, buckets, chartGranularity]
+  );
+  const areaScaledTarget = useMemo(() => target?.area?.map(v => v / 100000), [target]);
+  const areaData = useMemo(
+    () => enrichWithAdjusted(buildSeries(areaScaledTarget, actual?.monthly_area), areaScaledTarget, actual?.monthly_area, 1, 100),
+    [areaScaledTarget, actual, buckets, chartGranularity]
+  );
 
   // Avg Rate series — same bucket order, so it's always aligned with the
   // other three charts regardless of granularity
