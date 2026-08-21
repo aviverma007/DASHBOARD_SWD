@@ -233,15 +233,15 @@ export function TargetActualPage() {
   }
 
   // Distribute `amount` across `count` slots. Integer series (round=1) get
-  // an integer split with the remainder going to the LAST slot(s) — e.g.
-  // 10 over 3 becomes [3,3,4]. Fractional series (round=10/100 for
-  // TSV ₹Cr / Area L sqft) get a plain even split.
+  // an integer split with the remainder going to the FIRST slot(s) — e.g.
+  // 5 over 3 becomes [2,2,1] (not [1,2,2]). Fractional series (round=10/100
+  // for TSV ₹Cr / Area L sqft) get a plain even split.
   function distributeEvenly(amount: number, count: number, round: number): number[] {
     if (count <= 0) return [];
     if (round === 1) {
       const base = Math.floor(amount / count);
       const remainder = Math.round(amount - base * count);
-      return Array.from({ length: count }, (_, j) => base + (j >= count - remainder ? 1 : 0));
+      return Array.from({ length: count }, (_, j) => base + (j < remainder ? 1 : 0));
     }
     const share = Math.round((amount / count) * round) / round;
     return Array.from({ length: count }, () => share);
@@ -256,7 +256,7 @@ export function TargetActualPage() {
   // `points`, so this is correct no matter what the Period filter is
   // scoped to). If the previous quarter fell short, spread that shortfall
   // evenly across ALL of the current quarter's months — remainder to the
-  // last month(s), e.g. a shortfall of 10 over 3 months becomes +3,+3,+4
+  // first month(s), e.g. a shortfall of 5 over 3 months becomes +2,+2,+1
   // on top of each month's own original target.
   //
   // Step B: walk the current quarter's months in order. Once a month has
