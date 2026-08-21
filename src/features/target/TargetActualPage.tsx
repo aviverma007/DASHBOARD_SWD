@@ -348,7 +348,11 @@ export function TargetActualPage() {
     const balance = totalTarget - totalAchieved;
     const futureCount = planPoints.filter(d => d.isFuture).length;
     const adjPerPeriod = futureCount > 0 ? balance / futureCount : null;
-    const firstFutureIdx = points.findIndex(d => d.isFuture);
+    // First point that gets an adjusted value at all — usually the current
+    // period, since it's anchored alongside every future one. The badge
+    // should show there too: "as of now, this period's pace needs to be
+    // higher than planned," not just on the first period after this one.
+    const firstAnchorOrFutureIdx = points.findIndex(d => d.isCurrent || d.isFuture);
 
     return points.map((d, i) => {
       const isAnchorOrFuture = d.isCurrent || d.isFuture;
@@ -356,8 +360,8 @@ export function TargetActualPage() {
         return { ...d, adjusted: null, catchUp: null, showBadge: false };
       }
       const adjusted = Math.round(adjPerPeriod * round) / round;
-      const catchUp = d.isFuture && adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
-      return { ...d, adjusted, catchUp, showBadge: i === firstFutureIdx && catchUp != null && catchUp > 0 };
+      const catchUp = adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
+      return { ...d, adjusted, catchUp, showBadge: i === firstAnchorOrFutureIdx && catchUp != null && catchUp > 0 };
     });
   }
 
@@ -383,8 +387,12 @@ export function TargetActualPage() {
     const timelineIdxOf = (d: { year: number; calMonth: number }) =>
       TIMELINE.findIndex(m => m.year === d.year && m.month === d.calMonth);
 
-    const firstFutureInCurQuarter = points.find(d => d.isFuture && curIdxSet.has(timelineIdxOf(d)));
-    const firstFutureTimelineIdx = firstFutureInCurQuarter ? timelineIdxOf(firstFutureInCurQuarter) : -1;
+    // First point in the current quarter that actually gets an adjusted
+    // value — usually the current month itself. The badge belongs there
+    // too: if this month's own pace already needs to be higher than its
+    // original plan, that should show now, not only on the month after.
+    const firstAnchorOrFutureInCurQuarter = points.find(d => (d.isCurrent || d.isFuture) && curIdxSet.has(timelineIdxOf(d)));
+    const firstAnchorOrFutureTimelineIdx = firstAnchorOrFutureInCurQuarter ? timelineIdxOf(firstAnchorOrFutureInCurQuarter) : -1;
 
     return points.map(d => {
       const tIdx = timelineIdxOf(d);
@@ -393,8 +401,8 @@ export function TargetActualPage() {
         return { ...d, adjusted: null, catchUp: null, showBadge: false };
       }
       const adjusted = adjustedByIdx.get(tIdx) ?? d.target;
-      const catchUp = d.isFuture && adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
-      const showBadge = tIdx === firstFutureTimelineIdx && catchUp != null && catchUp > 0;
+      const catchUp = adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
+      const showBadge = tIdx === firstAnchorOrFutureTimelineIdx && catchUp != null && catchUp > 0;
       return { ...d, adjusted, catchUp, showBadge };
     });
   }
