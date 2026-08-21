@@ -31,9 +31,9 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
   }
 
   const maxVal = Math.max(...data.map(d => d[metric]), 1);
-  const BAR_W = 16, GAP = 6, PAD = { l: 46, r: 16, t: 16, b: 36 };
+  const BAR_W = 16, GAP = 6, PAD = { l: 46, r: 16, t: 16, b: 58 };
   const W = data.length * (BAR_W + GAP) + PAD.l + PAD.r;
-  const H = 280;
+  const H = 300;
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
 
@@ -83,9 +83,16 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
                 onMouseLeave={hideTooltip}
               >
                 <rect x={bx} y={baseY - bh} width={BAR_W} height={Math.max(bh, val > 0 ? 2 : 0)} fill={meta.color} rx="2" />
-                {i % Math.ceil(data.length / 14) === 0 && (
-                  <text x={bx + BAR_W / 2} y={H - 8} fontSize="10" fill="#9ca3af" textAnchor="middle">{d.label}</text>
-                )}
+                <text
+                  x={bx + BAR_W / 2}
+                  y={baseY + 12}
+                  fontSize="9.5"
+                  fill="#6b7280"
+                  textAnchor="end"
+                  transform={`rotate(-55 ${bx + BAR_W / 2} ${baseY + 12})`}
+                >
+                  {d.label}
+                </text>
               </g>
             );
           })}
