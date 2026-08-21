@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "overview", label: "Overview", path: "/", icon: "LayoutDashboard", status: "active" },
   { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active" },
+  { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active" },
   { key: "sales", label: "Sales", path: "/sales", icon: "TrendingUp", status: "placeholder" },
   { key: "collections", label: "Collections", path: "/collections", icon: "Wallet", status: "placeholder" },
   { key: "revenue", label: "Revenue", path: "/revenue", icon: "IndianRupee", status: "placeholder" },
