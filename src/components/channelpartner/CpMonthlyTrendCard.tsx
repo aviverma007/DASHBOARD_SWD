@@ -4,6 +4,8 @@ import { ChartTooltip, useChartTooltip, tRow } from "../target/ChartTooltip";
 interface TrendPoint { key: string; label: string; units: number; area: number; tsv: number }
 type Metric = "units" | "area" | "tsv";
 
+const WINDOW_SIZE = 12;
+
 const CARD_STYLE: React.CSSProperties = {
   background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)",
   padding: "16px 18px 14px", height: 440, display: "flex", flexDirection: "column",
@@ -36,11 +38,49 @@ function useContainerWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
+function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOffset: number; total: number; onOffset: (o: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const thumbPct = Math.min(100, (WINDOW_SIZE / total) * 100);
+  const thumbLeft = maxOffset > 0 ? (offset / maxOffset) * (100 - thumbPct) : 0;
+
+  function offsetFromX(clientX: number) {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onOffset(Math.round(frac * maxOffset));
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+      <button onClick={() => onOffset(Math.max(0, offset - 1))} disabled={offset === 0}
+        style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === 0 ? "#f5f5f5" : "#fff", cursor: offset === 0 ? "default" : "pointer", fontSize: 14, color: "#546e7a", flexShrink: 0 }}>‹</button>
+      <div ref={trackRef} onClick={e => offsetFromX(e.clientX)} style={{ flex: 1, height: 6, borderRadius: 3, background: "rgba(0,151,167,0.1)", position: "relative", cursor: "pointer" }}>
+        <div onMouseDown={e => {
+            dragging.current = true;
+            const move = (ev: MouseEvent) => { if (dragging.current) offsetFromX(ev.clientX); };
+            const up = () => { dragging.current = false; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+            window.addEventListener("mousemove", move); window.addEventListener("mouseup", up); e.preventDefault();
+          }}
+          style={{ position: "absolute", top: 0, left: `${thumbLeft}%`, width: `${thumbPct}%`, height: "100%", background: "#0097a7", borderRadius: 3, cursor: "grab" }} />
+      </div>
+      <button onClick={() => onOffset(Math.min(maxOffset, offset + 1))} disabled={offset === maxOffset}
+        style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #b0bec5", background: offset === maxOffset ? "#f5f5f5" : "#fff", cursor: offset === maxOffset ? "default" : "pointer", fontSize: 14, color: "#546e7a", flexShrink: 0 }}>›</button>
+    </div>
+  );
+}
+
 export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PARTNER SALES" }: { data: TrendPoint[]; title?: string }) {
   const [metric, setMetric] = useState<Metric>("units");
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
   const [containerRef, containerWidth] = useContainerWidth<HTMLDivElement>();
   const meta = METRIC_META[metric];
+
+  const maxOffset = Math.max(0, data.length - WINDOW_SIZE);
+  // Default to showing the LATEST window (most recent 12 months) —
+  // reset whenever the underlying data changes (e.g. filters upstream).
+  const [offset, setOffset] = useState(maxOffset);
+  useEffect(() => { setOffset(maxOffset); }, [data.length, maxOffset]);
 
   if (data.length === 0) {
     return (
@@ -51,23 +91,18 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
     );
   }
 
-  const maxVal = Math.max(...data.map(d => d[metric]), 1);
-  const H = 340;
+  const visible = data.slice(offset, offset + WINDOW_SIZE);
+  const maxVal = Math.max(...visible.map(d => d[metric]), 1);
+  const H = 320;
   const PAD = { l: 62, r: 20, t: 30, b: 70 };
   const innerW = Math.max(containerWidth - PAD.l - PAD.r, 100);
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
 
-  // Distribute bars evenly across the full available width, capping bar
-  // width so a handful of bars (e.g. 6-7 in a filtered view) don't turn
-  // into oversized blocks — the remaining space becomes gap, not the bar.
-  const n = data.length;
+  const n = visible.length;
   const slot = innerW / n;
-  const barW = Math.max(6, Math.min(slot * 0.62, 46));
+  const barW = Math.max(6, Math.min(slot * 0.5, 56));
   const x = (i: number) => PAD.l + i * slot + (slot - barW) / 2;
-
-  // Rotate labels only when there isn't room to lay them out horizontally;
-  // with few, wide bars they stay upright and centered.
   const rotate = slot < 70;
 
   return (
@@ -87,6 +122,9 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
           ))}
         </div>
       </div>
+
+      <Slider offset={offset} maxOffset={maxOffset} total={data.length} onOffset={setOffset} />
+
       <div ref={containerRef} style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
         <svg width={containerWidth} height={H} style={{ display: "block" }}>
           {/* Gridlines + Y-axis labels */}
@@ -101,7 +139,7 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
           })}
 
           {/* Bars + value labels + hover targets */}
-          {data.map((d, i) => {
+          {visible.map((d, i) => {
             const val = d[metric];
             const bh = maxVal > 0 ? (val / maxVal) * innerH : 0;
             const bx = x(i);
@@ -109,7 +147,6 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
             const labelX = bx + barW / 2;
             return (
               <g key={d.key}>
-                {/* wide invisible hit-zone for easy hovering */}
                 <rect
                   x={PAD.l + i * slot} y={PAD.t} width={slot} height={innerH} fill="transparent"
                   onMouseEnter={e => showTooltip(e, (
