@@ -17,7 +17,6 @@ interface AvgRateCardProps {
   avgAchievedRate: number;
   targetRate: number;
   requiredRate: number | null;
-  totalTargetTsv: number;
   onPointClick?: (p: RatePoint) => void;
   /** Controlled shared window position, same as the bar charts */
   offset: number;
@@ -57,7 +56,7 @@ function Slider({ offset, maxOffset, total, windowSize, onOffset }: { offset: nu
   );
 }
 
-export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, totalTargetTsv, onPointClick, offset, windowSize, onOffsetChange }: AvgRateCardProps) {
+export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, onPointClick, offset, windowSize, onOffsetChange }: AvgRateCardProps) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
   const maxOffset = Math.max(0, data.length - windowSize);
   const clampedOffset = Math.min(offset, maxOffset);
@@ -99,7 +98,6 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, t
       <div style={{ flex: "1 1 420px", minWidth: 0, background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752", letterSpacing: "0.3px" }}>AVG RATE — TARGET VS ACHIEVED</div>
-          <div style={{ fontSize: 11, color: "#90a4ae" }}>Double-click to zoom</div>
         </div>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#00838f", color: "#fff", borderRadius: 6, padding: "4px 12px 4px 10px", fontSize: 12, marginBottom: 8 }}>
           <span style={{ fontSize: 11, opacity: 0.85 }}>AVG ACHIEVED RATE (THIS FILTER)</span>
@@ -159,12 +157,7 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, t
         <div style={{ background: "#fff", border: "1px solid #e4e0d6", borderRadius: 8, padding: "12px 14px", fontSize: 12.5 }}>
           <div style={{ fontWeight: 700, color: "#14213d", marginBottom: 6 }}>Rate (Target Vs Actual)</div>
           {requiredRate != null ? (
-            <>
-              <div style={{ color: "#c0392b", fontWeight: 600, marginBottom: 4 }}>New required rate of ₹{requiredRate.toLocaleString("en-IN")}</div>
-              <div style={{ color: "#6b7280", fontSize: 12, lineHeight: 1.5 }}>
-                required against ₹{targetRate.toLocaleString("en-IN")} (Target Rate) to maintain Total Project Value of ₹{totalTargetTsv.toFixed(0)} Cr
-              </div>
-            </>
+            <div style={{ color: "#c0392b", fontWeight: 600 }}>New required rate of ₹{requiredRate.toLocaleString("en-IN")}</div>
           ) : (
             <div style={{ color: "#1a7a4a", fontSize: 12 }}>On track — no rate correction needed at current pace.</div>
           )}

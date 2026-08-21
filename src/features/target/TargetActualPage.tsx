@@ -616,7 +616,6 @@ export function TargetActualPage() {
             avgAchievedRate={avgAchievedRate}
             targetRate={avgTargetRate}
             requiredRate={requiredRate}
-            totalTargetTsv={totalTargetTsvInRange}
             onPointClick={handleRatePointClick}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset}
           />

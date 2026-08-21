@@ -1,19 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { PeriodFilter } from "../../utils/pdrnLogic";
 
 interface PdrnFiltersProps {
   projects: string[];
   selectedProjects: Set<string>;          // empty = All
   onProjectsChange: (s: Set<string>) => void;
-  period: PeriodFilter;
-  onPeriodChange: (p: PeriodFilter) => void;
-  years: number[];
   onReset: () => void;
 }
-
-const QUARTERS = ["Q1 (Jan–Mar)", "Q2 (Apr–Jun)", "Q3 (Jul–Sep)", "Q4 (Oct–Dec)"];
-const MONTHS = ["January","February","March","April","May","June",
-                "July","August","September","October","November","December"];
 
 const PILL: React.CSSProperties = {
   appearance: "none" as const,
@@ -26,11 +18,6 @@ const PILL: React.CSSProperties = {
   fontFamily: "inherit",
   cursor: "pointer",
 };
-const PILL_ACTIVE: React.CSSProperties = {
-  ...PILL,
-  background: "#B8893C",
-  border: "1px solid #B8893C",
-};
 const LBL: React.CSSProperties = {
   display: "block",
   fontSize: 10,
@@ -40,7 +27,7 @@ const LBL: React.CSSProperties = {
   marginBottom: 5,
 };
 
-export function PdrnFilters({ projects, selectedProjects, onProjectsChange, period, onPeriodChange, years, onReset }: PdrnFiltersProps) {
+export function PdrnFilters({ projects, selectedProjects, onProjectsChange, onReset }: PdrnFiltersProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const msRef = useRef<HTMLDivElement>(null);
 
@@ -58,10 +45,6 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, peri
     // if all selected, revert to empty (= All)
     if (next.size === projects.length) onProjectsChange(new Set());
     else onProjectsChange(next);
-  }
-
-  function setPeriodType(type: PeriodFilter["type"]) {
-    onPeriodChange({ type, year: period.year ?? years[years.length - 1] });
   }
 
   const label = selectedProjects.size === 0
@@ -129,55 +112,6 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, peri
           </div>
         )}
       </div>
-
-      {/* Period type buttons */}
-      <div>
-        <label style={LBL}>Period</label>
-        <div style={{ display: "flex", gap: 5 }}>
-          {(["all","year","quarter","month"] as const).map(t => (
-            <button key={t} onClick={() => setPeriodType(t)}
-              style={period.type === t ? PILL_ACTIVE : PILL}>
-              {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Year */}
-      {period.type !== "all" && (
-        <div>
-          <label style={LBL}>Year</label>
-          <select value={period.year ?? years[years.length-1]}
-            onChange={e => onPeriodChange({...period, year: +e.target.value})}
-            style={PILL}>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Quarter */}
-      {period.type === "quarter" && (
-        <div>
-          <label style={LBL}>Quarter</label>
-          <select value={period.quarter ?? 1}
-            onChange={e => onPeriodChange({...period, type:"quarter", quarter:+e.target.value})}
-            style={PILL}>
-            {QUARTERS.map((q,i) => <option key={i+1} value={i+1}>{q}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Month */}
-      {period.type === "month" && (
-        <div>
-          <label style={LBL}>Month</label>
-          <select value={period.month ?? 1}
-            onChange={e => onPeriodChange({...period, type:"month", month:+e.target.value})}
-            style={PILL}>
-            {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
-          </select>
-        </div>
-      )}
 
       <div style={{ flex: 1 }} />
       <button onClick={onReset} style={{

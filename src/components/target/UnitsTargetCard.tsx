@@ -160,10 +160,9 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
-        <div style={{ fontSize: 11, color: "#90a4ae", textAlign: "right" }}>
-          Double-click to zoom
-          {onBarClick && <div style={{ color: "#0097a7", marginTop: 2 }}>click a green bar → drill down</div>}
-        </div>
+        {onBarClick && (
+          <div style={{ fontSize: 11, color: "#0097a7", textAlign: "right" }}>click a green bar → drill down</div>
+        )}
       </div>
 
       {/* Badge */}

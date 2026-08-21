@@ -21,12 +21,11 @@ const PROJECT_IMAGES: Record<string, string> = {
 
 export function InventoryOverviewPage() {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
-  const [period, setPeriod] = useState<PeriodFilter>(DEFAULT_PERIOD);
   const [drawerProject, setDrawerProject] = useState<ProjectStats | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxLabel, setLightboxLabel] = useState<string>("");
 
-  const overall = useMemo(() => calcOverall(period), [period]);
+  const overall = useMemo(() => calcOverall(DEFAULT_PERIOD), []);
 
   const visibleProjects = useMemo(() => {
     if (selectedProjects.size === 0) return overall.projects;
@@ -45,7 +44,6 @@ export function InventoryOverviewPage() {
 
   function handleReset() {
     setSelectedProjects(new Set());
-    setPeriod(DEFAULT_PERIOD);
     setDrawerProject(null);
   }
 
@@ -61,9 +59,6 @@ export function InventoryOverviewPage() {
         projects={PDRN.P}
         selectedProjects={selectedProjects}
         onProjectsChange={setSelectedProjects}
-        period={period}
-        onPeriodChange={setPeriod}
-        years={PDRN.meta.years}
         onReset={handleReset}
       />
 
@@ -186,7 +181,7 @@ export function InventoryOverviewPage() {
         <PdrnDrawer
           invProjIdx={drawerProject.invProjIdx}
           projectName={drawerProject.projectName}
-          period={period}
+          period={DEFAULT_PERIOD}
           onClose={() => setDrawerProject(null)}
           unsoldUnits={drawerProject.unsold.units}
           unsoldArea={drawerProject.unsold.area}
