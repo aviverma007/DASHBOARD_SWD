@@ -12,6 +12,7 @@ export interface TVADataPoint {
   catchUp: number | null;    // adjusted - this period's own target, only if > 0
   showBadge: boolean;        // true only on the first future period with a catch-up
   isFuture: boolean;
+  isCurrent: boolean;
   year: number;   // actual calendar year, for drill-down
   calMonth: number; // actual calendar month (1-12), for drill-down
 }

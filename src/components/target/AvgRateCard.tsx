@@ -7,6 +7,7 @@ export interface RatePoint {
   targetRate: number | null;
   adjustedRate: number | null; // only set for "balance year" months
   isFuture: boolean;
+  isCurrent: boolean;
   year: number;
   calMonth: number;
 }

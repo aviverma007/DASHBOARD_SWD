@@ -117,7 +117,32 @@ export function TargetActualPage() {
     return idxs;
   }, [target, actual, rangeStart, rangeEnd]);
 
-  interface Bucket { label: string; idxs: number[]; isFuture: boolean; year: number; month: number; }
+  interface Bucket { label: string; idxs: number[]; isFuture: boolean; isCurrent: boolean; year: number; month: number; }
+
+  // Index of "today" in TIMELINE, if it falls within the timeline at all —
+  // used to mark whichever bucket contains the current month, so the
+  // Adjusted line has an anchor point even when only one future bucket
+  // exists (Quarter/Year granularity).
+  const todayIdx = useMemo(() => {
+    const now = new Date();
+    return TIMELINE.findIndex(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
+  }, []);
+
+  // A bucket is "current" if today falls anywhere inside its date range,
+  // "future" only if EVERY month in it is after today, "past" otherwise.
+  // (Checking only the bucket's last month — as a quarter/year bucket-in-
+  // progress's end date — wrongly classified the whole current FY/quarter
+  // as "future" just because it hasn't finished yet, which collapsed
+  // "current" and "future" into the same bucket and left no second point
+  // for the Adjusted line to connect to.)
+  function bucketFlags(idxs: number[]): { isCurrent: boolean; isFuture: boolean } {
+    if (todayIdx < 0) {
+      // "today" isn't on the timeline at all — fall back to date comparison
+      const last = TIMELINE[idxs[idxs.length - 1]];
+      return { isCurrent: false, isFuture: todayIsFuture(last.year, last.month) };
+    }
+    return { isCurrent: idxs.includes(todayIdx), isFuture: idxs.every(i => i > todayIdx) };
+  }
 
   // Buckets: one per visible month/quarter/year, each carrying the list of
   // TIMELINE indices to sum over. Every chart (units/TSV/area/rate) derives
@@ -127,7 +152,8 @@ export function TargetActualPage() {
     if (chartGranularity === "month") {
       return activeIdxs.map(i => {
         const m = TIMELINE[i];
-        return { label: m.label, idxs: [i], isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+        const { isCurrent, isFuture } = bucketFlags([i]);
+        return { label: m.label, idxs: [i], isFuture, isCurrent, year: m.year, month: m.month };
       });
     }
     if (chartGranularity === "quarter") {
@@ -150,7 +176,8 @@ export function TargetActualPage() {
         .map(g => {
           const last = g.idxs[g.idxs.length - 1];
           const m = TIMELINE[last];
-          return { label: `${QUARTER_LABELS[g.q]} FY${String(g.fy).slice(-2)}`, idxs: g.idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+          const { isCurrent, isFuture } = bucketFlags(g.idxs);
+          return { label: `${QUARTER_LABELS[g.q]} FY${String(g.fy).slice(-2)}`, idxs: g.idxs, isFuture, isCurrent, year: m.year, month: m.month };
         });
     }
     // year — one bucket per fiscal year actually present in the range
@@ -160,9 +187,10 @@ export function TargetActualPage() {
       if (idxs.length === 0 || !idxs.some(i => activeIdxs.includes(i))) return null;
       const last = idxs[idxs.length - 1];
       const m = TIMELINE[last];
-      return { label: y.label, idxs, isFuture: todayIsFuture(m.year, m.month), year: m.year, month: m.month };
+      const { isCurrent, isFuture } = bucketFlags(idxs);
+      return { label: y.label, idxs, isFuture, isCurrent, year: m.year, month: m.month };
     }).filter((b): b is Bucket => b !== null);
-  }, [chartGranularity, activeIdxs, rangeStart, rangeEnd]);
+  }, [chartGranularity, activeIdxs, rangeStart, rangeEnd, todayIdx]);
 
   const WINDOW_SIZE = chartGranularity === "month" ? 6 : chartGranularity === "quarter" ? 4 : 4;
 
@@ -197,6 +225,7 @@ export function TargetActualPage() {
         target: Math.round(t * 100) / 100,
         achieved: Math.round(a * 100) / 100,
         isFuture: b.isFuture,
+        isCurrent: b.isCurrent,
         year: b.year,
         calMonth: b.month,
       };
@@ -215,6 +244,14 @@ export function TargetActualPage() {
   // MORE than the original target that adjusted pace requires, shown only
   // on the first future period (not every one, to avoid repeating the same
   // signal).
+  //
+  // IMPORTANT: adjusted is set on the CURRENT period (as an anchor) AND
+  // every future period — not just the first future one. Recharts needs
+  // 2+ non-null points to draw a line segment at all; with only the first
+  // future point set, Quarter/Year views (which often have just one future
+  // bucket in range) rendered a lone dot with no visible line. Anchoring
+  // on the current period guarantees a second point whenever at least one
+  // future period exists.
   function enrichWithAdjusted(points: Omit<TVADataPoint, "adjusted" | "catchUp" | "showBadge">[], round = 100): TVADataPoint[] {
     const planStart = points.findIndex(d => d.target > 0);
     const planPoints = planStart >= 0 ? points.slice(planStart) : points;
@@ -222,13 +259,17 @@ export function TargetActualPage() {
     const totalAchieved = planPoints.filter(d => !d.isFuture).reduce((s, d) => s + d.achieved, 0);
     const balance = totalTarget - totalAchieved;
     const futureCount = planPoints.filter(d => d.isFuture).length;
-    const adjPerPeriod = futureCount > 0 ? balance / futureCount : 0;
+    const adjPerPeriod = futureCount > 0 ? balance / futureCount : null;
     const firstFutureIdx = points.findIndex(d => d.isFuture);
 
     return points.map((d, i) => {
-      if (!d.isFuture) return { ...d, adjusted: null, catchUp: null, showBadge: false };
+      const isAnchorOrFuture = d.isCurrent || d.isFuture;
+      if (!isAnchorOrFuture || adjPerPeriod === null || !isFinite(adjPerPeriod)) {
+        return { ...d, adjusted: null, catchUp: null, showBadge: false };
+      }
       const adjusted = Math.round(adjPerPeriod * round) / round;
-      const catchUp = adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
+      // Badge only on the first strictly-future period, never on the anchor
+      const catchUp = d.isFuture && adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
       return { ...d, adjusted, catchUp, showBadge: i === firstFutureIdx && catchUp != null && catchUp > 0 };
     });
   }
@@ -247,7 +288,7 @@ export function TargetActualPage() {
       const achievedRate = !b.isFuture && areaSum > 0 ? Math.round((tsvSum * 1e7) / (areaSum * 1e5)) : null;
       const tgtRates = b.idxs.map(i => target.rate[i]).filter(v => v > 0);
       const targetRate = tgtRates.length ? Math.round(tgtRates.reduce((a, v) => a + v, 0) / tgtRates.length) : null;
-      return { month: b.label, achievedRate, targetRate, adjustedRate: null, isFuture: b.isFuture, year: b.year, calMonth: b.month };
+      return { month: b.label, achievedRate, targetRate, adjustedRate: null, isFuture: b.isFuture, isCurrent: b.isCurrent, year: b.year, calMonth: b.month };
     });
   }, [target, actual, buckets]);
 
@@ -298,11 +339,21 @@ export function TargetActualPage() {
     const remainingArea = totalTargetAreaInRange - totalAchievedAreaInRange;
     if (remainingArea <= 0.001) return null; // all target-scoped area already sold
     if (remainingTsv <= 0) return null; // value target already met with area still available
-    return Math.round((remainingTsv * 1e7) / (remainingArea * 1e5));
+    const rate = Math.round((remainingTsv * 1e7) / (remainingArea * 1e5));
+    return isFinite(rate) ? rate : null;
   }, [totalTargetTsvInRange, totalAchievedTsvInRange, totalTargetAreaInRange, totalAchievedAreaInRange]);
 
+  // Flat "Adjusted Rate for Balance Year" line: same requiredRate value on
+  // the current period (anchor, so the line has 2+ points to draw from)
+  // and every future period. Without an anchor, a single future rate
+  // point would render as a lone dot with no visible line.
+  const rateDataWithAdjusted = useMemo(
+    () => rateData.map(d => ({ ...d, adjustedRate: (d.isCurrent || d.isFuture) ? requiredRate : null })),
+    [rateData, requiredRate]
+  );
+
   function handleRatePointClick(p: RatePoint) {
-    setDrillMonth({ month: p.month, target: 0, achieved: 0, adjusted: null, catchUp: null, showBadge: false, isFuture: p.isFuture, year: p.year, calMonth: p.calMonth });
+    setDrillMonth({ month: p.month, target: 0, achieved: 0, adjusted: null, catchUp: null, showBadge: false, isFuture: p.isFuture, isCurrent: false, year: p.year, calMonth: p.calMonth });
   }
 
   const periodLabel = periodType === "all" ? "All time"
@@ -412,7 +463,7 @@ export function TargetActualPage() {
           <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
           <AvgRateCard
-            data={rateData}
+            data={rateDataWithAdjusted}
             avgAchievedRate={avgAchievedRate}
             targetRate={avgTargetRate}
             requiredRate={requiredRate}
