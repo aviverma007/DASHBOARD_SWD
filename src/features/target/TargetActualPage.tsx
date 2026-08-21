@@ -511,7 +511,15 @@ export function TargetActualPage() {
     : `${TIMELINE[YEAR_OPTIONS[yearIdx].start + month]?.label}`;
 
   return (
-    <div className="sw-inv" style={{ minHeight: "100vh", zoom: 0.9, overflowX: "hidden" } as React.CSSProperties}>
+    <div className="sw-inv" style={{ minHeight: "100vh" }}>
+      {/* Everything except the drill-down drawers is zoomed to 90%.
+          The drawers are rendered OUTSIDE this zoomed wrapper (as
+          direct children of the un-zoomed .sw-inv root) because
+          Chromium's `zoom` property creates a new containing block for
+          `position: fixed` descendants — a fixed drawer nested inside a
+          zoomed ancestor scrolls with that ancestor's content instead
+          of staying pinned to the real viewport. */}
+      <div style={{ zoom: 0.9, overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
@@ -637,6 +645,8 @@ export function TargetActualPage() {
           </div>
         )}
       </div>
+      </div>
+      {/* end zoomed wrapper — drawers below are intentionally outside it */}
 
       {/* Drill-downs */}
       {drillMonth && (
