@@ -54,8 +54,8 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
           ))}
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto" }}>
-        <svg width={Math.max(W, 600)} height={H} style={{ display: "block" }}>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
           {[0, 0.5, 1].map(t => {
             const yv = PAD.t + innerH * (1 - t);
             return (
