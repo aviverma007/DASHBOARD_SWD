@@ -26,10 +26,13 @@ export function AppShell() {
       />
 
       <div className="flex">
-        {/* Desktop sidebar */}
+        {/* Desktop sidebar — sticky below the header so it never scrolls
+            away with the page content; own overflow scroll in case the
+            nav list ever grows taller than the viewport. */}
         <aside
           className={clsx(
-            "hidden shrink-0 border-r border-border-subtle bg-white transition-all duration-200 lg:block",
+            "hidden shrink-0 self-start border-r border-border-subtle bg-white transition-all duration-200 lg:block",
+            "sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto",
             sidebarCollapsed ? "w-16" : "w-56"
           )}
         >
@@ -43,7 +46,7 @@ export function AppShell() {
               className="absolute inset-0 bg-charcoal/40"
               onClick={() => setMobileNavOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-drawer">
+            <div className="absolute inset-y-0 left-0 w-64 overflow-y-auto bg-white shadow-drawer">
               <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3.5">
                 <span className="text-sm font-bold text-navy">SWD Analytics</span>
                 <button
