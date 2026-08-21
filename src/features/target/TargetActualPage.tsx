@@ -232,16 +232,44 @@ export function TargetActualPage() {
     });
   }
 
-  // ── Quarter rollover: previous quarter's shortfall folds into current quarter ──
-  // Used only for Month granularity. Finds the fiscal quarter containing
-  // "today" and the one immediately before it, sums target/achieved across
-  // the FULL raw arrays (not the filtered/bucketed `points`, so this is
-  // correct no matter what the Period filter is currently scoped to), and
-  // distributes any shortfall evenly across the current quarter's months —
-  // remainder to the last month(s), e.g. a shortfall of 10 over 3 months
-  // becomes +3, +3, +4.
+  // Distribute `amount` across `count` slots. Integer series (round=1) get
+  // an integer split with the remainder going to the LAST slot(s) — e.g.
+  // 10 over 3 becomes [3,3,4]. Fractional series (round=10/100 for
+  // TSV ₹Cr / Area L sqft) get a plain even split.
+  function distributeEvenly(amount: number, count: number, round: number): number[] {
+    if (count <= 0) return [];
+    if (round === 1) {
+      const base = Math.floor(amount / count);
+      const remainder = Math.round(amount - base * count);
+      return Array.from({ length: count }, (_, j) => base + (j >= count - remainder ? 1 : 0));
+    }
+    const share = Math.round((amount / count) * round) / round;
+    return Array.from({ length: count }, () => share);
+  }
+
+  // ── Quarter rollover: previous quarter's shortfall folds into current
+  // quarter, THEN cascades forward within the current quarter itself ──
+  // Used only for Month granularity.
+  //
+  // Step A: find the fiscal quarter containing "today" and the one right
+  // before it (using the FULL raw arrays, not the filtered/bucketed
+  // `points`, so this is correct no matter what the Period filter is
+  // scoped to). If the previous quarter fell short, spread that shortfall
+  // evenly across ALL of the current quarter's months — remainder to the
+  // last month(s), e.g. a shortfall of 10 over 3 months becomes +3,+3,+4
+  // on top of each month's own original target.
+  //
+  // Step B: walk the current quarter's months in order. Once a month has
+  // actually finished (its TIMELINE index is before today's), compare
+  // what it achieved against its OWN adjusted target from Step A. Any
+  // shortfall there rolls forward too — spread across the REMAINING
+  // months of the same quarter, ADDED on top of whatever they already
+  // picked up. E.g. previous-quarter rollover gives a quarter [13,14,14];
+  // if the first of those months only achieves 7 against its target of
+  // 13, the resulting shortfall of 6 splits across the remaining two
+  // months as +3/+3, landing at [—, 17, 17].
   function computeQuarterRollover(targetArr: number[] | undefined, actualArr: number[] | undefined, scale: number, round: number) {
-    const empty = { curIdxs: [] as number[], shareByIdx: new Map<number, number>() };
+    const empty = { curIdxs: [] as number[], adjustedByIdx: new Map<number, number>() };
     if (todayIdx < 0 || !targetArr) return empty;
 
     const t = TIMELINE[todayIdx];
@@ -256,28 +284,39 @@ export function TargetActualPage() {
       if (fy === curFy && q === curQ) curIdxs.push(i);
       else if (fy === prevFy && q === prevQ) prevIdxs.push(i);
     });
-    if (curIdxs.length === 0 || prevIdxs.length === 0) return empty;
+    if (curIdxs.length === 0) return empty;
 
-    const prevTarget = prevIdxs.reduce((s, i) => s + (targetArr[i] ?? 0), 0);
-    const prevAchieved = prevIdxs.reduce((s, i) => s + (actualArr?.[i] ?? 0), 0) * scale;
-    const shortfall = Math.round((prevTarget - prevAchieved) * round) / round;
-    if (shortfall <= 0) return empty; // last quarter met or beat its target — nothing to roll forward
+    // Start from each month's own original target
+    const adjustedByIdx = new Map<number, number>();
+    curIdxs.forEach(idx => adjustedByIdx.set(idx, targetArr[idx] ?? 0));
 
-    const n = curIdxs.length;
-    const shareByIdx = new Map<number, number>();
-    if (round === 1) {
-      // Whole-number series (Units): integer split, remainder to the LAST
-      // month(s) — e.g. shortfall=10 over 3 months → 3, 3, 4.
-      const base = Math.floor(shortfall / n);
-      const remainder = Math.round(shortfall - base * n);
-      curIdxs.forEach((idx, j) => shareByIdx.set(idx, base + (j >= n - remainder ? 1 : 0)));
-    } else {
-      // Fractional series (TSV ₹Cr, Area L sqft): plain even split is
-      // natural since these aren't whole-unit counts.
-      const share = Math.round((shortfall / n) * round) / round;
-      curIdxs.forEach(idx => shareByIdx.set(idx, share));
+    // Step A — previous quarter's shortfall, spread flat across all months
+    if (prevIdxs.length > 0) {
+      const prevTarget = prevIdxs.reduce((s, i) => s + (targetArr[i] ?? 0), 0);
+      const prevAchieved = prevIdxs.reduce((s, i) => s + (actualArr?.[i] ?? 0), 0) * scale;
+      const prevShortfall = Math.max(0, Math.round((prevTarget - prevAchieved) * round) / round);
+      if (prevShortfall > 0) {
+        const shares = distributeEvenly(prevShortfall, curIdxs.length, round);
+        curIdxs.forEach((idx, j) => adjustedByIdx.set(idx, Math.round((adjustedByIdx.get(idx)! + shares[j]) * round) / round));
+      }
     }
-    return { curIdxs, shareByIdx };
+
+    // Step B — cascade forward any shortfall from already-elapsed months
+    // within this same quarter, on top of what Step A already gave them
+    for (let j = 0; j < curIdxs.length; j++) {
+      const idx = curIdxs[j];
+      if (idx >= todayIdx) break; // stop at the first not-yet-finished month
+      const achieved = (actualArr?.[idx] ?? 0) * scale;
+      const adjustedSoFar = adjustedByIdx.get(idx)!;
+      const shortfall = Math.max(0, Math.round((adjustedSoFar - achieved) * round) / round);
+      const remaining = curIdxs.slice(j + 1);
+      if (shortfall > 0 && remaining.length > 0) {
+        const shares = distributeEvenly(shortfall, remaining.length, round);
+        remaining.forEach((rIdx, k) => adjustedByIdx.set(rIdx, Math.round((adjustedByIdx.get(rIdx)! + shares[k]) * round) / round));
+      }
+    }
+
+    return { curIdxs, adjustedByIdx };
   }
 
   // Balance target = totalTarget (whole PLAN window) - totalAchieved (past+
@@ -334,7 +373,7 @@ export function TargetActualPage() {
     scale: number,
     round: number
   ): TVADataPoint[] {
-    const { curIdxs, shareByIdx } = computeQuarterRollover(targetArr, actualArr, scale, round);
+    const { curIdxs, adjustedByIdx } = computeQuarterRollover(targetArr, actualArr, scale, round);
     if (curIdxs.length === 0) return points.map(d => ({ ...d, adjusted: null, catchUp: null, showBadge: false }));
 
     const curIdxSet = new Set(curIdxs);
@@ -353,9 +392,8 @@ export function TargetActualPage() {
       if (!isAnchorOrFuture || !curIdxSet.has(tIdx)) {
         return { ...d, adjusted: null, catchUp: null, showBadge: false };
       }
-      const share = shareByIdx.get(tIdx) ?? 0;
-      const adjusted = Math.round((d.target + share) * round) / round;
-      const catchUp = d.isFuture && share > 0 ? Math.round(share * round) / round : null;
+      const adjusted = adjustedByIdx.get(tIdx) ?? d.target;
+      const catchUp = d.isFuture && adjusted > d.target ? Math.round((adjusted - d.target) * round) / round : null;
       const showBadge = tIdx === firstFutureTimelineIdx && catchUp != null && catchUp > 0;
       return { ...d, adjusted, catchUp, showBadge };
     });
