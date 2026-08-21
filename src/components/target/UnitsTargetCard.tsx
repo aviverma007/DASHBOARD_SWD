@@ -102,15 +102,16 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
         {fmt(value)}
       </text>
     );
-    if (d.showBadge && d.catchUp != null && d.catchUp > 0) {
-      const bw = 40, bh = 20;
+    if (d.showBadge && d.adjusted != null) {
+      const text = `▲${fmt(d.adjusted)}`;
+      const bw = Math.max(40, text.length * 7 + 12), bh = 20;
       const cx2 = (x as number) + (width as number) / 2 - bw / 2;
       const cy2 = (y as number) - bh - 24;
       return (
         <g>
           {label}
           <rect x={cx2} y={cy2} width={bw} height={bh} rx={4} fill="#fff" stroke="#d32f2f" strokeWidth={1.5} />
-          <text x={cx2 + bw / 2} y={cy2 + 14} textAnchor="middle" fill="#d32f2f" fontSize={11} fontWeight="700">▲{fmt(d.catchUp)}</text>
+          <text x={cx2 + bw / 2} y={cy2 + 14} textAnchor="middle" fill="#d32f2f" fontSize={11} fontWeight="700">{text}</text>
         </g>
       );
     }
