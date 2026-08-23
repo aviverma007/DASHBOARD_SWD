@@ -519,7 +519,7 @@ export function TargetActualPage() {
           `position: fixed` descendants — a fixed drawer nested inside a
           zoomed ancestor scrolls with that ancestor's content instead
           of staying pinned to the real viewport. */}
-      <div style={{ zoom: 0.9, overflowX: "hidden" } as React.CSSProperties}>
+      <div className="tv-zoom-desktop" style={{ overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
@@ -608,7 +608,7 @@ export function TargetActualPage() {
         )}
 
         {/* Cards 1-2: Units, TSV */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
           <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
           <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth}
@@ -616,7 +616,7 @@ export function TargetActualPage() {
         </div>
 
         {/* Cards 3-4: Area, Avg Rate — same 2-column size as above, same shared offset */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
           <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
           <AvgRateCard

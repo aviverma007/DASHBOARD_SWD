@@ -40,6 +40,7 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
 
   return (
     <div
+      className="ov-row"
       onClick={onClick}
       style={{
         background: "var(--card)",
@@ -67,7 +68,7 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
       } : undefined}
     >
       {/* Label + TSV */}
-      <div style={{ width: isOverall ? 280 : isProject ? 220 : 260, flexShrink: 0, paddingRight: 16 }}>
+      <div className="ov-row-head" style={{ width: isOverall ? 280 : isProject ? 220 : 260, flexShrink: 0, paddingRight: 16 }}>
         <div style={{
           fontFamily: "Georgia,serif",
           fontSize: isOverall ? 20 : isProject ? 13.5 : 15,
@@ -91,9 +92,9 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
       </div>
 
       {/* SOLD — green */}
-      <div style={colStyle}>
+      <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>SOLD</div>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: SOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+        <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: SOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
           {sold.units.toLocaleString("en-IN")}
           <span style={{ fontSize: metaSize, fontWeight: 400, color: SOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
@@ -104,9 +105,9 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
       </div>
 
       {/* UNSOLD — orange */}
-      <div style={colStyle}>
+      <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>UNSOLD</div>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: UNSOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+        <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: UNSOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
           {unsold.units.toLocaleString("en-IN")}
           <span style={{ fontSize: metaSize, fontWeight: 400, color: UNSOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
@@ -117,9 +118,9 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
       </div>
 
       {/* TOTAL — near-black */}
-      <div style={colStyle}>
+      <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>TOTAL</div>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: TOTAL_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+        <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: TOTAL_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
           {total.units.toLocaleString("en-IN")}
           <span style={{ fontSize: metaSize, fontWeight: 400, color: TOTAL_COLOR, opacity: 0.6, marginLeft: 4 }}>units</span>
         </div>
@@ -129,7 +130,7 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
       </div>
 
       {/* Absorption bar */}
-      <div style={{
+      <div className="ov-row-abs" style={{
         width: isOverall ? 160 : 120,
         flexShrink: 0,
         padding: isOverall ? "0 22px 0 28px" : "0 16px 0 20px",

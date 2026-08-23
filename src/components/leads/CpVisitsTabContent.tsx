@@ -79,12 +79,12 @@ export function CpVisitsTabContent() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="CP VISITS BY PROJECT" rows={byProject} barColor="#0e7490" onRowClick={v => drillBy("project", v)} />
         <BreakdownBarChart title="TOP CHANNEL PARTNERS BY VISITS BROUGHT" rows={byCp} barColor="#B8893C" onRowClick={v => drillBy("cp", v)} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="VISIT TYPE — FIRST VISIT VS REVISIT VS MEETING" rows={bySubject} barColor="#1a7a4a" onRowClick={v => drillBy("subject", v)} height={220} />
         <BreakdownBarChart title="VISITS BY SALES GALLERY" rows={byGallery} barColor="#7b1414" onRowClick={v => drillBy("gallery", v)} />
       </div>

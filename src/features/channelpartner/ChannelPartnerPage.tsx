@@ -178,7 +178,7 @@ export function ChannelPartnerPage() {
         </div>
 
         {/* Top CP rankings */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+        <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
           <TopEntitiesBarChart
             title="TOP CHANNEL PARTNERS — UNITS SOLD"
             rows={topUnits}
@@ -197,7 +197,7 @@ export function ChannelPartnerPage() {
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+        <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
           <TopEntitiesBarChart
             title="TOP CHANNEL PARTNERS — TSV (₹ CR)"
             rows={topTsv}

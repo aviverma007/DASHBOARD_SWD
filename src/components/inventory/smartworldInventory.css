@@ -160,6 +160,11 @@
   margin: 0;
   padding: 18px 22px 70px;
 }
+@media (max-width: 640px) {
+  .sw-inv .wrap {
+    padding: 14px 12px 50px;
+  }
+}
 .sw-inv .kpis {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -257,6 +262,81 @@
 @media (max-width: 768px) {
   .tv-2x2-grid {
     grid-template-columns: 1fr !important;
+  }
+}
+/* Shared responsive 2-column grid — used anywhere two cards/charts sit
+   side by side (Target vs Actual, Channel Partners, Lead Conversion).
+   Components must NOT set gridTemplateColumns inline; only gap/margin
+   are safe to keep inline since they don't block this breakpoint. */
+.sw-inv .resp-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 768px) {
+  .sw-inv .resp-grid2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* The Target vs Actual page's compact 90% view only applies on desktop —
+   the CSS `zoom` property isn't supported in mobile Safari and behaves
+   unpredictably at narrow widths, so mobile/tablet get the natural 100%
+   scale instead (which is also more legible on a small screen anyway). */
+@media (min-width: 1024px) {
+  .tv-zoom-desktop {
+    zoom: 0.9;
+  }
+}
+/* Any card whose content (e.g. a wide table) can't shrink to fit a
+   narrow screen scrolls internally, instead of forcing the whole page
+   to scroll horizontally. */
+@media (max-width: 640px) {
+  .sw-inv .card {
+    overflow-x: auto;
+  }
+}
+/* Business Overview project row (KpiTable) — desktop keeps its original
+   single-line layout (fixed label column + 3 flex metric columns +
+   absorption bar, all inline-styled in the component). Below 860px there
+   isn't room for that in one row without the numbers overlapping, so the
+   row switches to wrapping: label/TSV on its own line, the three SOLD/
+   UNSOLD/TOTAL metrics reflow into their own row, absorption bar last —
+   every section becomes full-width instead of a fixed pixel width. */
+@media (max-width: 860px) {
+  .sw-inv .ov-row {
+    flex-wrap: wrap;
+    row-gap: 12px;
+    padding-right: 16px !important;
+  }
+  .sw-inv .ov-row-head {
+    width: 100% !important;
+    padding-right: 0 !important;
+  }
+  .sw-inv .ov-row-metric {
+    flex: 1 1 30% !important;
+    min-width: 90px !important;
+    border-left: none !important;
+    padding: 0 10px !important;
+  }
+  .sw-inv .ov-row-metric:first-of-type {
+    padding-left: 0 !important;
+  }
+  .sw-inv .ov-num {
+    font-size: 18px !important;
+  }
+  .sw-inv .ov-row-abs {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--line);
+    padding: 12px 0 0 !important;
+  }
+}
+@media (max-width: 480px) {
+  .sw-inv .ov-row-metric {
+    flex: 1 1 100% !important;
+  }
+  .sw-inv .ov-num {
+    white-space: normal !important;
+    font-size: 19px !important;
   }
 }
 .sw-inv .card {

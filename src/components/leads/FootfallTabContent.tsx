@@ -87,17 +87,17 @@ export function FootfallTabContent() {
         The charts below profile the {bookedRecords.length.toLocaleString("en-IN")} leads that actually converted to a booking — what age, area, project, category, and channel they came from.
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="BOOKED LEADS BY AGE GROUP" rows={byAge} barColor="#1E3163" onRowClick={v => drillBookedBy("age", v)} />
         <BreakdownBarChart title="BOOKED LEADS BY LOCALITY" rows={byLocality} barColor="#0e7490" onRowClick={v => drillBookedBy("locality", v)} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="BOOKED LEADS BY PROJECT" rows={byProject} barColor="#B8893C" onRowClick={v => drillBookedBy("project", v)} />
         <BreakdownBarChart title="BOOKED LEADS BY LEAD CATEGORY" rows={byCategory} barColor="#7b1414" onRowClick={v => drillBookedBy("category", v)} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="BOOKED LEADS — DIRECT VS CHANNEL PARTNER" rows={byChannel} barColor="#1a7a4a" onRowClick={drillChannel} height={200} />
         <BreakdownBarChart title="BOOKED LEADS BY SALES GALLERY" rows={byGallery} barColor="#8a531b" onRowClick={v => drillBookedBy("gallery", v)} />
       </div>

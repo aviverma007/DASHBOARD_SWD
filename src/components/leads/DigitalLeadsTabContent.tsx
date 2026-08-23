@@ -82,12 +82,12 @@ export function DigitalLeadsTabContent() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="ALL ENQUIRIES BY SOURCE / PLATFORM" rows={bySource} barColor="#0e7490" onRowClick={v => drillBy("subSource", v)} />
         <BreakdownBarChart title="QUALIFIED LEADS BY SOURCE / PLATFORM" rows={bySourceQualified} barColor="#1a7a4a" onRowClick={v => setDrill({ title: `Qualified — ${v}`, filterFn: r => r.status === "Qualified" && r.subSource === v })} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
         <BreakdownBarChart title="ENQUIRIES BY PROJECT" rows={byProject} barColor="#B8893C" onRowClick={v => drillBy("project", v)} />
         <BreakdownBarChart title="ENQUIRIES BY CURRENT STATUS" rows={byStatus} barColor="#7b1414" onRowClick={drillByStatus} />
       </div>
