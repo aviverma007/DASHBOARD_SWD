@@ -10,7 +10,6 @@ import { ChannelPartnerPage } from "./features/channelpartner/ChannelPartnerPage
 import { LeadConversionPage } from "./features/leads/LeadConversionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
-import { ComingSoon } from "./components/common/ComingSoon";
 
 function App() {
   return (
@@ -22,10 +21,6 @@ function App() {
           <Route path="/target" element={<TargetActualPage />} />
           <Route path="/channel-partners" element={<ChannelPartnerPage />} />
           <Route path="/lead-conversion" element={<LeadConversionPage />} />
-          <Route path="/sales" element={<ComingSoon moduleName="Sales" />} />
-          <Route path="/collections" element={<ComingSoon moduleName="Collections" />} />
-          <Route path="/revenue" element={<ComingSoon moduleName="Revenue" />} />
-          <Route path="/customers" element={<ComingSoon moduleName="Customers" />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
