@@ -1,25 +1,32 @@
 import { useMemo, useState } from "react";
-import { DIGITAL, digitalFunnel, digitalQualifiedBifurcation, breakdownBy } from "../../utils/leadLogic";
-import type { DigitalRecord } from "../../utils/leadLogic";
-import { FunnelChart } from "./FunnelChart";
+import { DIGITAL, digitalFunnel, digitalStatusBifurcation, breakdownBy } from "../../utils/leadLogic";
+import type { DigitalRecord, BreakdownRow } from "../../utils/leadLogic";
 import { BreakdownBarChart } from "./BreakdownBarChart";
 import { LeadDrillDrawer } from "./LeadDrillDrawer";
 import type { LeadSource } from "./LeadDrillDrawer";
 
 interface DrillState { title: string; filterFn: (r: DigitalRecord) => boolean }
 
+function toRows(cumulative: { stage: string; count: number }[], total: number): BreakdownRow[] {
+  return cumulative.map(s => ({ key: s.stage, count: s.count, pct: total > 0 ? Math.round((s.count / total) * 100) : 0 }));
+}
+
 export function DigitalLeadsTabContent() {
   const [drill, setDrill] = useState<DrillState | null>(null);
   const records = DIGITAL.records;
 
   const funnel = useMemo(() => digitalFunnel(records), [records]);
-  const qualBif = useMemo(() => digitalQualifiedBifurcation(records), [records]);
+  const newBif = useMemo(() => digitalStatusBifurcation(records, "New"), [records]);
+  const qualBif = useMemo(() => digitalStatusBifurcation(records, "Qualified"), [records]);
 
   const totalEnquiry = records.length;
-  const qualifiedCount = useMemo(() => records.filter(r => r.status === "Qualified").length, [records]);
+  const qualifiedCount = qualBif.total;
   const notQualifiedCount = funnel.notQualified;
   const siteVisitCount = funnel.cumulative.find(s => s.stage === "Site Visit")?.count ?? 0;
   const inProgressCount = funnel.cumulative.find(s => s.stage === "In Progress")?.count ?? 0;
+
+  const newBifRows = useMemo(() => toRows(newBif.cumulative, newBif.total), [newBif]);
+  const qualBifRows = useMemo(() => toRows(qualBif.cumulative, qualBif.total), [qualBif]);
 
   const bySource = useMemo(() => breakdownBy(records, r => r.subSource, 12), [records]);
   const byProject = useMemo(() => breakdownBy(records, r => r.project, 15), [records]);
@@ -32,16 +39,11 @@ export function DigitalLeadsTabContent() {
   function drillBy(dim: keyof DigitalRecord, value: string) {
     setDrill({ title: `Digital Leads — ${value}`, filterFn: r => String(r[dim]) === value });
   }
-  // Qualified-bifurcation funnel is scoped to Status="Qualified" — clicking
-  // any rung drills within that scope, by current Stage rank.
+  function drillNewStage(stage: string) {
+    setDrill({ title: `New status — ${stage}`, filterFn: r => r.status === "New" && r.stage === stage });
+  }
   function drillQualifiedStage(stage: string) {
-    if (stage === "Total Qualified") {
-      setDrill({ title: "Qualified Leads — Total", filterFn: r => r.status === "Qualified" });
-      return;
-    }
-    const ladder = ["New", "In Progress", "Site Visit", "Booked"];
-    const rank = ladder.indexOf(stage);
-    setDrill({ title: `Qualified Leads — ${stage} and beyond`, filterFn: r => r.status === "Qualified" && ladder.indexOf(r.stage) >= rank });
+    setDrill({ title: `Qualified — ${stage}`, filterFn: r => r.status === "Qualified" && r.stage === stage });
   }
 
   return (
@@ -78,12 +80,24 @@ export function DigitalLeadsTabContent() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <FunnelChart
-          title="QUALIFIED BIFURCATION — WHERE QUALIFIED LEADS STAND"
-          stages={qualBif.cumulative}
-          dropOff={{ label: "Closed Lost (within Qualified leads)", count: qualBif.closedLost }}
-          onStageClick={drillQualifiedStage}
+      <div className="blkbar" style={{ marginBottom: 16 }}>
+        Full stage-wise bifurcation — every Stage value is shown for each Status group below, including zero-count ones, so nothing is hidden. Counts always sum back to the group's total.
+      </div>
+
+      <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
+        <BreakdownBarChart
+          title={`"NEW" STATUS (${newBif.total.toLocaleString("en-IN")}) — WHERE THEY STAND BY STAGE`}
+          rows={newBifRows}
+          barColor="#8a531b"
+          onRowClick={drillNewStage}
+          height={320}
+        />
+        <BreakdownBarChart
+          title={`"QUALIFIED" STATUS (${qualBif.total.toLocaleString("en-IN")}) — WHERE THEY STAND BY STAGE`}
+          rows={qualBifRows}
+          barColor="#1a7a4a"
+          onRowClick={drillQualifiedStage}
+          height={320}
         />
       </div>
 

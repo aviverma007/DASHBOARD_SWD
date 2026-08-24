@@ -149,30 +149,21 @@ export function digitalFunnel(records: DigitalRecord[]) {
   return { total: records.length, qualified, cumulative, closedLost, notQualified };
 }
 
-// "Qualified bifurcation" — the Stage field is really only meaningful once
-// a lead has been marked Qualified (almost every Stage value belongs to a
-// Qualified record; Not Qualified/New/etc. sit at Stage=Unstaged). So this
-// funnel scopes specifically to Status="Qualified" and shows where THOSE
-// leads currently stand: New -> In Progress -> Site Visit -> Booked
-// (cumulative, same ordered-CRM-stage assumption as the other funnels),
-// with Closed Lost broken out separately as a drop-off.
-export const DIGITAL_QUALIFIED_LADDER = ["New", "In Progress", "Site Visit", "Booked"];
+// Full stage-wise bifurcation, scoped to one Status value at a time — shows
+// EVERY Stage value present (New / In Progress / Site Visit / Inventory /
+// Booked / Closed Lost / Unstaged) as its own raw count, so nothing is
+// folded away or hidden. Two separate funnels use this: one for
+// Status="New" leads, one for Status="Qualified" leads, answering
+// "after landing in this status, where did they actually end up?"
+export const DIGITAL_ALL_STAGES = ["New", "In Progress", "Site Visit", "Inventory", "Booked", "Closed Lost", "Unstaged"];
 
-export function digitalQualifiedBifurcation(records: DigitalRecord[]) {
-  const qualifiedRecords = records.filter(r => r.status === "Qualified");
-  const totalQualified = qualifiedRecords.length;
-  const rank = (s: string) => DIGITAL_QUALIFIED_LADDER.indexOf(s);
-  const closedLost = qualifiedRecords.filter(r => r.stage === "Closed Lost").length;
-
-  const cumulative = [
-    { stage: "Total Qualified", count: totalQualified },
-    ...DIGITAL_QUALIFIED_LADDER.map((stage, i) => ({
-      stage,
-      count: qualifiedRecords.filter(r => rank(r.stage) >= i).length,
-    })),
-  ];
-
-  return { totalQualified, cumulative, closedLost, records: qualifiedRecords };
+export function digitalStatusBifurcation(records: DigitalRecord[], status: string) {
+  const scoped = records.filter(r => r.status === status);
+  const cumulative = DIGITAL_ALL_STAGES.map(stage => ({
+    stage,
+    count: scoped.filter(r => r.stage === stage).length,
+  }));
+  return { total: scoped.length, cumulative, records: scoped };
 }
 
 // ── Shared breakdown helpers ─────────────────────────────────────────────
