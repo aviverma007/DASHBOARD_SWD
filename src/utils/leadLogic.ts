@@ -166,6 +166,22 @@ export function digitalStatusBifurcation(records: DigitalRecord[], status: strin
   return { total: scoped.length, cumulative, records: scoped };
 }
 
+// The other, non-Qualified Status buckets — a simple count per Status
+// value, in a fixed display order (not sorted by size), plus an explicit
+// "no status recorded" bucket for full transparency even if it's empty.
+export const DIGITAL_OTHER_STATUSES = ["New", "In Progress", "Site Visit Scheduled", "Not Qualified"];
+
+export function digitalOtherStatusCounts(records: DigitalRecord[]) {
+  const known = new Set([...DIGITAL_OTHER_STATUSES, "Qualified"]);
+  const rows = DIGITAL_OTHER_STATUSES.map(status => ({
+    status,
+    count: records.filter(r => r.status === status).length,
+  }));
+  const others = records.filter(r => !known.has(r.status)).length;
+  rows.push({ status: "Others (no status)", count: others });
+  return rows;
+}
+
 // ── Shared breakdown helpers ─────────────────────────────────────────────
 
 export interface BreakdownRow { key: string; count: number; pct: number }
