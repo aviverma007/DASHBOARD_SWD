@@ -149,6 +149,32 @@ export function digitalFunnel(records: DigitalRecord[]) {
   return { total: records.length, qualified, cumulative, closedLost, notQualified };
 }
 
+// "Qualified bifurcation" — the Stage field is really only meaningful once
+// a lead has been marked Qualified (almost every Stage value belongs to a
+// Qualified record; Not Qualified/New/etc. sit at Stage=Unstaged). So this
+// funnel scopes specifically to Status="Qualified" and shows where THOSE
+// leads currently stand: New -> In Progress -> Site Visit -> Booked
+// (cumulative, same ordered-CRM-stage assumption as the other funnels),
+// with Closed Lost broken out separately as a drop-off.
+export const DIGITAL_QUALIFIED_LADDER = ["New", "In Progress", "Site Visit", "Booked"];
+
+export function digitalQualifiedBifurcation(records: DigitalRecord[]) {
+  const qualifiedRecords = records.filter(r => r.status === "Qualified");
+  const totalQualified = qualifiedRecords.length;
+  const rank = (s: string) => DIGITAL_QUALIFIED_LADDER.indexOf(s);
+  const closedLost = qualifiedRecords.filter(r => r.stage === "Closed Lost").length;
+
+  const cumulative = [
+    { stage: "Total Qualified", count: totalQualified },
+    ...DIGITAL_QUALIFIED_LADDER.map((stage, i) => ({
+      stage,
+      count: qualifiedRecords.filter(r => rank(r.stage) >= i).length,
+    })),
+  ];
+
+  return { totalQualified, cumulative, closedLost, records: qualifiedRecords };
+}
+
 // ── Shared breakdown helpers ─────────────────────────────────────────────
 
 export interface BreakdownRow { key: string; count: number; pct: number }
