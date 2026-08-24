@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  FOOTFALL, footfallFunnel, breakdownBy, ageBreakdown, FOOTFALL_LADDER,
+  FOOTFALL, footfallFunnel, breakdownBy, ageBreakdown, FOOTFALL_PROGRESS_LADDER,
 } from "../../utils/leadLogic";
 import type { FootfallRecord } from "../../utils/leadLogic";
 import { FunnelChart } from "./FunnelChart";
@@ -25,12 +25,19 @@ export function FootfallTabContent() {
   const byGallery = useMemo(() => breakdownBy(bookedRecords, r => r.gallery || "Unspecified", 10), [bookedRecords]);
 
   const conversionRate = funnel.total > 0 ? ((bookedRecords.length / funnel.total) * 100).toFixed(1) : "0";
-  const siteVisitCount = funnel.cumulative.find(s => s.stage === "Site Visit")?.count ?? 0;
-  const visitToBookPct = siteVisitCount > 0 ? ((bookedRecords.length / siteVisitCount) * 100).toFixed(1) : "0";
+  const progressedCount = funnel.cumulative.find(s => s.stage === "Submitted to CRM")?.count ?? 0;
+  const inProgressCount = records.filter(r => r.stage === "In Progress").length;
 
+  // "New" and "Site Visit" both represent the full total (this file IS a
+  // site-visit log) — clicking either opens every record. The remaining
+  // stages track genuine progression, so they drill by current-stage rank.
   function drillByStage(stage: string) {
-    const rank = FOOTFALL_LADDER.indexOf(stage);
-    setDrill({ title: `Footfall — ${stage} and beyond`, filterFn: r => FOOTFALL_LADDER.indexOf(r.stage) >= rank });
+    if (stage === "New" || stage === "Site Visit") {
+      setDrill({ title: `Footfall — Total (${stage})`, filterFn: () => true });
+      return;
+    }
+    const rank = FOOTFALL_PROGRESS_LADDER.indexOf(stage);
+    setDrill({ title: `Footfall — ${stage} and beyond`, filterFn: r => FOOTFALL_PROGRESS_LADDER.indexOf(r.stage) >= rank });
   }
   function drillBookedBy(dim: keyof FootfallRecord, value: string) {
     setDrill({ title: `Booked — ${value}`, filterFn: r => r.stage === "Booked" && String(r[dim]) === value });
@@ -41,16 +48,20 @@ export function FootfallTabContent() {
 
   return (
     <div>
+      <div className="blkbar" style={{ marginBottom: 16 }}>
+        This file is a site-visit log — a footfall record IS a site visit, so "Total Footfall" and "Site Visit" show the same number. From there, "Stage" tracks each opportunity's current standing (Submitted to CRM → In Progress → Inventory → Booked); Closed Lost is shown separately since we don't know how far a lost opportunity got before dropping out.
+      </div>
+
       <div className="kpis">
         <div className="kpi" style={{ borderTopColor: "#1E3163", borderTopWidth: 3 }}>
           <div className="k">Total Footfall</div>
           <div className="v" style={{ color: "#1E3163", fontSize: 22 }}>{funnel.total.toLocaleString("en-IN")}</div>
-          <div className="s">opportunities logged</div>
+          <div className="s">= Site Visit (every record here visited)</div>
         </div>
         <div className="kpi" style={{ borderTopColor: "#0e7490", borderTopWidth: 3 }}>
-          <div className="k">Reached Site Visit</div>
-          <div className="v" style={{ color: "#0e7490", fontSize: 22 }}>{siteVisitCount.toLocaleString("en-IN")}</div>
-          <div className="s">at or beyond visit stage</div>
+          <div className="k">Submitted to CRM or Beyond</div>
+          <div className="v" style={{ color: "#0e7490", fontSize: 22 }}>{progressedCount.toLocaleString("en-IN")}</div>
+          <div className="s">progressed past just visiting</div>
         </div>
         <div className="kpi" style={{ borderTopColor: "#1a7a4a", borderTopWidth: 3 }}>
           <div className="k">Booked</div>
@@ -58,9 +69,9 @@ export function FootfallTabContent() {
           <div className="s">{conversionRate}% of total footfall</div>
         </div>
         <div className="kpi" style={{ borderTopColor: "#B8893C", borderTopWidth: 3 }}>
-          <div className="k">Visit → Booking</div>
-          <div className="v" style={{ color: "#B8893C", fontSize: 22 }}>{visitToBookPct}%</div>
-          <div className="s">of site visits convert</div>
+          <div className="k">Currently In Progress</div>
+          <div className="v" style={{ color: "#B8893C", fontSize: 22 }}>{inProgressCount.toLocaleString("en-IN")}</div>
+          <div className="s">active pipeline right now</div>
         </div>
         <div className="kpi" style={{ borderTopColor: "#c0392b", borderTopWidth: 3 }}>
           <div className="k">Closed Lost</div>
@@ -76,7 +87,7 @@ export function FootfallTabContent() {
 
       <div style={{ marginBottom: 18 }}>
         <FunnelChart
-          title="FOOTFALL FUNNEL — ENQUIRY TO BOOKING"
+          title="FOOTFALL FUNNEL — VISIT TO BOOKING"
           stages={funnel.cumulative}
           dropOff={{ label: "Closed Lost (dropped out along the way)", count: funnel.closedLost }}
           onStageClick={drillByStage}

@@ -30,26 +30,39 @@ export const FOOTFALL: { records: FootfallRecord[]; sourceNote: string } = {
   sourceNote: FR.sourceNote,
 };
 
-// Ladder order for the footfall/site-visit funnel — Salesforce records the
-// CURRENT stage only (not full history), so a record now at "Booked" is
-// assumed to have passed through every earlier rung too (standard,
-// defensible assumption for ordered CRM stages). "Closed Lost" is a
-// terminal exit whose earlier depth is unknown, so it's reported
-// separately as a drop-off count, not folded into any rung.
-export const FOOTFALL_LADDER = ["New", "Submitted to CRM", "In Progress", "Site Visit", "Inventory", "Booked"];
+// This file is a SITE VISIT LOG — virtually every record has a real visit
+// date (27,469 of 27,528, ~99.8%), so "Total Footfall" and "Site Visit"
+// represent the same population, not two different funnel depths. "New"
+// (a walk-in that just happened) is the same event too. All three are
+// shown as the funnel's flat top rung at the full total.
+//
+// From there, "Stage" tracks each opportunity's CURRENT standing — most
+// sit at "Site Visit" (no further movement yet); the ones that genuinely
+// progressed further show up as Submitted to CRM / In Progress /
+// Inventory / Booked. Those four are cumulative (an opportunity currently
+// at Booked obviously also passed through In Progress), while Closed Lost
+// is a separate drop-off count since its earlier depth isn't recorded.
+export const FOOTFALL_PROGRESS_LADDER = ["Submitted to CRM", "In Progress", "Inventory", "Booked"];
+export const FOOTFALL_LADDER = ["New", "Site Visit", ...FOOTFALL_PROGRESS_LADDER];
 
 export function footfallFunnel(records: FootfallRecord[]) {
-  const rank = (s: string) => FOOTFALL_LADDER.indexOf(s);
-  const staged = records.filter(r => rank(r.stage) >= 0);
+  const total = records.length;
+  const rank = (s: string) => FOOTFALL_PROGRESS_LADDER.indexOf(s);
   const closedLost = records.filter(r => r.stage === "Closed Lost").length;
   const unstaged = records.filter(r => r.stage === "Unstaged").length;
 
-  const cumulative = FOOTFALL_LADDER.map((stage, i) => ({
+  const progressCumulative = FOOTFALL_PROGRESS_LADDER.map((stage, i) => ({
     stage,
-    count: staged.filter(r => rank(r.stage) >= i).length,
+    count: records.filter(r => rank(r.stage) >= i).length,
   }));
 
-  return { total: records.length, cumulative, closedLost, unstaged };
+  const cumulative = [
+    { stage: "New", count: total },
+    { stage: "Site Visit", count: total },
+    ...progressCumulative,
+  ];
+
+  return { total, cumulative, closedLost, unstaged };
 }
 
 // ── CP Visits ────────────────────────────────────────────────────────────
