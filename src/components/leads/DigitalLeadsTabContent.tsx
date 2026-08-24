@@ -24,6 +24,7 @@ export function DigitalLeadsTabContent() {
   const notQualifiedCount = funnel.notQualified;
   const siteVisitCount = funnel.cumulative.find(s => s.stage === "Site Visit")?.count ?? 0;
   const inProgressCount = funnel.cumulative.find(s => s.stage === "In Progress")?.count ?? 0;
+  const bookedCount = funnel.cumulative.find(s => s.stage === "Booked")?.count ?? 0;
 
   const newBifRows = useMemo(() => toRows(newBif.cumulative, newBif.total), [newBif]);
   const qualBifRows = useMemo(() => toRows(qualBif.cumulative, qualBif.total), [qualBif]);
@@ -77,6 +78,11 @@ export function DigitalLeadsTabContent() {
           <div className="k">In Progress</div>
           <div className="v" style={{ color: "#B8893C", fontSize: 22 }}>{inProgressCount.toLocaleString("en-IN")}</div>
           <div className="s">reached in progress or beyond</div>
+        </div>
+        <div className="kpi" style={{ borderTopColor: "#7b1414", borderTopWidth: 3 }}>
+          <div className="k">Booked</div>
+          <div className="v" style={{ color: "#7b1414", fontSize: 22 }}>{bookedCount.toLocaleString("en-IN")}</div>
+          <div className="s">{totalEnquiry > 0 ? ((bookedCount / totalEnquiry) * 100).toFixed(2) : "0"}% of total enquiry</div>
         </div>
       </div>
 
