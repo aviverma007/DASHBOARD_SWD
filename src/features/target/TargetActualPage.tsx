@@ -26,7 +26,7 @@ const TD = rawTarget as unknown as TargetData;
 const TV = rawTV as unknown as TVData;
 const TIMELINE = TD.months; // 24 months, Apr'25 .. Mar'27
 
-type PeriodType = "all" | "year" | "quarter" | "month";
+type PeriodType = "all" | "year" | "quarter" | "month" | "custom";
 const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"];
 
 // FY label = the year the fiscal year ENDS in (Apr'25→Mar'26 = "FY 2025-26").
@@ -58,6 +58,61 @@ function todayIsFuture(year: number, month: number): boolean {
   return year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1);
 }
 
+// ── AOP / current-month summary card ─────────────────────────────────────────
+interface SummaryPair { t: number; a: number }
+interface SummaryCardRows { units: SummaryPair; area: SummaryPair; tsv: SummaryPair }
+
+function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows | null }) {
+  const fmt = {
+    units: (n: number) => Math.round(n).toLocaleString("en-IN"),
+    area:  (n: number) => n.toFixed(2) + " L sq ft",
+    tsv:   (n: number) => "₹" + (n >= 100 ? Math.round(n).toLocaleString("en-IN") : n.toFixed(1)) + " Cr",
+  };
+  const pct = (p: SummaryPair) => (p.t > 0 ? Math.round((p.a / p.t) * 100) : null);
+
+  const TH: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", textAlign: "right", padding: "6px 8px" };
+  const TD: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 14.5, color: "var(--ink)", textAlign: "right", padding: "7px 8px", whiteSpace: "nowrap" };
+
+  return (
+    <div className="card" style={{ padding: "14px 16px" }}>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 15, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>{title}</div>
+      {rows === null ? (
+        <p style={{ color: "var(--mut)", fontSize: 12.5, margin: 0 }}>Outside the plan timeline.</p>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--line)" }}>
+              <th style={{ ...TH, textAlign: "left" }}></th>
+              <th style={TH}>Total</th>
+              <th style={TH}>Achieved</th>
+              <th style={TH}>%age</th>
+            </tr>
+          </thead>
+          <tbody>
+            {([
+              ["UNITS", rows.units, fmt.units],
+              ["AREA",  rows.area,  fmt.area],
+              ["TSV",   rows.tsv,   fmt.tsv],
+            ] as const).map(([lbl, pair, f]) => {
+              const p = pct(pair);
+              return (
+                <tr key={lbl} style={{ borderBottom: "1px solid var(--line)" }}>
+                  <td style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: "var(--mut)", padding: "7px 8px 7px 0" }}>{lbl}</td>
+                  <td style={TD}>{f(pair.t)}</td>
+                  <td style={{ ...TD, fontWeight: 700 }}>{f(pair.a)}</td>
+                  <td style={{ ...TD, fontWeight: 700, color: p === null ? "var(--mut)" : p >= 100 ? "#1a7a4a" : "#c97a1a" }}>
+                    {p === null ? "—" : p + "%"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 // ── Single-select project dropdown ────────────────────────────────────────────
 function ProjectSelect({ projects, selected, onChange }: { projects: string[]; selected: string; onChange: (n: string) => void }) {
   return (
@@ -78,6 +133,9 @@ export function TargetActualPage() {
   const [yearIdx, setYearIdx] = useState<number>(YEAR_OPTIONS.length - 1);
   const [quarter, setQuarter] = useState<number>(1);
   const [month, setMonth] = useState<number>(0); // index into the selected year's 12 months
+  // Custom range — TIMELINE indices, inclusive
+  const [customFrom, setCustomFrom] = useState<number>(0);
+  const [customTo, setCustomTo] = useState<number>(TIMELINE.length - 1);
 
   const [drillMonth, setDrillMonth] = useState<TVADataPoint | null>(null);
   const [drillScope, setDrillScope] = useState<{ type: "tower" | "config"; label: string } | null>(null);
@@ -87,11 +145,17 @@ export function TargetActualPage() {
 
   function handleReset() {
     setPeriodType("all"); setYearIdx(1); setQuarter(1); setMonth(0); setChartGranularity("month");
+    setCustomFrom(0); setCustomTo(TIMELINE.length - 1);
   }
 
   // Visible month range (indices into the 24-month TIMELINE)
   const [rangeStart, rangeEnd] = useMemo<[number, number]>(() => {
     if (periodType === "all") return [0, TIMELINE.length - 1];
+    if (periodType === "custom") {
+      // Order-proof: picking From after To (or vice versa) still yields
+      // a valid ascending range rather than an empty chart.
+      return [Math.min(customFrom, customTo), Math.max(customFrom, customTo)];
+    }
     if (periodType === "year") return [YEAR_OPTIONS[yearIdx].start, YEAR_OPTIONS[yearIdx].end];
     if (periodType === "quarter") {
       const yr = YEAR_OPTIONS[yearIdx];
@@ -101,7 +165,7 @@ export function TargetActualPage() {
     // month
     const yr = YEAR_OPTIONS[yearIdx];
     return [yr.start + month, yr.start + month];
-  }, [periodType, yearIdx, quarter, month]);
+  }, [periodType, yearIdx, quarter, month, customFrom, customTo]);
 
   // ── Shared master timeline, aggregated by the selected granularity ─────
   // A month is "active" if ANY of target-units/actual-units/target-TSV/
@@ -127,6 +191,36 @@ export function TargetActualPage() {
     const now = new Date();
     return TIMELINE.findIndex(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
   }, []);
+
+  // ── AOP summary cards (top of page) ────────────────────────────────────
+  // Fixed-scope summaries, deliberately independent of the Period filter:
+  // the AOP card always shows the current fiscal year's plan-vs-achieved,
+  // and the month card always shows the running calendar month.
+  const aopFy = useMemo(() => {
+    const now = new Date();
+    const fy = fyEndYear(now.getFullYear(), now.getMonth() + 1);
+    const label = `FY ${fy - 1}-${String(fy).slice(-2)}`;
+    return YEAR_OPTIONS.find(y => y.label === label) ?? YEAR_OPTIONS[YEAR_OPTIONS.length - 1];
+  }, []);
+
+  const summaryRows = useMemo(() => {
+    const sum = (arr: number[] | undefined, s: number, e: number) => {
+      let t = 0;
+      for (let i = s; i <= e; i++) t += arr?.[i] ?? 0;
+      return t;
+    };
+    const build = (s: number, e: number) => ({
+      units: { t: sum(target?.units, s, e),      a: sum(actual?.monthly_units, s, e) },
+      // Target area is stored in raw sq ft; actuals in lakh sq ft. Same
+      // /1e5 normalisation the Area chart applies (areaScaledTarget).
+      area:  { t: sum(target?.area, s, e) / 100000, a: sum(actual?.monthly_area, s, e) },
+      tsv:   { t: sum(target?.sale_value, s, e), a: sum(actual?.monthly_tsv, s, e) },
+    });
+    return {
+      aop: build(aopFy.start, aopFy.end),
+      month: todayIdx >= 0 ? build(todayIdx, todayIdx) : null,
+    };
+  }, [target, actual, aopFy, todayIdx]);
 
   // A bucket is "current" if today falls anywhere inside its date range,
   // "future" only if EVERY month in it is after today, "past" otherwise.
@@ -506,6 +600,7 @@ export function TargetActualPage() {
   }
 
   const periodLabel = periodType === "all" ? "All time"
+    : periodType === "custom" ? `${TIMELINE[Math.min(customFrom, customTo)]?.label} – ${TIMELINE[Math.max(customFrom, customTo)]?.label}`
     : periodType === "year" ? YEAR_OPTIONS[yearIdx].label
     : periodType === "quarter" ? `${QUARTER_LABELS[quarter - 1]} ${YEAR_OPTIONS[yearIdx].label}`
     : `${TIMELINE[YEAR_OPTIONS[yearIdx].start + month]?.label}`;
@@ -527,7 +622,7 @@ export function TargetActualPage() {
         <div>
           <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
           <div style={{ display: "flex", gap: 5 }}>
-            {(["all", "year", "quarter", "month"] as PeriodType[]).map(t => (
+            {(["all", "year", "quarter", "month", "custom"] as PeriodType[]).map(t => (
               <button key={t} onClick={() => setPeriodType(t)} style={{ background: periodType === t ? "#B8893C" : "#1D2A4A", color: "#fff", border: `1px solid ${periodType === t ? "#B8893C" : "#33406B"}`, borderRadius: 7, padding: "9px 14px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}>
                 {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
@@ -535,7 +630,7 @@ export function TargetActualPage() {
           </div>
         </div>
 
-        {periodType !== "all" && (
+        {(periodType === "year" || periodType === "quarter" || periodType === "month") && (
           <div>
             <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
             <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value))} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
@@ -562,6 +657,23 @@ export function TargetActualPage() {
               })()}
             </select>
           </div>
+        )}
+
+        {periodType === "custom" && (
+          <>
+            <div>
+              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>From</label>
+              <select value={customFrom} onChange={e => setCustomFrom(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+                {TIMELINE.map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>To</label>
+              <select value={customTo} onChange={e => setCustomTo(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+                {TIMELINE.map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
+              </select>
+            </div>
+          </>
         )}
 
         <div style={{ flex: 1 }} />
@@ -606,6 +718,12 @@ export function TargetActualPage() {
         {!target && !actual && (
           <div className="card"><p style={{ color: "var(--mut)" }}>No target or actual data for this project.</p></div>
         )}
+
+        {/* AOP + current month summary — fixed scope, above all charts */}
+        <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
+          <TvaSummaryCard title={`AOP TARGET VALUES ${aopFy.label.replace("FY ", "")}`} rows={summaryRows.aop} />
+          <TvaSummaryCard title={`CURRENT MONTH${todayIdx >= 0 ? ` — ${TIMELINE[todayIdx].label}` : ""}`} rows={summaryRows.month} />
+        </div>
 
         {/* Cards 1-2: Units, TSV */}
         <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
