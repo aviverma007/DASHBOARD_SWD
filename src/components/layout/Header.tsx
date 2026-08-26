@@ -52,13 +52,12 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-navy text-sm font-bold text-white">
-            SW
-          </div>
-          <div className="hidden flex-col leading-tight sm:flex">
-            <span className="text-sm font-bold text-navy">SWD Analytics</span>
-            <span className="text-[11px] text-charcoal-soft">Inventory &amp; Sales</span>
-          </div>
+          {/* Icon mark on small screens, full wordmark from sm: up */}
+          <img src="/brand/smartworld-mark.png" alt="Smart World" className="h-8 w-auto sm:hidden" />
+          <img src="/brand/smartworld-logo.png" alt="Smart World — iLive. iWork. iPlay." className="hidden h-9 w-auto sm:block" />
+          <span className="hidden border-l border-border-subtle pl-2.5 text-[11px] leading-tight text-charcoal-soft md:block">
+            Analytics<br />Inventory &amp; Sales
+          </span>
         </div>
 
         <div className="flex-1" />

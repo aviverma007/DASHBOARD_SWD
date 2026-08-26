@@ -47,7 +47,7 @@ export function AppShell() {
             />
             <div className="absolute inset-y-0 left-0 w-64 overflow-y-auto bg-white shadow-drawer">
               <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3.5">
-                <span className="text-sm font-bold text-navy">SWD Analytics</span>
+                <img src="/brand/smartworld-logo.png" alt="Smart World" className="h-7 w-auto" />
                 <button
                   onClick={() => setMobileNavOpen(false)}
                   className="rounded-md p-1.5 text-charcoal-soft hover:bg-surface"

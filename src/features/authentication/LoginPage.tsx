@@ -46,38 +46,22 @@ export function LoginPage() {
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
+          {/* Wordmark is navy — sit it on a white plate so it reads on
+              the dark login background */}
           <div
             style={{
-              width: 52,
-              height: 52,
+              display: "inline-block",
+              background: "#fff",
               borderRadius: 14,
-              background: "#B8893C",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "Georgia,serif",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#fff",
-              margin: "0 auto 14px",
-              boxShadow: "0 4px 20px rgba(184,137,60,.4)",
+              padding: "14px 22px",
+              margin: "0 auto 16px",
+              boxShadow: "0 6px 26px rgba(0,0,0,.28)",
             }}
           >
-            SW
-          </div>
-          <div
-            style={{
-              fontFamily: "Georgia,serif",
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#fff",
-              marginBottom: 5,
-            }}
-          >
-            SWD Analytics
+            <img src="/brand/smartworld-logo.png" alt="Smart World — iLive. iWork. iPlay." style={{ height: 46, width: "auto", display: "block" }} />
           </div>
           <div style={{ fontSize: 13, color: "#a9b2c7" }}>
-            Inventory &amp; Sales Dashboard
+            Analytics — Inventory &amp; Sales Dashboard
           </div>
         </div>
 
