@@ -39,7 +39,7 @@ interface UnitsCardProps {
 function AdjustedDot(props: Record<string, unknown>) {
   const { cx, cy } = props as { cx: number; cy: number };
   if (cx == null || cy == null) return null;
-  return <circle cx={cx} cy={cy} r={5} fill="#43a047" stroke="#fff" strokeWidth={1.5} />;
+  return <circle cx={cx} cy={cy} r={5} fill="#f59e0b" stroke="#fff" strokeWidth={1.5} />;
 }
 
 // ── Slider ────────────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
         {d.adjusted != null && (
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
             <span style={{ color: "#a9b2c7" }}>Adjusted (balance/mo)</span>
-            <span style={{ fontWeight: 700, color: "#5eead4" }}>{fmt(d.adjusted)} {unit}</span>
+            <span style={{ fontWeight: 700, color: "#fbbf24" }}>{fmt(d.adjusted)} {unit}</span>
           </div>
         )}
       </div>
@@ -221,10 +221,10 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
               <Line
                 dataKey="targetLine"
                 name="Target"
-                stroke="#8fa0b8"
+                stroke="#3b82f6"
                 strokeWidth={2.2}
-                dot={{ r: 3.5, fill: "#8fa0b8", strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: "#8fa0b8" }}
+                dot={{ r: 3.5, fill: "#3b82f6", strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: "#3b82f6" }}
                 connectNulls={false}
               />
               {/* Achieved line — green, dots clickable for drill-down */}
@@ -256,11 +256,11 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
           <Line
             dataKey="adjusted"
             name="Adjusted"
-            stroke="#00897b"
+            stroke="#f59e0b"
             strokeDasharray="5 4"
             strokeWidth={2}
             dot={<AdjustedDot />}
-            activeDot={{ r: 6, fill: "#43a047" }}
+            activeDot={{ r: 6, fill: "#f59e0b" }}
             connectNulls={false}
           />
         </ComposedChart>
@@ -275,13 +275,13 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
           Achieved
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <svg width="24" height="12"><line x1="0" y1="6" x2="14" y2="6" stroke="#00897b" strokeWidth="2" strokeDasharray="5 3" /><circle cx="19" cy="6" r="4" fill="#43a047" /></svg>
+          <svg width="24" height="12"><line x1="0" y1="6" x2="14" y2="6" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" /><circle cx="19" cy="6" r="4" fill="#43a047" /></svg>
           Adjusted
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           {chartStyle === "bar"
             ? <span style={{ width: 13, height: 13, borderRadius: 2, background: "#cfd8dc", display: "inline-block" }} />
-            : <svg width="24" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#8fa0b8" strokeWidth="2.2" /><circle cx="12" cy="6" r="3.5" fill="#8fa0b8" /></svg>}
+            : <svg width="24" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#3b82f6" strokeWidth="2.2" /><circle cx="12" cy="6" r="3.5" fill="#8fa0b8" /></svg>}
           Target
         </span>
       </div>
