@@ -20,7 +20,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [typingFocus, setTypingFocus] = useState(false); // either credential field focused → buddy smiles
+  const [focusedField, setFocusedField] = useState<"user" | "pw" | null>(null); // which field is being typed into
+  const [loginSuccess, setLoginSuccess] = useState(false); // brief thumbs-up window before redirect
   // Shown once when the previous session ended from 30-min inactivity
   const [idleNotice] = useState(() => {
     const flag = sessionStorage.getItem(IDLE_LOGOUT_FLAG) === "1";
@@ -38,11 +39,12 @@ export function LoginPage() {
     }
 
     setLoading(true);
-    // Small delay so the button state is visible before redirect
+    setLoginSuccess(true); // buddy gives a thumbs-up…
+    // …and holds it for a beat before the app takes over
     setTimeout(() => {
       login(DISPLAY_NAME);
       setLoading(false);
-    }, 300);
+    }, 1000);
   }
 
   return (
@@ -66,7 +68,10 @@ export function LoginPage() {
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <LoginBuddy happy={typingFocus} />
+          <LoginBuddy
+            mode={loginSuccess ? "success" : error ? "error" : focusedField ? "typing" : "idle"}
+            typingProgress={Math.min((focusedField === "pw" ? password.length : userId.length) / 20, 1)}
+          />
           {/* Wordmark is navy — sit it on a white plate so it reads on
               the dark login background */}
           <div
@@ -145,8 +150,8 @@ export function LoginPage() {
                   boxSizing: "border-box",
                   transition: "border-color 0.15s",
                 }}
-                onFocus={(e) => { setTypingFocus(true); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
-                onBlur={(e) => { setTypingFocus(false); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
+                onFocus={(e) => { setFocusedField("user"); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
+                onBlur={(e) => { setFocusedField(f => (f === "user" ? null : f)); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
               />
             </div>
 
@@ -194,8 +199,8 @@ export function LoginPage() {
                     boxSizing: "border-box",
                     transition: "border-color 0.15s",
                   }}
-                  onFocus={(e) => { setTypingFocus(true); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
-                  onBlur={(e) => { setTypingFocus(false); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
+                  onFocus={(e) => { setFocusedField("pw"); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
+                  onBlur={(e) => { setFocusedField(f => (f === "pw" ? null : f)); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
                 />
               </div>
             </div>
