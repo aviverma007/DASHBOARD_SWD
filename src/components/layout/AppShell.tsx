@@ -73,10 +73,16 @@ export function AppShell() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 26 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14, transition: { duration: 0.16, ease: "easeIn" } }}
-              transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.85 }}
+              /* macOS-minimize feel: the leaving page shrinks toward
+                 centre and fades; the arriving page grows from ~93%
+                 with a springy overshoot (scales just past 100%, then
+                 settles). Transform clears to `none` at rest, so the
+                 pages' position:fixed drawers stay viewport-pinned. */
+              initial={{ opacity: 0, scale: 0.93, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 6, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
+              transition={{ type: "spring", stiffness: 240, damping: 19, mass: 0.9 }}
+              style={{ transformOrigin: "50% 38%" }}
               className={managesOwnChrome ? "" : "p-4 md:p-6"}
             >
               {outlet}
