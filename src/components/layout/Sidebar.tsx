@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
             color: "#6b7280",
             fontSize: 11.5,
             fontFamily: "inherit",
-            transition: "background 0.14s, color 0.14s",
+            transition: "background 0.14s, color 0.14s, transform 0.34s cubic-bezier(0.34, 1.8, 0.5, 1)",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(30,49,99,0.06)";
@@ -92,7 +92,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
                 textTransform: "uppercase",
                 color: "#9aa3b5",
                 padding: si === 0 ? "2px 12px 4px" : "14px 12px 4px",
-                transition: "color 0.14s",
+                transition: "color 0.14s, transform 0.34s cubic-bezier(0.34, 1.8, 0.5, 1)",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#1E3163"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#9aa3b5"; }}
@@ -146,7 +146,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
               boxShadow: isActive
                 ? "0 1px 4px rgba(30,49,99,0.08)"
                 : "none",
-              transition: "background 0.14s, color 0.14s, box-shadow 0.14s",
+              transition: "background 0.14s, color 0.14s, box-shadow 0.14s, transform 0.34s cubic-bezier(0.34, 1.8, 0.5, 1)",
               cursor: "pointer",
               opacity: isPlaceholder ? 0.65 : 1,
             })}

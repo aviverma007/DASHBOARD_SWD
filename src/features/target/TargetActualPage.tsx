@@ -928,7 +928,7 @@ export function TargetActualPage() {
                   borderRadius: 999,
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  transition: "background 0.15s, color 0.15s",
+                  transition: "background 0.15s, color 0.15s, transform 0.34s cubic-bezier(0.34, 1.8, 0.5, 1)",
                   textTransform: "capitalize",
                 }}
               >
@@ -956,7 +956,7 @@ export function TargetActualPage() {
                   borderRadius: 999,
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  transition: "background 0.15s, color 0.15s",
+                  transition: "background 0.15s, color 0.15s, transform 0.34s cubic-bezier(0.34, 1.8, 0.5, 1)",
                   textTransform: "capitalize",
                 }}
               >

@@ -4,11 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 
 interface HeaderProps {
-  onToggleSidebar: () => void;
   onOpenMobileNav: () => void;
 }
 
-export function Header({ onToggleSidebar, onOpenMobileNav }: HeaderProps) {
+export function Header({ onOpenMobileNav }: HeaderProps) {
   const userLabel = useAuthStore((s) => s.userLabel);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -52,14 +51,6 @@ export function Header({ onToggleSidebar, onOpenMobileNav }: HeaderProps) {
         >
           <Menu size={20} />
         </button>
-        <button
-          onClick={onToggleSidebar}
-          className="hidden rounded-md p-2 text-charcoal-soft hover:bg-surface lg:block"
-          aria-label="Toggle sidebar"
-        >
-          <Menu size={20} />
-        </button>
-
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-navy text-sm font-bold text-white">
             SW

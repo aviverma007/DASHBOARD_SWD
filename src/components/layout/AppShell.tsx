@@ -22,10 +22,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Header
-        onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
-        onOpenMobileNav={() => setMobileNavOpen(true)}
-      />
+      <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
 
       <div className="flex">
         {/* Desktop sidebar — sticky below the header so it never scrolls
@@ -76,10 +73,10 @@ export function AppShell() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 26 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, y: -14, transition: { duration: 0.16, ease: "easeIn" } }}
+              transition={{ type: "spring", stiffness: 300, damping: 24, mass: 0.85 }}
               className={managesOwnChrome ? "" : "p-4 md:p-6"}
             >
               {outlet}

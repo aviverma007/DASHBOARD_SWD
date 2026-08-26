@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CollapsibleCardProps {
   title: ReactNode;
@@ -38,7 +39,20 @@ export function CollapsibleCard({ title, children, defaultOpen = false, classNam
         </button>
         {title}
       </h3>
-      {open && <div className="cc-body">{children}</div>}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="body"
+            className="cc-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1, transition: { height: { type: "spring", stiffness: 340, damping: 30 }, opacity: { duration: 0.2 } } }}
+            exit={{ height: 0, opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
+            style={{ overflow: "hidden" }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

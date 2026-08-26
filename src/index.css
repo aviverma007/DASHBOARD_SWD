@@ -80,3 +80,35 @@
 .freshness-pulse {
   animation: freshness-pulse 2.4s ease-in-out infinite;
 }
+
+
+/* ── Press bounce ────────────────────────────────────────────────────
+   Every tap on a tab, dropdown, toggle or clickable card squashes
+   slightly and springs back with an overshoot curve (back-out bezier),
+   giving a consistent bouncy feel app-wide with zero per-component
+   wiring. Applies on :active; the overshoot happens on release. */
+button,
+select,
+nav a,
+.ov-row,
+.kpi.clk,
+.barrow {
+  transition-property: transform;
+  transition-duration: 0.34s;
+  transition-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1);
+  will-change: transform;
+}
+button:active,
+select:active,
+nav a:active {
+  transform: scale(0.93);
+  transition-duration: 0.08s;
+  transition-timing-function: ease-out;
+}
+.ov-row:active,
+.kpi.clk:active,
+.barrow:active {
+  transform: scale(0.985);
+  transition-duration: 0.08s;
+  transition-timing-function: ease-out;
+}
