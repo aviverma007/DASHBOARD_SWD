@@ -1,5 +1,11 @@
 import { useState } from "react";
 import { LoginBuddy } from "../../components/common/LoginBuddy";
+import { CursorTrail } from "../../components/common/CursorTrail";
+import { IDLE_LOGOUT_FLAG } from "../../hooks/useIdleLogout";
+
+/** Apartment-building cursor (navy tower, gold windows) shown across
+ * the whole login screen. Hotspot near the building base. */
+const APARTMENT_CURSOR = `url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2230%22%20height%3D%2230%22%20viewBox%3D%220%200%2030%2030%22%3E%3Cg%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2213%22%20height%3D%2224%22%20rx%3D%221.5%22%20fill%3D%22%231E3163%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.4%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2212%22%20width%3D%227%22%20height%3D%2216%22%20rx%3D%221%22%20fill%3D%22%232A4488%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.2%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%227%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%227%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%2217%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%2217%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2221.5%22%20y%3D%2215%22%20width%3D%222.5%22%20height%3D%222.5%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%2221.5%22%20y%3D%2219%22%20width%3D%222.5%22%20height%3D%222.5%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2223%22%20width%3D%224%22%20height%3D%225%22%20fill%3D%22%23B8893C%22/%3E%3C/g%3E%3C/svg%3E") 8 26, auto`;
 import { Lock, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
@@ -15,6 +21,12 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [typingFocus, setTypingFocus] = useState(false); // either credential field focused → buddy smiles
+  // Shown once when the previous session ended from 30-min inactivity
+  const [idleNotice] = useState(() => {
+    const flag = sessionStorage.getItem(IDLE_LOGOUT_FLAG) === "1";
+    sessionStorage.removeItem(IDLE_LOGOUT_FLAG);
+    return flag;
+  });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,8 +55,14 @@ export function LoginPage() {
         justifyContent: "center",
         padding: 20,
         fontFamily: "inherit",
+        cursor: APARTMENT_CURSOR,
       }}
+      className="swd-login-root"
     >
+      <CursorTrail />
+      {/* Everything on the login screen (inputs, buttons) shares the
+          apartment cursor for a consistent feel */}
+      <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; }`}</style>
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
@@ -66,6 +84,11 @@ export function LoginPage() {
           <div style={{ fontSize: 13, color: "#a9b2c7" }}>
             Analytics — Inventory &amp; Sales Dashboard
           </div>
+          {idleNotice && (
+            <div style={{ marginTop: 12, display: "inline-block", background: "rgba(184,137,60,.16)", border: "1px solid rgba(184,137,60,.45)", color: "#F5D9A8", fontSize: 12.5, borderRadius: 8, padding: "7px 14px" }}>
+              You were signed out after 30 minutes of inactivity.
+            </div>
+          )}
         </div>
 
         {/* Card */}

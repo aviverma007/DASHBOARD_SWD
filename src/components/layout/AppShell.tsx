@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
+import { useIdleLogout } from "../../hooks/useIdleLogout";
 import clsx from "clsx";
 
 export function AppShell() {
@@ -12,6 +13,7 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
   const outlet = useOutlet();
+  useIdleLogout(); // 30-min inactivity → sign out (AppShell only renders when authenticated)
   // Both Overview (/) and Inventory (/inventory) now ship their own
   // navy filter bar and full-bleed layout (redesigned to match
   // Inventory's design system) — the generic FilterBar and content
