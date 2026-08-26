@@ -1,7 +1,25 @@
 import { useMemo, useState } from "react";
 import type { SalesRecord, PeriodFilter } from "../../utils/pdrnLogic";
-import { getSoldRecords, PDRN, fArea, fCr } from "../../utils/pdrnLogic";
+import { getSoldRecords, PDRN, fArea, fCr, fRate, computeRateStats } from "../../utils/pdrnLogic";
 import { CollapsibleCard } from "../common/CollapsibleCard";
+
+/** Per-unit ₹/sqft rate; null when the record can't yield one. */
+function unitRate(r: SalesRecord): number | null {
+  return r.area > 0 && r.tsv > 0 ? r.tsv / r.area : null;
+}
+
+/** The records carrying the highest and lowest per-unit rate in a set. */
+function rateExtremeUnits(records: SalesRecord[]): { hi: SalesRecord | null; lo: SalesRecord | null } {
+  let hi: SalesRecord | null = null;
+  let lo: SalesRecord | null = null;
+  for (const r of records) {
+    const rate = unitRate(r);
+    if (rate === null) continue;
+    if (hi === null || rate > (unitRate(hi) as number)) hi = r;
+    if (lo === null || rate < (unitRate(lo) as number)) lo = r;
+  }
+  return { hi, lo };
+}
 
 interface DrillPath {
   level: "project" | "tower" | "floor" | "unit";
@@ -148,6 +166,10 @@ function DrillContent({ level, records, scoped, unsoldUnits, onTowerDrill, onFlo
         {level === "project" && <DkpiRow k="Unsold" v={unsoldUnits.toLocaleString("en-IN") + " units"} />}
       </div>
 
+      {/* Highest / lowest rate units in the current scope — shown at
+          every drill level, since the extremes change as you narrow in */}
+      <RateExtremesCard records={records} onUnitClick={onUnitClick} />
+
       {/* Level-specific content */}
       {level === "project" && <TowerList records={records} onDrill={onTowerDrill} />}
       {level === "tower" && <FloorList records={records} onDrill={onFloorDrill} />}
@@ -156,8 +178,50 @@ function DrillContent({ level, records, scoped, unsoldUnits, onTowerDrill, onFlo
   );
 }
 
-function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx: number) => void }) {
-  const towers = useMemo(() => {
+/** One row of the rate-extremes card: rate headline + full unit spec,
+ * clickable through to the unit detail sheet. */
+function RateExtremeRow({ tag, color, record, onClick }: { tag: string; color: string; record: SalesRecord; onClick: () => void }) {
+  const rate = unitRate(record);
+  return (
+    <div
+      className="barrow"
+      onClick={onClick}
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px" }}
+    >
+      <span
+        style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase",
+          color: "#fff", background: color, borderRadius: 5, padding: "3px 8px", flexShrink: 0,
+        }}
+      >
+        {tag}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 15, fontWeight: 700, color }}>
+          {fRate(rate)}
+        </div>
+        <div style={{ fontSize: 11.5, color: "var(--mut)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {record.unitNo} · {PDRN.TW[record.towerIdx] || "No tower"} · {PDRN.FL[record.floorLabelIdx] || `Floor ${record.floorNum}`} · {PDRN.CFG[record.cfgIdx]} · {record.area.toLocaleString("en-IN")} sq ft · {fCr(record.tsv)}
+        </div>
+      </div>
+      <span style={{ color: "var(--gold)", fontSize: 13, flexShrink: 0 }}>›</span>
+    </div>
+  );
+}
+
+function RateExtremesCard({ records, onUnitClick }: { records: SalesRecord[]; onUnitClick: (r: SalesRecord) => void }) {
+  const { hi, lo } = useMemo(() => rateExtremeUnits(records), [records]);
+  const stats = useMemo(() => computeRateStats(records), [records]);
+  if (!hi || !lo) return null;
+  return (
+    <CollapsibleCard defaultOpen title={<>Rate extremes <span className="hint">avg {fRate(stats.avg)} · click → unit detail</span></>}>
+      <RateExtremeRow tag="Highest" color="#1a7a4a" record={hi} onClick={() => onUnitClick(hi)} />
+      <RateExtremeRow tag="Lowest" color="#c97a1a" record={lo} onClick={() => onUnitClick(lo)} />
+    </CollapsibleCard>
+  );
+}
+
+function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx: number) => void }) {  const towers = useMemo(() => {
     const m = new Map<number, SalesRecord[]>();
     records.forEach((r) => {
       const list = m.get(r.towerIdx) ?? [];
@@ -165,7 +229,13 @@ function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx
       m.set(r.towerIdx, list);
     });
     return [...m.entries()]
-      .map(([idx, recs]) => ({ idx, recs, tsv: recs.reduce((s, r) => s + r.tsv, 0), area: recs.reduce((s, r) => s + r.area, 0) }))
+      .map(([idx, recs]) => ({
+        idx,
+        recs,
+        tsv: recs.reduce((s, r) => s + r.tsv, 0),
+        area: recs.reduce((s, r) => s + r.area, 0),
+        rate: computeRateStats(recs),
+      }))
       .sort((a, b) => b.tsv - a.tsv);
   }, [records]);
 
@@ -180,6 +250,9 @@ function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx
             <span className="r">{t.recs.length} sold · {fCr(t.tsv)}</span>
           </div>
           <div className="vbar" style={{ width: `${(t.tsv / maxTsv) * 100}%` }} />
+          <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 3 }}>
+            Avg {fRate(t.rate.avg)} · <span style={{ color: "#1a7a4a" }}>H {fRate(t.rate.max)}</span> · <span style={{ color: "#c97a1a" }}>L {fRate(t.rate.min)}</span>
+          </div>
         </div>
       ))}
     </CollapsibleCard>
@@ -195,7 +268,14 @@ function FloorList({ records, onDrill }: { records: SalesRecord[]; onDrill: (num
       m.get(key)!.recs.push(r);
     });
     return [...m.entries()]
-      .map(([num, { label, recs }]) => ({ num, label, recs, units: recs.length, area: recs.reduce((s, r) => s + r.area, 0) }))
+      .map(([num, { label, recs }]) => ({
+        num,
+        label,
+        recs,
+        units: recs.length,
+        area: recs.reduce((s, r) => s + r.area, 0),
+        rate: computeRateStats(recs),
+      }))
       .sort((a, b) => b.num - a.num);
   }, [records]);
 
@@ -211,6 +291,9 @@ function FloorList({ records, onDrill }: { records: SalesRecord[]; onDrill: (num
           </div>
           <div className="track">
             <div className="a" style={{ width: `${(f.units / maxUnits) * 100}%` }} />
+          </div>
+          <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 3 }}>
+            Avg {fRate(f.rate.avg)} · <span style={{ color: "#1a7a4a" }}>H {fRate(f.rate.max)}</span> · <span style={{ color: "#c97a1a" }}>L {fRate(f.rate.min)}</span>
           </div>
         </div>
       ))}
@@ -262,6 +345,8 @@ function UnitDetail({ record, onBack }: { record: SalesRecord; onBack: () => voi
           <div>{PDRN.FL[record.floorLabelIdx] || "—"}</div>
           <div className="k">Super area</div>
           <div>{record.area.toLocaleString("en-IN")} sq ft</div>
+          <div className="k">Rate</div>
+          <div style={{ color: "#0e7490", fontWeight: 600 }}>{fRate(unitRate(record))}</div>
           <div className="k">Total BSP (TSV)</div>
           <div style={{ color: "var(--gold)", fontWeight: 600 }}>{fCr(record.tsv)}</div>
           <div className="k">Customer</div>

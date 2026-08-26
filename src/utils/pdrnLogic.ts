@@ -113,7 +113,7 @@ export interface RateStats {
   min: number | null;
 }
 
-function computeRateStats(records: SalesRecord[]): RateStats {
+export function computeRateStats(records: SalesRecord[]): RateStats {
   const withArea = records.filter((r) => r.area > 0 && r.tsv > 0);
   if (withArea.length === 0) return { avg: null, max: null, min: null };
   const totalTsv = withArea.reduce((s, r) => s + r.tsv, 0);
