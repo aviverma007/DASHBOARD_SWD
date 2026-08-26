@@ -133,6 +133,24 @@ export function fRate(n: number | null): string {
   return "₹" + Math.round(n).toLocaleString("en-IN") + "/sqft";
 }
 
+/** City each project belongs to (per business, Aug 2026). Keyed by the
+ * INVR project name, which is the canonical name across the app. */
+export const PROJECT_LOCATION: Record<string, string> = {
+  "SMARTWORLD THE EDITION":   "Gurgaon",
+  "SMARTWORLD SKY ARC":       "Gurgaon",
+  "TRUMP RESIDENCES GURGAON": "Gurgaon",
+  "SMARTWORLD LE COURTYARD":  "Noida",
+  "SMARTWORLD RESIDENCIES":   "Noida",
+  "SMARTWORLD SUITES":        "Noida",
+};
+
+/** Distinct locations, in display order. */
+export const LOCATIONS: string[] = [...new Set(Object.values(PROJECT_LOCATION))];
+
+export function projectLocation(name: string): string | null {
+  return PROJECT_LOCATION[name] ?? null;
+}
+
 function recordInPeriod(r: SalesRecord, period: PeriodFilter): boolean {
   if (period.type === "all") return true;
   if (period.year !== undefined && r.year !== period.year) return false;

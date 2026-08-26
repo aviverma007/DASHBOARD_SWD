@@ -4,6 +4,8 @@ import { fArea, fCr, fRate } from "../../utils/pdrnLogic";
 interface KpiTableProps {
   stats: ProjectStats | OverallStats;
   label: string;
+  /** City tag shown under the project name (e.g. "Gurgaon"). */
+  location?: string | null;
   onClick?: () => void;
   accent?: string;
   isProject?: boolean;
@@ -16,7 +18,7 @@ const UNSOLD_COLOR = "#c97a1a";   // orange
 const TOTAL_COLOR  = "#14213d";   // near-black
 const RATE_COLOR   = "#0e7490";   // teal
 
-export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProject, isOverall }: KpiTableProps) {
+export function KpiTable({ stats, label, location, onClick, accent = "var(--gold)", isProject, isOverall }: KpiTableProps) {
   const { sold, unsold, total, soldPct, rate } = stats;
   const tsv = sold.tsv;
   const unsoldPct = 100 - soldPct;
@@ -80,6 +82,18 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
         }}>
           {label}
         </div>
+        {location && (
+          <div style={{
+            fontSize: isOverall ? 11 : 10,
+            fontWeight: 700,
+            letterSpacing: "1.2px",
+            textTransform: "uppercase",
+            color: "var(--mut)",
+            marginBottom: isOverall ? 5 : 3,
+          }}>
+            {location}
+          </div>
+        )}
         {tsv > 0 ? (
           <div style={{ fontSize: isOverall ? 15 : 12, color: "var(--gold)", fontWeight: 600 }}>
             TSV {fCr(tsv)}

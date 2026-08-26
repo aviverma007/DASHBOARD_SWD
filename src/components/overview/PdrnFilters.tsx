@@ -4,6 +4,9 @@ interface PdrnFiltersProps {
   projects: string[];
   selectedProjects: Set<string>;          // empty = All
   onProjectsChange: (s: Set<string>) => void;
+  locations: string[];
+  location: string;                       // "" = All locations
+  onLocationChange: (loc: string) => void;
   onReset: () => void;
 }
 
@@ -27,7 +30,7 @@ const LBL: React.CSSProperties = {
   marginBottom: 5,
 };
 
-export function PdrnFilters({ projects, selectedProjects, onProjectsChange, onReset }: PdrnFiltersProps) {
+export function PdrnFilters({ projects, selectedProjects, onProjectsChange, locations, location, onLocationChange, onReset }: PdrnFiltersProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const msRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +66,21 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, onRe
       alignItems: "flex-end",
       gap: 12,
     }}>
+      {/* Location — single-select, placed before Project since it narrows it */}
+      <div>
+        <label style={LBL}>Location</label>
+        <select
+          value={location}
+          onChange={(e) => onLocationChange(e.target.value)}
+          style={{ ...PILL, minWidth: 140 }}
+        >
+          <option value="">All locations</option>
+          {locations.map((loc) => (
+            <option key={loc} value={loc}>{loc}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Multi-select project */}
       <div ref={msRef} style={{ position: "relative" }}>
         <label style={LBL}>Project</label>

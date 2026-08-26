@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { calcOverall, PDRN } from "../../utils/pdrnLogic";
+import { calcOverall, LOCATIONS, projectLocation } from "../../utils/pdrnLogic";
 import type { PeriodFilter, ProjectStats } from "../../utils/pdrnLogic";
 import { KpiTable } from "../../components/overview/KpiTable";
 import { PdrnFilters } from "../../components/overview/PdrnFilters";
@@ -21,6 +21,7 @@ const PROJECT_IMAGES: Record<string, string> = {
 
 export function InventoryOverviewPage() {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [location, setLocation] = useState<string>("");   // "" = all
   const [drawerProject, setDrawerProject] = useState<ProjectStats | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxLabel, setLightboxLabel] = useState<string>("");
@@ -28,12 +29,14 @@ export function InventoryOverviewPage() {
   const overall = useMemo(() => calcOverall(DEFAULT_PERIOD), []);
 
   const visibleProjects = useMemo(() => {
-    if (selectedProjects.size === 0) return overall.projects;
-    return overall.projects.filter(p => selectedProjects.has(p.projectName));
-  }, [overall.projects, selectedProjects]);
+    let projs = overall.projects;
+    if (location) projs = projs.filter(p => projectLocation(p.projectName) === location);
+    if (selectedProjects.size > 0) projs = projs.filter(p => selectedProjects.has(p.projectName));
+    return projs;
+  }, [overall.projects, selectedProjects, location]);
 
   const visibleOverall = useMemo(() => {
-    if (selectedProjects.size === 0) return overall;
+    if (selectedProjects.size === 0 && !location) return overall;
     const projs = visibleProjects;
     const sold   = { units: projs.reduce((s,p)=>s+p.sold.units,0), area: projs.reduce((s,p)=>s+p.sold.area,0), tsv: projs.reduce((s,p)=>s+p.sold.tsv,0) };
     const unsold = { units: projs.reduce((s,p)=>s+p.unsold.units,0), area: projs.reduce((s,p)=>s+p.unsold.area,0) };
@@ -50,10 +53,19 @@ export function InventoryOverviewPage() {
       min: mins.length ? Math.min(...mins) : null,
     };
     return { sold, unsold, total, soldPct, management: 0, projects: projs, rate };
-  }, [overall, selectedProjects, visibleProjects]);
+  }, [overall, selectedProjects, location, visibleProjects]);
+
+  /** Changing location clears any project picks that may not belong to
+   * it — an empty intersection would read as "no data" and confuse. */
+  function handleLocationChange(loc: string) {
+    setLocation(loc);
+    setSelectedProjects(new Set());
+    setDrawerProject(null);
+  }
 
   function handleReset() {
     setSelectedProjects(new Set());
+    setLocation("");
     setDrawerProject(null);
   }
 
@@ -71,9 +83,12 @@ export function InventoryOverviewPage() {
           descendants, which would make them scroll with the page. */}
       <div className="tv-zoom-desktop" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <PdrnFilters
-        projects={PDRN.P}
+        projects={(location ? overall.projects.filter(p => projectLocation(p.projectName) === location) : overall.projects).map(p => p.projectName)}
         selectedProjects={selectedProjects}
         onProjectsChange={setSelectedProjects}
+        locations={LOCATIONS}
+        location={location}
+        onLocationChange={handleLocationChange}
         onReset={handleReset}
       />
 
@@ -132,6 +147,7 @@ export function InventoryOverviewPage() {
                 <KpiTable
                   stats={proj}
                   label={proj.projectName}
+                  location={projectLocation(proj.projectName)}
                   accent={ACCENT_COLORS[proj.invProjIdx % ACCENT_COLORS.length]}
                   onClick={() => setDrawerProject(proj)}
                   isProject
