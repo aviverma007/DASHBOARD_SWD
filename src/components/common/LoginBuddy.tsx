@@ -76,14 +76,14 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
   const happyEyes = mode === "success" || (speaking && mode !== "error");
   const mouthD =
-    mode === "success" || (speaking && mode !== "error") ? "M63 76 Q75 90 87 76 Q75 83 63 76 Z"
-    : mode === "error" ? "M65 83 Q75 76 85 83 Q75 79.5 65 83 Z"
-    : mode === "typing" ? "M65 78 Q75 83 85 78 Q75 80.5 65 78 Z"
-    : "M67 78 Q75 82 83 78 Q75 80.3 67 78 Z";
+    mode === "success" || (speaking && mode !== "error") ? "M73 81 Q85 95 97 81 Q85 88 73 81 Z"
+    : mode === "error" ? "M75 88 Q85 81 95 88 Q85 84.5 75 88 Z"
+    : mode === "typing" ? "M75 84 Q85 89 95 84 Q85 86.5 75 84 Z"
+    : "M77 84 Q85 88 93 84 Q85 86.2 77 84 Z";
   const browL =
-    mode === "error" ? "M56 44 Q64 46 71 49" : "M56 46 Q64 42 71 46";
+    mode === "error" ? "M66 46 Q74 44 82 41" : "M66 43 Q74 39 82 43";
   const browR =
-    mode === "error" ? "M79 49 Q86 46 94 44" : "M79 46 Q86 42 97 46";
+    mode === "error" ? "M89 41 Q97 44 105 46" : "M89 43 Q97 39 105 43";
 
   return (
     <div
@@ -151,7 +151,7 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
             <motion.path fill="none" stroke={HAIR} strokeWidth="3" strokeLinecap="round"
               animate={{ d: browR, y: happyEyes ? -2.5 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
 
-            <motion.g animate={{ scaleY: happyEyes ? 0.5 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85px", originY: "55px" }}>
+            <motion.g animate={{ scaleY: happyEyes ? 0.5 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85.5px", originY: "55px" }}>
               <ellipse cx="74" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <ellipse cx="97" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <motion.circle cx="74" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
@@ -160,8 +160,8 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
             <path d="M85 60 L83 69 Q85 71.5 87 69 Z" fill={SKIN_DARK} />
 
-            <motion.ellipse cx="67" cy="68" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
-            <motion.ellipse cx="103" cy="68" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="66" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="104" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
 
             <motion.path
               fill="#8C3B2E"
