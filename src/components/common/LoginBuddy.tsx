@@ -65,10 +65,10 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   useEffect(() => {
     if (mode === "typing") {
       dirX.set((typingProgress * 2 - 1) * 0.6); // left → right with the caret
-      dirY.set(0.9);                            // down at the field
+      dirY.set(0.6);                            // gently down at the field
     } else if (mode === "success" || mode === "error") {
       dirX.set(0);
-      dirY.set(0.15);
+      dirY.set(0); // look straight ahead — pupils centred
     }
   }, [mode, typingProgress, dirX, dirY]);
 
@@ -155,8 +155,19 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
             <motion.g animate={{ scaleY: happyEyes ? 0.5 : mode === "error" ? 0.62 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85.5px", originY: "55px" }}>
               <ellipse cx="74" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <ellipse cx="97" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
-              <motion.circle cx="74" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
-              <motion.circle cx="97" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
+              {mode === "success" || mode === "error" ? (
+                <>
+                  {/* Verdict faces look straight ahead — pupils pinned
+                      centred so they never sag to the eye bottom */}
+                  <circle cx="74" cy="55" r="3.4" fill={NAVY} />
+                  <circle cx="97" cy="55" r="3.4" fill={NAVY} />
+                </>
+              ) : (
+                <>
+                  <motion.circle cx="74" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
+                  <motion.circle cx="97" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
+                </>
+              )}
             </motion.g>
 
             <path d="M85 60 L83 69 Q85 71.5 87 69 Z" fill={SKIN_DARK} />
