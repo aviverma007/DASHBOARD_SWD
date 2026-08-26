@@ -14,8 +14,8 @@ interface LoginBuddyProps {
  *  idle    → head + eyes turn to follow the cursor (3-layer parallax)
  *  typing  → stops cursor-following, looks DOWN at the field and reads
  *            left→right with the caret; calm professional smile
- *  success → happy squint, big smile
- *  error   → angry face: slanted brows, narrowed glare, deep frown */
+ *  success → warmer smile curve + blush (eyes/lips stay put)
+ *  error   → angry brows + downturned curve (eyes/lips stay put) */
 export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   // Click him and he greets you with a speech bubble for a moment
@@ -74,11 +74,12 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
   const SKIN = "#EDBE93", SKIN_DARK = "#D9A87C", HAIR = "#2B2118", NAVY = "#1E3163", GOLD = "#B8893C";
 
-  const happyEyes = mode === "success" || (speaking && mode !== "error");
+  const happy = mode === "success" || (speaking && mode !== "error");
+  // All variants share the SAME anchor points (x77→93, y≈84) — the
+  // lips never move or resize; only the curve between them changes.
   const mouthD =
-    mode === "success" || (speaking && mode !== "error") ? "M73 81 Q85 95 97 81 Q85 88 73 81 Z"
-    : mode === "error" ? "M74 89 Q85 79 96 89 Q85 83.5 74 89 Z"
-    : mode === "typing" ? "M75 84 Q85 89 95 84 Q85 86.5 75 84 Z"
+    mode === "success" || (speaking && mode !== "error") ? "M77 84 Q85 91 93 84 Q85 87.4 77 84 Z"
+    : mode === "error" ? "M77 86 Q85 81 93 86 Q85 83.6 77 86 Z"
     : "M77 84 Q85 88 93 84 Q85 86.2 77 84 Z";
   // Angry = brows slant sharply DOWN toward the nose
   const browL =
@@ -148,11 +149,13 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
             <path d="M68 32 C74 24 96 24 102 32 C94 28 76 28 68 32 Z" fill={HAIR} />
 
             <motion.path fill="none" stroke={HAIR} strokeWidth="3" strokeLinecap="round"
-              animate={{ d: browL, y: happyEyes ? -2.5 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
+              animate={{ d: browL }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
             <motion.path fill="none" stroke={HAIR} strokeWidth="3" strokeLinecap="round"
-              animate={{ d: browR, y: happyEyes ? -2.5 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
+              animate={{ d: browR }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
 
-            <motion.g animate={{ scaleY: happyEyes ? 0.5 : mode === "error" ? 0.62 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85.5px", originY: "55px" }}>
+            {/* Eyes are FIXED — same size and position in every mood;
+                only the pupils move (gaze), never the whites */}
+            <g>
               <ellipse cx="74" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <ellipse cx="97" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               {mode === "success" || mode === "error" ? (
@@ -168,12 +171,12 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
                   <motion.circle cx="97" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
                 </>
               )}
-            </motion.g>
+            </g>
 
             <path d="M85 60 L83 69 Q85 71.5 87 69 Z" fill={SKIN_DARK} />
 
-            <motion.ellipse cx="66" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
-            <motion.ellipse cx="104" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="66" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happy ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="104" cy="72" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happy ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
 
             <motion.path
               fill="#8C3B2E"
