@@ -110,8 +110,6 @@ export function LoginPage() {
                 autoFocus
                 value={userId}
                 onChange={(e) => { setUserId(e.target.value); setError(""); }}
-                onFocus={() => setTypingFocus(true)}
-                onBlur={() => setTypingFocus(false)}
                 placeholder="Enter your user ID"
                 style={{
                   width: "100%",
@@ -125,8 +123,8 @@ export function LoginPage() {
                   boxSizing: "border-box",
                   transition: "border-color 0.15s",
                 }}
-                onFocus={(e) => { if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
-                onBlur={(e) => { if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
+                onFocus={(e) => { setTypingFocus(true); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
+                onBlur={(e) => { setTypingFocus(false); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
               />
             </div>
 
@@ -161,8 +159,6 @@ export function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                  onFocus={() => setTypingFocus(true)}
-                  onBlur={() => setTypingFocus(false)}
                   placeholder="Password"
                   style={{
                     width: "100%",
@@ -176,8 +172,8 @@ export function LoginPage() {
                     boxSizing: "border-box",
                     transition: "border-color 0.15s",
                   }}
-                  onFocus={(e) => { if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
-                  onBlur={(e) => { if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
+                  onFocus={(e) => { setTypingFocus(true); if (!error) e.currentTarget.style.borderColor = "#1E3163"; }}
+                  onBlur={(e) => { setTypingFocus(false); if (!error) e.currentTarget.style.borderColor = "#ddd8ce"; }}
                 />
               </div>
             </div>
