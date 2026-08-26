@@ -913,3 +913,30 @@
   opacity: 0.4;
   cursor: default;
 }
+
+
+/* ── Card hover: gentle zoom in, bouncy settle out ──────────────────
+   Enter: quick smooth scale-up + lifted shadow (timing on :hover).
+   Leave: the base (non-hover) timing takes over — an overshoot curve
+   that dips just past rest scale and springs back, giving the
+   bounce-on-mouse-leave. Applied to every card surface app-wide. */
+.sw-inv .card,
+.sw-inv .kpi,
+.sw-inv .ov-row,
+.sw-inv .hcard {
+  transition:
+    transform 0.45s cubic-bezier(0.34, 1.8, 0.5, 1),
+    box-shadow 0.45s cubic-bezier(0.34, 1.8, 0.5, 1);
+  will-change: transform;
+}
+.sw-inv .card:hover,
+.sw-inv .kpi:hover,
+.sw-inv .ov-row:hover,
+.sw-inv .hcard:hover {
+  transform: scale(1.015);
+  box-shadow: 0 4px 10px rgba(20, 33, 61, 0.08), 0 16px 42px rgba(20, 33, 61, 0.13);
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
+}

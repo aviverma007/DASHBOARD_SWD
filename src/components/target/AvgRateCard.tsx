@@ -156,7 +156,7 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
             TARGET BUSINESS PLAN TSV AT RISK WITH CURRENT RATE
           </div>
         )}
-        <div style={{ background: "#fff", border: "1px solid #e4e0d6", borderRadius: 8, padding: "12px 14px", fontSize: 12.5 }}>
+        <div className="hcard" style={{ background: "#fff", border: "1px solid #e4e0d6", borderRadius: 8, padding: "12px 14px", fontSize: 12.5 }}>
           <div style={{ fontWeight: 700, color: "#14213d", marginBottom: 6 }}>Rate (Target Vs Actual)</div>
           {requiredRate != null ? (
             <div style={{ color: "#c0392b", fontWeight: 600 }}>New required rate of ₹{requiredRate.toLocaleString("en-IN")}</div>

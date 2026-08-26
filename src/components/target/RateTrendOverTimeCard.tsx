@@ -15,7 +15,7 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
 
   if (data.length === 0) {
     return (
-      <div style={CARD_STYLE}>
+      <div className="hcard" style={CARD_STYLE}>
         <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>RATE TREND OVER TIME</div>
         <p style={{ color: "#9ca3af", fontSize: 13 }}>No booking history for this project.</p>
       </div>
@@ -49,7 +49,7 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
   }
 
   return (
-    <div style={CARD_STYLE}>
+    <div className="hcard" style={CARD_STYLE}>
       <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>RATE TREND OVER TIME</div>
       {/* Natural-scale chart: the SVG renders at its computed pixel width
           (no stretch/squash — preserveAspectRatio="none" distorted bars

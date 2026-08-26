@@ -33,7 +33,7 @@ export function TowerRateMovementCard({ towers, onTowerClick, title }: TowerRate
 
   if (filtered.length === 0) {
     return (
-      <div style={CARD_STYLE}>
+      <div className="hcard" style={CARD_STYLE}>
         <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>{title ?? "TOWER WISE RATE MOVEMENT"}</div>
         <p style={{ color: "#9ca3af", fontSize: 13 }}>No booking-rate history available for this project's towers.</p>
       </div>
@@ -84,7 +84,7 @@ export function TowerRateMovementCard({ towers, onTowerClick, title }: TowerRate
   }
 
   return (
-    <div style={CARD_STYLE}>
+    <div className="hcard" style={CARD_STYLE}>
       <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>{title ?? "TOWER WISE RATE MOVEMENT"}</div>
       {/* Natural-scale chart: the SVG renders at its computed pixel width
           (no stretch/squash — preserveAspectRatio="none" distorted bars

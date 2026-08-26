@@ -59,17 +59,8 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         alignItems: "center",
         padding: isOverall ? "20px 0 20px 22px" : "12px 0 12px 16px",
         gap: 0,
-        transition: "box-shadow 0.15s, transform 0.15s",
         flex: isOverall ? "0 0 auto" : "1",
       }}
-      onMouseEnter={onClick ? (e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 4px rgba(20,33,61,.06), 0 14px 40px rgba(20,33,61,.10)";
-      } : undefined}
-      onMouseLeave={onClick ? (e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow)";
-      } : undefined}
     >
       {/* Label + TSV */}
       <div className="ov-row-head" style={{ width: isOverall ? 280 : isProject ? 220 : 260, flexShrink: 0, paddingRight: 16 }}>

@@ -167,7 +167,7 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
   }
 
   return (
-    <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px", minWidth: 0 }}>
+    <div className="hcard" style={{ background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px 14px", minWidth: 0 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
