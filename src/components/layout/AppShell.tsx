@@ -36,7 +36,7 @@ export function AppShell() {
             sidebarCollapsed ? "w-16" : "w-56"
           )}
         >
-          <Sidebar collapsed={sidebarCollapsed} />
+          <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((v) => !v)} />
         </aside>
 
         {/* Mobile drawer nav */}

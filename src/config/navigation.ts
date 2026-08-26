@@ -4,7 +4,12 @@ export interface NavItem {
   path: string;
   icon: string; // lucide-react icon name
   status: "active" | "placeholder";
+  /** Sidebar group this tab belongs to; rendered as a sub-heading. */
+  section: string;
 }
+
+/** Section display order in the sidebar. */
+export const NAV_SECTIONS = ["Sales", "Inventory", "Workspace"] as const;
 
 /**
  * Only Overview and Inventory are fully built in this phase.
@@ -12,12 +17,12 @@ export interface NavItem {
  * so the nav is scalable without building unused pages.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: "overview", label: "Overview", path: "/", icon: "LayoutDashboard", status: "active" },
-  { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active" },
-  { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active" },
-  { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active" },
-  { key: "leadconversion", label: "Lead Conversion", path: "/lead-conversion", icon: "Filter", status: "active" },
-  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active" },
-  { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active" },
-  { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "active" },
+  { key: "overview", label: "Overview", path: "/", icon: "LayoutDashboard", status: "active", section: "Sales" },
+  { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
+  { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },
+  { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active", section: "Sales" },
+  { key: "leadconversion", label: "Lead Conversion", path: "/lead-conversion", icon: "Filter", status: "active", section: "Sales" },
+  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
+  { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
+  { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "active", section: "Workspace" },
 ];

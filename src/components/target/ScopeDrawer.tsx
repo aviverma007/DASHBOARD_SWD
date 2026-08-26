@@ -20,8 +20,8 @@ interface ScopeDrawerProps {
   /** Actual projects to include; defaults to [projectName]. More than
    * one when a merged (multi-project) config scope is drilled. */
   projectNames?: string[];
-  scopeType: "tower" | "config";
-  scopeLabel: string; // tower name or config name
+  scopeType: "tower" | "config" | "project";
+  scopeLabel: string; // tower name, config name, or project display name
   onClose: () => void;
 }
 
@@ -32,6 +32,7 @@ export function ScopeDrawer({ projectName, projectNames, scopeType, scopeLabel, 
     const projIdxs = new Set((projectNames?.length ? projectNames : [projectName]).map(n => PD.P.indexOf(n)));
     return PD.R.map(toRecord).filter(r => {
       if (!projIdxs.has(r.projIdx)) return false;
+      if (scopeType === "project") return true;   // whole-project scope
       if (scopeType === "tower") return (PD.TW[r.towerIdx] || "No tower") === scopeLabel;
       return PD.CFG[r.cfgIdx] === scopeLabel;
     });

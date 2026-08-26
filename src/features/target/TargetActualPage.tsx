@@ -109,8 +109,8 @@ function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows 
               return (
                 <tr key={lbl} style={{ borderBottom: i < 2 ? "1px solid var(--line)" : "none" }}>
                   <td style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.2px", color: "var(--ink-soft)", padding: "12px 10px 12px 0" }}>{lbl}</td>
-                  <td style={{ ...TD, color: "var(--mut)" }}>{f(pair.t)}</td>
-                  <td style={{ ...TD, fontWeight: 700 }}>{f(pair.a)}</td>
+                  <td style={{ ...TD, color: "var(--ink)" }}>{f(pair.t)}</td>
+                  <td style={{ ...TD, fontWeight: 700, color: "#1a7a4a" }}>{f(pair.a)}</td>
                   <td style={{ ...TD, paddingRight: 0 }}>
                     <span
                       style={{
@@ -207,15 +207,14 @@ function ProjectMultiSelect({ projects, selected, onChange }: { projects: string
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-/** Short codes used to prefix tower names when several projects are
- * merged, so "T-1" from two different projects stays distinguishable. */
-const PROJECT_CODES: Record<string, string> = {
-  "SMARTWORLD THE EDITION":   "ED",
-  "SMARTWORLD LE COURTYARD":  "LC",
-  "SMARTWORLD RESIDENCIES":   "RES",
-  "SMARTWORLD SKY ARC":       "SA",
-  "SMARTWORLD SUITES":        "ST",
-  "TRUMP RESIDENCES GURGAON": "TR",
+/** Readable short names for project-wise chart rows. */
+const PROJECT_SHORT: Record<string, string> = {
+  "SMARTWORLD THE EDITION":   "EDITION",
+  "SMARTWORLD LE COURTYARD":  "LE COURTYARD",
+  "SMARTWORLD RESIDENCIES":   "RESIDENCIES",
+  "SMARTWORLD SKY ARC":       "SKY ARC",
+  "SMARTWORLD SUITES":        "SUITES",
+  "TRUMP RESIDENCES GURGAON": "TRUMP",
 };
 
 export function TargetActualPage() {
@@ -231,7 +230,7 @@ export function TargetActualPage() {
   const [customTo, setCustomTo] = useState<number>(TIMELINE.length - 1);
 
   const [drillMonth, setDrillMonth] = useState<TVADataPoint | null>(null);
-  const [drillScope, setDrillScope] = useState<{ type: "tower" | "config"; label: string; projects: string[] } | null>(null);
+  const [drillScope, setDrillScope] = useState<{ type: "tower" | "config" | "project"; label: string; projects: string[] } | null>(null);
 
   // ── Active project scope (location + multi-select) ─────────────────────
   const availableNames = useMemo(
@@ -268,7 +267,7 @@ export function TargetActualPage() {
    * merged, with a lookup back to (project, real tower) for drilling. */
   const { actual, towerScopeMap } = useMemo(() => {
     const sel = TV.projects.filter(p => activeNames.includes(p.name));
-    const map = new Map<string, { project: string; realLabel: string }>();
+    const map = new Map<string, { project: string; realLabel: string | null }>();
     if (sel.length === 0) return { actual: undefined as ProjectAnalytics | undefined, towerScopeMap: map };
     if (sel.length === 1) {
       sel[0].towers.forEach(t => map.set(t.name, { project: sel[0].name, realLabel: t.name }));
@@ -280,13 +279,34 @@ export function TargetActualPage() {
     const sold = sel.reduce((s, p) => s + p.sold, 0);
     const tsv = sel.reduce((s, p) => s + p.tsv, 0);
     const area = sel.reduce((s, p) => s + p.area, 0);
-    const towers: TowerRow[] = sel.flatMap(p =>
-      p.towers.map(t => {
-        const display = `${PROJECT_CODES[p.name] ?? p.name} · ${t.name}`;
-        map.set(display, { project: p.name, realLabel: t.name });
-        return { ...t, name: display };
-      })
-    );
+    // Multi-project view rolls the two "tower wise" charts up to one row
+    // PER PROJECT — a merged list of every tower (ED · T-1 … LC · GF-G)
+    // was unreadable. Year rates are weighted by each tower's sold units.
+    const towers: TowerRow[] = sel.map(p => {
+      const display = PROJECT_SHORT[p.name] ?? p.name;
+      map.set(display, { project: p.name, realLabel: null });
+      const years = new Set<string>();
+      p.towers.forEach(t => Object.keys(t.year_rates).forEach(y => years.add(y)));
+      const year_rates: Record<string, number> = {};
+      years.forEach(y => {
+        const having = p.towers.filter(t => t.year_rates[y]);
+        if (!having.length) return;
+        const w = having.reduce((s, t) => s + t.sold, 0);
+        year_rates[y] = w > 0
+          ? Math.round(having.reduce((s, t) => s + t.year_rates[y] * t.sold, 0) / w)
+          : Math.round(having.reduce((s, t) => s + t.year_rates[y], 0) / having.length);
+      });
+      return {
+        name: display,
+        sold: p.sold,
+        unsold: p.towers.reduce((s, t) => s + t.unsold, 0),
+        total: p.towers.reduce((s, t) => s + t.total, 0),
+        sold_pct: 0, // recomputed by the card from share-of-total anyway
+        tsv: p.tsv,
+        avg_rate: p.avg_rate,
+        year_rates,
+      };
+    });
     const cfgByName = new Map<string, CfgRow>();
     sel.forEach(p => p.configs.forEach(c => {
       const prev = cfgByName.get(c.name);
@@ -333,7 +353,9 @@ export function TargetActualPage() {
 
   function handleTowerDrill(displayName: string) {
     const hit = towerScopeMap.get(displayName);
-    if (hit) setDrillScope({ type: "tower", label: hit.realLabel, projects: [hit.project] });
+    if (!hit) return;
+    if (hit.realLabel === null) setDrillScope({ type: "project", label: displayName, projects: [hit.project] });
+    else setDrillScope({ type: "tower", label: hit.realLabel, projects: [hit.project] });
   }
 
   function handleReset() {
@@ -945,8 +967,8 @@ export function TargetActualPage() {
         {/* Cards 5-6: Tower charts */}
         {actual && (
           <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
-            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={handleTowerDrill} />
-            <TowerRateMovementCard towers={actual.towers} onTowerClick={handleTowerDrill} />
+            <TowerSoldPctCard title={activeNames.length > 1 ? "PROJECT WISE SOLD % — UNITS & TSV" : undefined} towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={handleTowerDrill} />
+            <TowerRateMovementCard title={activeNames.length > 1 ? "PROJECT WISE RATE MOVEMENT" : undefined} towers={actual.towers} onTowerClick={handleTowerDrill} />
           </div>
         )}
 
