@@ -42,7 +42,9 @@ export interface PdrnDataset {
 
 export interface InvDataset {
   P: string[];
-  U: number[][];
+  /** Positional unit tuples; index 12 is the unit number string
+   * (e.g. "T6-903"), the rest are numeric codes/values. */
+  U: (number | string)[][];
 }
 
 // Cast raw JSON to typed interfaces
@@ -184,21 +186,28 @@ export function calcProjectStats(
     tsv: soldRecords.reduce((s, r) => s + r.tsv, 0),
   };
 
-  // UNSOLD: from INVR available (point-in-time, not period-filtered)
-  const invUnits = INV.U.filter((u) => u[0] === invProjIdx);
-  const invAvail = invUnits.filter((u) => u[8] === 0);
-  const invMgmt = invUnits.filter((u) => u[8] === 2);
-
-  // UNSOLD = available + management (held-back units are also not sold)
-  const unsold = {
-    units: invAvail.length + invMgmt.length,
-    area: invAvail.reduce((s, u) => s + u[6], 0) + invMgmt.reduce((s, u) => s + u[6], 0),
+  // TOTAL: straight from INVR — the same stock register the Inventory
+  // tab counts, so both tabs always show identical project totals.
+  const invUnits = INV.U.filter((u) => (u[0] as number) === invProjIdx);
+  const invMgmt = invUnits.filter((u) => (u[8] as number) === 2);
+  const total = {
+    units: invUnits.length,
+    area: invUnits.reduce((s, u) => s + (u[6] as number), 0),
   };
 
-  // TOTAL = SOLD + UNSOLD (from INVR excl. management)
-  const total = {
-    units: sold.units + unsold.units,
-    area: sold.area + unsold.area,
+  // UNSOLD: INVR units with no matching ALL-TIME sale record, matched
+  // by unit number. Deliberately not `total − sold`: sold above is
+  // period-filtered, while stock is point-in-time. Unit-level matching
+  // also means a unit flagged Booked in INVR without a PDRN sale
+  // record (a timing gap between the two exports) counts as unsold
+  // here rather than silently shrinking the total.
+  const allTimeSoldNos = pdrnProjIdx >= 0
+    ? new Set(PDRN.R.filter((r) => r.projIdx === pdrnProjIdx).map((r) => r.unitNo))
+    : new Set<string>();
+  const unsoldUnits = invUnits.filter((u) => !allTimeSoldNos.has(u[12] as string));
+  const unsold = {
+    units: unsoldUnits.length,
+    area: unsoldUnits.reduce((s, u) => s + (u[6] as number), 0),
   };
 
   return {

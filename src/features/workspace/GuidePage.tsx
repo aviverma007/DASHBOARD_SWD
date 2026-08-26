@@ -53,7 +53,7 @@ const GUIDE: GuideSection[] = [
     title: "Overview page — formulas & logic",
     intro: "Sold comes from the sales export (PDRN); unsold from the inventory export (INVR).",
     entries: [
-      { term: "Sold / Unsold / Total", body: "Sold = booked units in PDRN. Unsold = INVR available + blocked units. Total = Sold + Unsold.", formula: "Sold % = Sold ÷ Total × 100" },
+      { term: "Sold / Unsold / Total", body: "Total = every unit in the INVR stock register — identical to the Inventory tab. Sold = booking records in PDRN. Unsold = INVR units with no matching sale record (so Sold + Unsold = Total). A unit flagged booked in INVR without a PDRN record counts as unsold until the exports reconcile.", formula: "Sold % = Sold ÷ Total × 100" },
       { term: "TSV (per card)", body: "Sum of the BSP of every sold unit in that project (or all projects on the Business Overview card)." },
       { term: "Avg rate", body: "Blended selling rate over sold units.", formula: "Avg rate = Σ TSV ÷ Σ super area  (₹/sqft)" },
       { term: "H / L rate", body: "The single sold unit with the highest / lowest own rate.", formula: "Unit rate = unit TSV ÷ unit super area" },
