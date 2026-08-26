@@ -131,6 +131,45 @@ export function cpMinMax(records: CpRecord[]): CpMinMaxRow[] {
   ];
 }
 
+export interface CpRateRange {
+  cpIdx: number;
+  name: string;
+  units: number;
+  hiRate: number; hiProj: string; hiUnit: string;
+  loRate: number; loProj: string; loUnit: string;
+}
+
+/** For EVERY channel partner in scope: their own highest- and lowest-
+ * rate sold unit (₹/sqft) with the project it belongs to. Active sales
+ * only; Direct excluded; records without area/value can't yield a rate
+ * and are skipped. Sorted by highest rate, descending. */
+export function cpRateRanges(records: CpRecord[]): CpRateRange[] {
+  const byCp = new Map<number, CpRecord[]>();
+  records.forEach(r => {
+    if (r.status !== 0 || r.area <= 0 || r.tsv <= 0) return;
+    if (CP.CP[r.cpIdx] === "Direct") return;
+    const list = byCp.get(r.cpIdx) ?? [];
+    list.push(r);
+    byCp.set(r.cpIdx, list);
+  });
+  const rows: CpRateRange[] = [];
+  byCp.forEach((recs, cpIdx) => {
+    let hi = recs[0], lo = recs[0];
+    for (const r of recs) {
+      if (r.tsv / r.area > hi.tsv / hi.area) hi = r;
+      if (r.tsv / r.area < lo.tsv / lo.area) lo = r;
+    }
+    rows.push({
+      cpIdx,
+      name: CP.CP[cpIdx],
+      units: recs.length,
+      hiRate: Math.round(hi.tsv / hi.area), hiProj: CP.P[hi.projIdx], hiUnit: hi.unitNo,
+      loRate: Math.round(lo.tsv / lo.area), loProj: CP.P[lo.projIdx], loUnit: lo.unitNo,
+    });
+  });
+  return rows.sort((a, b) => b.hiRate - a.hiRate);
+}
+
 export function fRate(n: number | null): string {
   if (n === null || !isFinite(n)) return "—";
   return "₹" + Math.round(n).toLocaleString("en-IN") + "/sqft";

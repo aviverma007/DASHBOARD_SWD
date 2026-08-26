@@ -3,7 +3,7 @@ import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
   monthlyTrend, cancelledRebookingSummary, filterRecords, CP_YEAR_OPTIONS,
-  fArea, fCr, cpMinMax,
+  fArea, fCr, fRate, cpRateRanges,
 } from "../../utils/cpLogic";
 import type { PeriodScope } from "../../utils/cpLogic";
 import { TopEntitiesBarChart } from "../../components/channelpartner/TopEntitiesBarChart";
@@ -173,7 +173,7 @@ export function ChannelPartnerPage() {
   const topTsv = useMemo(() => topByTsv(scopedRecords, TOP_N, true), [scopedRecords]);
 
   const trend = useMemo(() => monthlyTrend(scopedRecords, true), [scopedRecords]);
-  const minMax = useMemo(() => cpMinMax(scopedRecords), [scopedRecords]);
+  const rateRanges = useMemo(() => cpRateRanges(scopedRecords), [scopedRecords]);
 
   function handleReset() {
     setSelectedProjects(new Set());
@@ -286,41 +286,49 @@ export function ChannelPartnerPage() {
           </div>
         </div>
 
-        {/* Consolidated CP minimum / maximum — one card, all metrics.
-            For every metric, the channel partner at the top and at the
-            bottom of the scope; names click through to that CP. */}
-        {minMax.length > 0 && (
-          <div className="card" style={{ marginBottom: 14, padding: "14px 18px" }}>
+        {/* Per-CP rate range: EVERY channel partner in scope with their
+            own highest and lowest sold rate and the project each came
+            from. Rows drill into that CP's drawer. */}
+        {rateRanges.length > 0 && (
+          <div className="card" style={{ marginBottom: 14, padding: "14px 18px 8px" }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "#1a3752", marginBottom: 8 }}>
-              CP MINIMUM / MAXIMUM <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>across {allCps.length} channel partners in scope · click a name → drill CP</span>
+              CP RATE RANGE — HIGHEST &amp; LOWEST PER CHANNEL PARTNER{" "}
+              <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>
+                {rateRanges.length} partners · sorted by highest rate · click a row → drill CP
+              </span>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--line)" }}>
-                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "6px 8px 6px 0" }}></th>
-                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "6px 8px" }}>Maximum</th>
-                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "6px 8px" }}>Minimum</th>
-                </tr>
-              </thead>
-              <tbody>
-                {minMax.map((row, i) => (
-                  <tr key={row.metric} style={{ borderBottom: i < minMax.length - 1 ? "1px solid var(--line)" : "none" }}>
-                    <td style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.6px", color: "var(--ink-soft)", padding: "9px 8px 9px 0", whiteSpace: "nowrap" }}>{row.metric}</td>
-                    {([["max", "#1a7a4a"], ["min", "#c97a1a"]] as const).map(([side, color]) => {
-                      const cell = row[side];
-                      return (
-                        <td key={side} style={{ padding: "9px 8px" }}>
-                          <span onClick={() => setDrillCpIdx(cell.cpIdx)} style={{ cursor: "pointer" }}>
-                            <span style={{ fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color }}>{row.fmt(cell.value)}</span>
-                            <span style={{ fontSize: 12, color: "var(--ink-soft)", marginLeft: 8 }}>{cell.name} <span style={{ color: "var(--gold)" }}>›</span></span>
-                          </span>
-                        </td>
-                      );
-                    })}
+            <div style={{ maxHeight: 420, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--line)", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
+                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px 7px 0" }}>Channel partner</th>
+                    <th style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px" }}>Units</th>
+                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "7px 8px" }}>Highest rate · project</th>
+                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "7px 8px" }}>Lowest rate · project</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rateRanges.map(row => (
+                    <tr
+                      key={row.cpIdx}
+                      onClick={() => setDrillCpIdx(row.cpIdx)}
+                      style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}
+                    >
+                      <td style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", padding: "8px 8px 8px 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{row.name}</td>
+                      <td style={{ fontSize: 12.5, color: "var(--mut)", padding: "8px 8px", textAlign: "right" }}>{row.units}</td>
+                      <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>
+                        <span style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "#1a7a4a" }}>{fRate(row.hiRate)}</span>
+                        <span style={{ fontSize: 11.5, color: "var(--mut)", marginLeft: 7 }}>{row.hiProj}</span>
+                      </td>
+                      <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>
+                        <span style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "#c97a1a" }}>{fRate(row.loRate)}</span>
+                        <span style={{ fontSize: 11.5, color: "var(--mut)", marginLeft: 7 }}>{row.loProj}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
