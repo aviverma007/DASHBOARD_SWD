@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LOCATIONS, projectLocation } from "../../utils/pdrnLogic";
+import { DATA_AS_ON } from "../../config/dataInfo";
 import rawTarget from "../../data/targetData.json";
 import rawTV from "../../data/tvAnalytics.json";
 import "../../components/inventory/smartworldInventory.css";
@@ -894,6 +895,7 @@ export function TargetActualPage() {
         )}
 
         <div style={{ flex: 1 }} />
+        <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 9, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
         <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
       </div>
 

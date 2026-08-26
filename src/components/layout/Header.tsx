@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Menu, User, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useDataFreshness } from "../../hooks/useDataFreshness";
-import { formatDateTime } from "../../utils/format";
 import { useAuthStore } from "../../store/authStore";
 
 interface HeaderProps {
@@ -11,7 +9,6 @@ interface HeaderProps {
 }
 
 export function Header({ onToggleSidebar, onOpenMobileNav }: HeaderProps) {
-  const { data: freshness } = useDataFreshness();
   const userLabel = useAuthStore((s) => s.userLabel);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -74,15 +71,6 @@ export function Header({ onToggleSidebar, onOpenMobileNav }: HeaderProps) {
         </div>
 
         <div className="flex-1" />
-
-        <div className="hidden items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-xs text-charcoal-soft md:flex">
-          <span className="freshness-pulse h-1.5 w-1.5 rounded-full bg-teal" aria-hidden="true" />
-          {freshness ? (
-            <span>Data as of {formatDateTime(freshness.lastRefreshed)}</span>
-          ) : (
-            <span>Loading data status…</span>
-          )}
-        </div>
 
         <button
           className="rounded-md p-2 text-charcoal-soft hover:bg-surface"

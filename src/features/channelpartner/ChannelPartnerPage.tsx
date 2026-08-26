@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
   monthlyTrend, cancelledRebookingSummary, filterRecords, CP_YEAR_OPTIONS,
@@ -124,6 +125,7 @@ export function ChannelPartnerPage() {
         )}
 
         <div style={{ flex: 1 }} />
+        <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 8, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
         <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
       </div>
 

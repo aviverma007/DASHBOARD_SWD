@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { NAV_ITEMS, NAV_SECTIONS } from "../../config/navigation";
@@ -12,6 +13,15 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProps) {
+  // Which section groups are folded shut; all open by default.
+  const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
+  function toggleSection(section: string) {
+    setClosedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section); else next.add(section);
+      return next;
+    });
+  }
   return (
     <nav
       style={{
@@ -62,20 +72,39 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
           {collapsed ? (
             si > 0 && <div style={{ height: 1, background: "#e8eaf0", margin: "8px 6px" }} />
           ) : (
-            <div
+            <button
+              onClick={() => toggleSection(section)}
+              aria-expanded={!closedSections.has(section)}
               style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 6,
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: "1.4px",
                 textTransform: "uppercase",
                 color: "#9aa3b5",
                 padding: si === 0 ? "2px 12px 4px" : "14px 12px 4px",
+                transition: "color 0.14s",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#1E3163"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#9aa3b5"; }}
             >
-              {section}
-            </div>
+              <span>{section}</span>
+              {closedSections.has(section)
+                ? <Icons.ChevronRight size={13} strokeWidth={2.2} />
+                : <Icons.ChevronDown size={13} strokeWidth={2.2} />}
+            </button>
           )}
-          {NAV_ITEMS.filter((item) => item.section === section).map((item) => {
+          {/* When the rail is collapsed to icons, folding is disabled —
+              there's no heading to click, so every item stays visible. */}
+          {(collapsed || !closedSections.has(section)) && NAV_ITEMS.filter((item) => item.section === section).map((item) => {
         const Icon =
           (Icons as unknown as Record<string, Icons.LucideIcon>)[item.icon] ??
           Icons.Circle;
