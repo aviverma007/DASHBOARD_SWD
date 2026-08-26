@@ -48,14 +48,18 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
   return (
     <div style={CARD_STYLE}>
       <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>RATE TREND OVER TIME</div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+      {/* Natural-scale chart: the SVG renders at its computed pixel width
+          (no stretch/squash — preserveAspectRatio="none" distorted bars
+          and text for very few or very many groups). Wide charts scroll
+          horizontally; narrow ones sit centred. */}
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
           {[0, 0.5, 1].map(t => {
             const yv = PAD.t + innerH * t, v = max - (max - min) * t;
             return (
               <g key={t}>
                 <line x1={PAD.l} x2={W - PAD.r} y1={yv} y2={yv} stroke="#e9e5db" strokeDasharray="3,4" />
-                <text x={PAD.l - 10} y={yv + 4} fontSize="12" fill="#64748b" textAnchor="end">₹{Math.round(v / 1000)}k</text>
+                <text x={PAD.l - 10} y={yv + 4} fontSize="13" fontWeight="700" fill="#1f2937" textAnchor="end">₹{Math.round(v / 1000)}k</text>
               </g>
             );
           })}
@@ -77,7 +81,7 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
           ))}
           {data.filter((_, i) => i % tickEvery === 0).map(d => {
             const i = data.indexOf(d);
-            return <text key={d.key} x={x(i)} y={H - 10} fontSize="11.5" fill="#64748b" textAnchor="middle">{d.key}</text>;
+            return <text key={d.key} x={x(i)} y={H - 10} fontSize="12.5" fontWeight="600" fill="#1f2937" textAnchor="middle">{d.key}</text>;
           })}
         </svg>
       </div>

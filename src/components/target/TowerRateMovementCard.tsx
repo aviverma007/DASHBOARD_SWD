@@ -48,7 +48,7 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
   });
 
   // Wider bars, tighter within-group gap, generous group gap and top padding for labels
-  const BAR_W = 24, BAR_GAP = 2, GROUP_GAP = 34, PAD = { l: 58, r: 20, t: 40, b: 34 };
+  const BAR_W = 24, BAR_GAP = 2, GROUP_GAP = 34, PAD = { l: 68, r: 20, t: 40, b: 34 };
   const groupW = allYears.length * (BAR_W + BAR_GAP) - BAR_GAP;
   const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
   const H = 280;
@@ -75,15 +75,19 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
   return (
     <div style={CARD_STYLE}>
       <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TOWER WISE RATE MOVEMENT</div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+      {/* Natural-scale chart: the SVG renders at its computed pixel width
+          (no stretch/squash — preserveAspectRatio="none" distorted bars
+          and text for very few or very many groups). Wide charts scroll
+          horizontally; narrow ones sit centred. */}
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
           {[0, 0.25, 0.5, 0.75, 1].map(t => {
             const yv = PAD.t + innerH * t;
             const v = maxRate - (maxRate - minRate) * t;
             return (
               <g key={t}>
                 <line x1={PAD.l - 6} x2={W - PAD.r} y1={yv} y2={yv} stroke="#e9e5db" strokeDasharray="3,4" />
-                <text x={PAD.l - 12} y={yv + 4} fontSize="12" fill="#64748b" textAnchor="end">₹{Math.round(v).toLocaleString("en-IN")}</text>
+                <text x={PAD.l - 12} y={yv + 4} fontSize="13" fontWeight="700" fill="#1f2937" textAnchor="end">₹{Math.round(v).toLocaleString("en-IN")}</text>
               </g>
             );
           })}
@@ -120,7 +124,7 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
                 );
               })}
               <circle cx={groupX(ti) + groupW / 2} cy={avgY(avgByTower[ti])} r="5" fill="#22c55e" stroke="#fff" strokeWidth="2" />
-              <text x={groupX(ti) + groupW / 2} y={H - 8} fontSize="13" fill="#374151" textAnchor="middle" fontWeight="700">
+              <text x={groupX(ti) + groupW / 2} y={H - 8} fontSize="13.5" fill="#1f2937" textAnchor="middle" fontWeight="700">
                 {tw.name}
               </text>
             </g>

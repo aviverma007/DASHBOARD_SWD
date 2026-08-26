@@ -178,8 +178,8 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={visible} margin={{ top: 40, right: 14, left: -6, bottom: 4 }} barCategoryGap="22%" barGap={3}>
           <CartesianGrid vertical={false} stroke="#eceff1" strokeDasharray="3 3" />
-          <XAxis dataKey="month" tick={{ fontSize: 13, fill: "#374151", fontWeight: 600 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 12, fill: "#64748b", fontWeight: 600 }} axisLine={false} tickLine={false} width={36} />
+          <XAxis dataKey="month" tick={{ fontSize: 13.5, fill: "#1f2937", fontWeight: 700 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 13, fill: "#1f2937", fontWeight: 700 }} axisLine={false} tickLine={false} width={44} />
           <Tooltip content={renderTooltip} />
 
           {/* Target bars — always render regardless of Achieved */}

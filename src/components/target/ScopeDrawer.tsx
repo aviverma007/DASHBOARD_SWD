@@ -16,23 +16,26 @@ function toRecord(r: number[]): SalesRecord {
 function fCr(n: number) { const v = n / 1e7; return "₹" + (v >= 100 ? Math.round(v).toLocaleString("en-IN") : v.toFixed(1)) + " Cr"; }
 
 interface ScopeDrawerProps {
-  projectName: string;
+  projectName: string;        // display label for the drawer header
+  /** Actual projects to include; defaults to [projectName]. More than
+   * one when a merged (multi-project) config scope is drilled. */
+  projectNames?: string[];
   scopeType: "tower" | "config";
   scopeLabel: string; // tower name or config name
   onClose: () => void;
 }
 
-export function ScopeDrawer({ projectName, scopeType, scopeLabel, onClose }: ScopeDrawerProps) {
+export function ScopeDrawer({ projectName, projectNames, scopeType, scopeLabel, onClose }: ScopeDrawerProps) {
   const [selectedUnit, setSelectedUnit] = useState<SalesRecord | null>(null);
 
   const records = useMemo(() => {
-    const projIdx = PD.P.indexOf(projectName);
+    const projIdxs = new Set((projectNames?.length ? projectNames : [projectName]).map(n => PD.P.indexOf(n)));
     return PD.R.map(toRecord).filter(r => {
-      if (r.projIdx !== projIdx) return false;
+      if (!projIdxs.has(r.projIdx)) return false;
       if (scopeType === "tower") return (PD.TW[r.towerIdx] || "No tower") === scopeLabel;
       return PD.CFG[r.cfgIdx] === scopeLabel;
     });
-  }, [projectName, scopeType, scopeLabel]);
+  }, [projectName, projectNames, scopeType, scopeLabel]);
 
   const totalTsv = records.reduce((s, r) => s + r.tsv, 0);
   const totalArea = records.reduce((s, r) => s + r.area, 0);

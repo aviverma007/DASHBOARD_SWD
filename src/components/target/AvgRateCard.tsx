@@ -114,7 +114,7 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
             })}
             {[0, 0.5, 1].map(t => {
               const v = min + (max - min) * (1 - t);
-              return <text key={t} x={PAD.l - 10} y={PAD.t + innerH * t + 4} fontSize="12" fontWeight={600} fill="#64748b" textAnchor="end">₹{Math.round(v / 1000)}k</text>;
+              return <text key={t} x={PAD.l - 10} y={PAD.t + innerH * t + 4} fontSize="13" fontWeight={700} fill="#1f2937" textAnchor="end">₹{Math.round(v / 1000)}k</text>;
             })}
             <path d={pathFor("targetRate")} fill="none" stroke={tgtColor} strokeWidth="2.2" />
             <path d={pathFor("adjustedRate")} fill="none" stroke={adjColor} strokeWidth="2.2" strokeDasharray="6,3" />
@@ -135,7 +135,7 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
             ))}
             {visible.map((d, i) => d.targetRate != null && <circle key={`t${i}`} cx={x(i)} cy={y(d.targetRate)} r="4" fill={tgtColor} style={{ pointerEvents: "none" }} />)}
             {visible.map((d, i) => d.adjustedRate != null && <circle key={`j${i}`} cx={x(i)} cy={y(d.adjustedRate)} r="4.5" fill={adjColor} style={{ pointerEvents: "none" }} />)}
-            {visible.map((d, i) => <text key={`m${i}`} x={x(i)} y={H - 8} fontSize="13" fontWeight={600} fill="#374151" textAnchor="middle">{d.month}</text>)}
+            {visible.map((d, i) => <text key={`m${i}`} x={x(i)} y={H - 8} fontSize="13.5" fontWeight={700} fill="#1f2937" textAnchor="middle">{d.month}</text>)}
           </svg>
         </div>
         <div style={{ display: "flex", gap: 16, fontSize: 12, marginTop: 8, flexWrap: "wrap", color: "#4a5568" }}>

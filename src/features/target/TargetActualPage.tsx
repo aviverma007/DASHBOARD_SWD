@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LOCATIONS, projectLocation } from "../../utils/pdrnLogic";
 import rawTarget from "../../data/targetData.json";
 import rawTV from "../../data/tvAnalytics.json";
 import "../../components/inventory/smartworldInventory.css";
@@ -113,21 +114,87 @@ function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows 
   );
 }
 
-// ── Single-select project dropdown ────────────────────────────────────────────
-function ProjectSelect({ projects, selected, onChange }: { projects: string[]; selected: string; onChange: (n: string) => void }) {
+// ── Filter controls ───────────────────────────────────────────────────────────
+const FILTER_LBL: React.CSSProperties = { display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 };
+const FILTER_PILL: React.CSSProperties = { background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" };
+
+function LocationSelect({ locations, value, onChange }: { locations: string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Project</label>
-      <select value={selected} onChange={e => onChange(e.target.value)} style={{ minWidth: 220, background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-        {projects.map(p => <option key={p} value={p}>{p}</option>)}
+      <label style={FILTER_LBL}>Location</label>
+      <select value={value} onChange={e => onChange(e.target.value)} style={{ ...FILTER_PILL, minWidth: 140, padding: "9px 28px 9px 13px" }}>
+        <option value="">All locations</option>
+        {locations.map(l => <option key={l} value={l}>{l}</option>)}
       </select>
     </div>
   );
 }
 
+/** Multi-select project dropdown with an "All projects" master option —
+ * same interaction pattern as the Overview page's project filter. */
+function ProjectMultiSelect({ projects, selected, onChange }: { projects: string[]; selected: Set<string>; onChange: (s: Set<string>) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  function toggle(name: string) {
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    // selecting every project = same as All → collapse to empty
+    if (next.size === projects.length) onChange(new Set());
+    else onChange(next);
+  }
+
+  const label = selected.size === 0 ? "All projects"
+    : selected.size === 1 ? [...selected][0].replace("SMARTWORLD ", "")
+    : `${selected.size} projects`;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={FILTER_LBL}>Project</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...FILTER_PILL, minWidth: 200, textAlign: "left" }}>
+        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All projects
+          </label>
+          {projects.map(name => (
+            <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              {name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
+/** Short codes used to prefix tower names when several projects are
+ * merged, so "T-1" from two different projects stays distinguishable. */
+const PROJECT_CODES: Record<string, string> = {
+  "SMARTWORLD THE EDITION":   "ED",
+  "SMARTWORLD LE COURTYARD":  "LC",
+  "SMARTWORLD RESIDENCIES":   "RES",
+  "SMARTWORLD SKY ARC":       "SA",
+  "SMARTWORLD SUITES":        "ST",
+  "TRUMP RESIDENCES GURGAON": "TR",
+};
+
 export function TargetActualPage() {
-  const [selectedProject, setSelectedProject] = useState<string>(TD.projects[0]?.name ?? "");
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set()); // empty = All
+  const [location, setLocation] = useState<string>("");                             // "" = all
   const [chartGranularity, setChartGranularity] = useState<"month" | "quarter" | "year">("month");
   const [periodType, setPeriodType] = useState<PeriodType>("all");
   const [yearIdx, setYearIdx] = useState<number>(YEAR_OPTIONS.length - 1);
@@ -138,14 +205,115 @@ export function TargetActualPage() {
   const [customTo, setCustomTo] = useState<number>(TIMELINE.length - 1);
 
   const [drillMonth, setDrillMonth] = useState<TVADataPoint | null>(null);
-  const [drillScope, setDrillScope] = useState<{ type: "tower" | "config"; label: string } | null>(null);
+  const [drillScope, setDrillScope] = useState<{ type: "tower" | "config"; label: string; projects: string[] } | null>(null);
 
-  const target = TD.projects.find(p => p.name === selectedProject);
-  const actual = TV.projects.find(p => p.name === selectedProject);
+  // ── Active project scope (location + multi-select) ─────────────────────
+  const availableNames = useMemo(
+    () => TD.projects.map(p => p.name).filter(n => !location || projectLocation(n) === location),
+    [location]
+  );
+  const activeNames = useMemo(
+    () => (selectedProjects.size ? availableNames.filter(n => selectedProjects.has(n)) : availableNames),
+    [availableNames, selectedProjects]
+  );
+  const selectionLabel = activeNames.length === availableNames.length && !location
+    ? "All projects"
+    : activeNames.length === 1
+    ? activeNames[0]
+    : `${activeNames.length} projects${location ? ` · ${location}` : ""}`;
+
+  /** Aggregated plan across the active projects (pass-through for one). */
+  const target = useMemo<ProjectTarget | undefined>(() => {
+    const sel = TD.projects.filter(p => activeNames.includes(p.name));
+    if (sel.length === 0) return undefined;
+    if (sel.length === 1) return sel[0];
+    const len = TIMELINE.length;
+    const sum = (get: (p: ProjectTarget) => number[]) =>
+      Array.from({ length: len }, (_, i) => sel.reduce((s, p) => s + (get(p)[i] ?? 0), 0));
+    const units = sum(p => p.units), area = sum(p => p.area), sale_value = sum(p => p.sale_value);
+    // Merged target rate must be value-weighted, not averaged: ₹Cr→₹ via
+    // 1e7 over raw sq ft. Averaging the per-project rate arrays would let
+    // a tiny project's rate count as much as a huge one's.
+    const rate = Array.from({ length: len }, (_, i) => (area[i] > 0 ? Math.round((sale_value[i] * 1e7) / area[i]) : 0));
+    return { name: selectionLabel, units, area, rate, sale_value };
+  }, [activeNames, selectionLabel]);
+
+  /** Aggregated actuals; tower names get project-code prefixes when
+   * merged, with a lookup back to (project, real tower) for drilling. */
+  const { actual, towerScopeMap } = useMemo(() => {
+    const sel = TV.projects.filter(p => activeNames.includes(p.name));
+    const map = new Map<string, { project: string; realLabel: string }>();
+    if (sel.length === 0) return { actual: undefined as ProjectAnalytics | undefined, towerScopeMap: map };
+    if (sel.length === 1) {
+      sel[0].towers.forEach(t => map.set(t.name, { project: sel[0].name, realLabel: t.name }));
+      return { actual: sel[0], towerScopeMap: map };
+    }
+    const len = TIMELINE.length;
+    const sumArr = (get: (p: ProjectAnalytics) => number[]) =>
+      Array.from({ length: len }, (_, i) => sel.reduce((s, p) => s + (get(p)[i] ?? 0), 0));
+    const sold = sel.reduce((s, p) => s + p.sold, 0);
+    const tsv = sel.reduce((s, p) => s + p.tsv, 0);
+    const area = sel.reduce((s, p) => s + p.area, 0);
+    const towers: TowerRow[] = sel.flatMap(p =>
+      p.towers.map(t => {
+        const display = `${PROJECT_CODES[p.name] ?? p.name} · ${t.name}`;
+        map.set(display, { project: p.name, realLabel: t.name });
+        return { ...t, name: display };
+      })
+    );
+    const cfgByName = new Map<string, CfgRow>();
+    sel.forEach(p => p.configs.forEach(c => {
+      const prev = cfgByName.get(c.name);
+      if (!prev) { cfgByName.set(c.name, { ...c }); return; }
+      const soldSum = prev.sold + c.sold, totalSum = prev.total + c.total;
+      cfgByName.set(c.name, {
+        name: c.name,
+        sold: soldSum,
+        unsold: prev.unsold + c.unsold,
+        total: totalSum,
+        sold_pct: totalSum ? Math.round((soldSum / totalSum) * 100) : 0,
+        // Weight by sold units (the metric shown is sold-avg area);
+        // fall back to a plain average when neither side has sales.
+        avg_area: soldSum > 0
+          ? Math.round((prev.avg_area * prev.sold + c.avg_area * c.sold) / soldSum)
+          : Math.round((prev.avg_area + c.avg_area) / 2),
+      });
+    }));
+    const trendByKey = new Map<string, { rateWeighted: number; units: number }>();
+    sel.forEach(p => p.rate_trend.forEach(t => {
+      const prev = trendByKey.get(t.key) ?? { rateWeighted: 0, units: 0 };
+      trendByKey.set(t.key, { rateWeighted: prev.rateWeighted + t.rate * t.units, units: prev.units + t.units });
+    }));
+    const rate_trend: RateTrendPt[] = [...trendByKey.entries()]
+      .map(([key, v]) => ({ key, rate: v.units ? Math.round(v.rateWeighted / v.units) : 0, units: v.units }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+    const merged: ProjectAnalytics = {
+      name: selectionLabel,
+      sold, tsv, area,
+      avg_rate: area > 0 ? Math.round((tsv / area) * 100) : 0, // ₹Cr / L sqft → ₹/sqft
+      monthly_units: sumArr(p => p.monthly_units),
+      monthly_tsv: sumArr(p => p.monthly_tsv),
+      monthly_area: sumArr(p => p.monthly_area),
+      towers, configs: [...cfgByName.values()], rate_trend,
+    };
+    return { actual: merged, towerScopeMap: map };
+  }, [activeNames, selectionLabel]);
+
+  function handleLocationChange(loc: string) {
+    setLocation(loc);
+    setSelectedProjects(new Set());
+    setDrillMonth(null); setDrillScope(null);
+  }
+
+  function handleTowerDrill(displayName: string) {
+    const hit = towerScopeMap.get(displayName);
+    if (hit) setDrillScope({ type: "tower", label: hit.realLabel, projects: [hit.project] });
+  }
 
   function handleReset() {
     setPeriodType("all"); setYearIdx(1); setQuarter(1); setMonth(0); setChartGranularity("month");
     setCustomFrom(0); setCustomTo(TIMELINE.length - 1);
+    setSelectedProjects(new Set()); setLocation("");
   }
 
   // Visible month range (indices into the 24-month TIMELINE)
@@ -617,7 +785,8 @@ export function TargetActualPage() {
       <div className="tv-zoom-desktop" style={{ overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
-        <ProjectSelect projects={TD.projects.map(p => p.name)} selected={selectedProject} onChange={setSelectedProject} />
+        <LocationSelect locations={LOCATIONS} value={location} onChange={handleLocationChange} />
+        <ProjectMultiSelect projects={availableNames} selected={selectedProjects} onChange={setSelectedProjects} />
 
         <div>
           <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
@@ -683,7 +852,7 @@ export function TargetActualPage() {
       <div className="wrap">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
           <div style={{ fontSize: 12.5, color: "var(--mut)" }}>
-            <strong>{selectedProject}</strong> · {periodLabel}
+            <strong>{selectionLabel}</strong> · {periodLabel}
           </div>
 
           {/* Chart granularity toggle — shared across all 4 Target vs Achieved charts */}
@@ -750,8 +919,8 @@ export function TargetActualPage() {
         {/* Cards 5-6: Tower charts */}
         {actual && (
           <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
-            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
-            <TowerRateMovementCard towers={actual.towers} onTowerClick={name => setDrillScope({ type: "tower", label: name })} />
+            <TowerSoldPctCard towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={handleTowerDrill} />
+            <TowerRateMovementCard towers={actual.towers} onTowerClick={handleTowerDrill} />
           </div>
         )}
 
@@ -759,7 +928,7 @@ export function TargetActualPage() {
         {actual && (
           <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
             <RateTrendOverTimeCard data={actual.rate_trend} />
-            <TypeWiseSaleCard configs={actual.configs} onConfigClick={name => setDrillScope({ type: "config", label: name })} />
+            <TypeWiseSaleCard configs={actual.configs} onConfigClick={name => setDrillScope({ type: "config", label: name, projects: activeNames })} />
           </div>
         )}
       </div>
@@ -772,13 +941,14 @@ export function TargetActualPage() {
           year={drillMonth.year}
           month={drillMonth.calMonth}
           monthLabel={drillMonth.month}
-          projectFilter={new Set([selectedProject])}
+          projectFilter={new Set(activeNames)}
           onClose={() => setDrillMonth(null)}
         />
       )}
       {drillScope && (
         <ScopeDrawer
-          projectName={selectedProject}
+          projectName={drillScope.projects.length === 1 ? drillScope.projects[0] : selectionLabel}
+          projectNames={drillScope.projects}
           scopeType={drillScope.type}
           scopeLabel={drillScope.label}
           onClose={() => setDrillScope(null)}

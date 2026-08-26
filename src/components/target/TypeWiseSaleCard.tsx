@@ -46,8 +46,12 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
   return (
     <div style={CARD_STYLE}>
       <div style={{ fontWeight: 600, fontSize: 15, color: "#1a3752", marginBottom: 10, flexShrink: 0 }}>TYPE WISE % SALE</div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+      {/* Natural-scale chart: the SVG renders at its computed pixel width
+          (no stretch/squash — preserveAspectRatio="none" distorted bars
+          and text for very few or very many groups). Wide charts scroll
+          horizontally; narrow ones sit centred. */}
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
           {/* % sold trend line */}
           <path
             d={filtered.map((c, i) => {
@@ -78,7 +82,7 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
                 <circle cx={gx + groupW / 2} cy={dotY} r="6" fill="#fff" stroke="#0e7490" strokeWidth="2.5" />
                 <text x={gx + groupW / 2} y={dotY - 12} fontSize="14" fill="#0e7490" fontWeight="700" textAnchor="middle">{c.sold_pct}%</text>
                 <text x={gx + groupW / 2} y={H - 28} fontSize="14" fill="#14213d" textAnchor="middle" fontWeight="700">{c.name}</text>
-                <text x={gx + groupW / 2} y={H - 10} fontSize="11.5" fill="#94a3b8" textAnchor="middle">{c.avg_area ? `${c.avg_area.toLocaleString("en-IN")} sqft` : ""}</text>
+                <text x={gx + groupW / 2} y={H - 10} fontSize="12" fontWeight="600" fill="#475569" textAnchor="middle">{c.avg_area ? `${c.avg_area.toLocaleString("en-IN")} sqft` : ""}</text>
               </g>
             );
           })}
