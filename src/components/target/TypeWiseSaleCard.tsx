@@ -34,7 +34,7 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
     const content = (
       <>
         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13.5 }}>{c.name}</div>
-        {tRow("Units Sold", c.sold.toLocaleString("en-IN"), "#0e7490")}
+        {tRow("Units Sold", c.sold.toLocaleString("en-IN"), "#22d3ee")}
         {tRow("Unsold Units", c.unsold.toLocaleString("en-IN"), "#7dd3ea")}
         {tRow("% Sold", `${c.sold_pct}%`)}
         {c.avg_area > 0 && tRow("Avg area", `${c.avg_area.toLocaleString("en-IN")} sqft`)}

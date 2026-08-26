@@ -38,7 +38,7 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
     const content = (
       <>
         {tRow("Month", d.key)}
-        {tRow("Average Rate", `₹${d.rate.toLocaleString("en-IN")}/sqft`, "#0e7490")}
+        {tRow("Average Rate", `₹${d.rate.toLocaleString("en-IN")}/sqft`, "#22d3ee")}
         {tRow("Units booked", d.units.toString())}
       </>
     );

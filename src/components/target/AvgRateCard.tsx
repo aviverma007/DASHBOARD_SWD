@@ -77,7 +77,9 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
     return pts.map((p, idx) => `${idx === 0 ? "M" : "L"}${x(p.i)} ${y(p.v)}`).join(" ");
   }
 
-  const achColor = "#7b1414", tgtColor = "#1E3163", adjColor = "#1a7a4a";
+  // Bright variants — the old #7b1414/#1E3163 read as near-black on the
+  // chart, and #1E3163 was invisible against the #14213d tooltip.
+  const achColor = "#dc2626", tgtColor = "#3b82f6", adjColor = "#1a7a4a";
   const achievedPct = targetRate > 0 ? Math.round((avgAchievedRate / targetRate) * 100) : 0;
   const badgeColor = achievedPct >= 100 ? "#1a7a4a" : achievedPct >= 85 ? "#B8893C" : "#c0392b";
 
@@ -85,7 +87,7 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
     const content = (
       <>
         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13.5 }}>{d.month}</div>
-        {tRow("Target Rate", d.targetRate != null ? `₹${d.targetRate.toLocaleString("en-IN")}/sqft` : "No target available", tgtColor)}
+        {tRow("Target Rate", d.targetRate != null ? `₹${d.targetRate.toLocaleString("en-IN")}/sqft` : "No target available", "#93c5fd")}
         {tRow("Achieved Rate", d.achievedRate != null ? `₹${d.achievedRate.toLocaleString("en-IN")}/sqft` : "No data", "#f87171")}
         {d.adjustedRate != null && tRow("Adjusted Rate", `₹${d.adjustedRate.toLocaleString("en-IN")}/sqft`, "#4ade80")}
       </>

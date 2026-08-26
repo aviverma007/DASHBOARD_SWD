@@ -37,7 +37,7 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
       <>
         <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13.5 }}>{tw.name}</div>
         {tRow("Units sold", tw.sold.toLocaleString("en-IN"))}
-        {tRow("Unit % Sold", `${unitPct}%`, "#0e7490")}
+        {tRow("Unit % Sold", `${unitPct}%`, "#22d3ee")}
         {tRow("TSV", `₹${tw.tsv} Cr`)}
         {tRow("TSV % Sold", `${tsvPct}%`, "#f97316")}
       </>

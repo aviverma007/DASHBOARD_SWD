@@ -14,8 +14,8 @@ const YEAR_COLORS: Record<string, string> = {
   "2023": "#93c5fd",
   "2024": "#38bdf8",
   "2025": "#0ea5e9",
-  "2026": "#0c4a6e",
-  "2027": "#082f49",
+  "2026": "#0284c7",
+  "2027": "#0369a1",
 };
 
 const CARD_STYLE: React.CSSProperties = {
