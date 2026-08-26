@@ -65,6 +65,11 @@ export function InventoryOverviewPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* 90% compact view on desktop, same pattern as Target vs Actual.
+          The lightbox and drill drawer stay OUTSIDE this wrapper — CSS
+          `zoom` creates a new containing block for position:fixed
+          descendants, which would make them scroll with the page. */}
+      <div className="tv-zoom-desktop" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <PdrnFilters
         projects={PDRN.P}
         selectedProjects={selectedProjects}
@@ -136,6 +141,8 @@ export function InventoryOverviewPage() {
           );
         })}
       </div>
+      </div>
+      {/* end zoomed wrapper — lightbox + drawer below stay un-zoomed */}
 
       {/* ── Lightbox ── */}
       {lightboxSrc && (
