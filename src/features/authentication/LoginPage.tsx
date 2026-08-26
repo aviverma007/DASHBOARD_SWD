@@ -65,7 +65,7 @@ export function LoginPage() {
       {/* Everything on the login screen (inputs, buttons) shares the
           apartment cursor for a consistent feel */}
       <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; }`}</style>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      <div style={{ width: "100%", maxWidth: 480 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <LoginBuddy
@@ -100,15 +100,15 @@ export function LoginPage() {
         <div
           style={{
             background: "#fff",
-            borderRadius: 18,
-            padding: "32px 28px",
+            borderRadius: 20,
+            padding: "40px 40px 36px",
             boxShadow: "0 20px 60px rgba(0,0,0,.35)",
           }}
         >
           <div
             style={{
               fontFamily: "Georgia,serif",
-              fontSize: 17,
+              fontSize: 21,
               fontWeight: 700,
               color: "#14213d",
               marginBottom: 22,
