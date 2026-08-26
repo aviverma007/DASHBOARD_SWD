@@ -22,7 +22,7 @@ interface ProjectDrawerProps {
 }
 
 const CELL_CLASS = ["a", "b", "k"];
-const STATUS_LABEL = ["Available", "Booked", "Management"];
+const STATUS_LABEL = ["Available", "Booked", "Blocked"];
 
 function pct(n: number, d: number) {
   return d ? Math.round((n / d) * 100) : 0;
@@ -85,7 +85,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
           <div className="dkpis" style={{ marginBottom: 16 }}>
             <div className="dkpi">
               <div className="k">Available</div>
-              <div className="v" style={{ color: "var(--av)" }}>
+              <div className="v" style={{ color: "var(--av-text)" }}>
                 {available.toLocaleString("en-IN")} <small>units</small>
               </div>
               <div style={{ fontSize: 11, color: "var(--mut)" }}>{pct(available, total)}%</div>
@@ -109,7 +109,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
 
           {management > 0 && (
             <div className="blkbar" style={{ marginBottom: 14 }}>
-              {management} management unit{management !== 1 ? "s" : ""} — held back by the developer,
+              {management} blocked unit{management !== 1 ? "s" : ""} — held back by the developer,
               not available for sale.
             </div>
           )}
@@ -123,7 +123,7 @@ export function ProjectDrawer({ project, units, towerNames, onClose }: ProjectDr
               <span><span className="sw" style={{ background: "var(--av)" }} /> Available</span>
               <span><span className="sw" style={{ background: "var(--bk)" }} /> Booked</span>
               {management > 0 && (
-                <span><span className="sw" style={{ background: "var(--blk)" }} /> Management</span>
+                <span><span className="sw" style={{ background: "var(--blk)" }} /> Blocked</span>
               )}
             </div>
             {towers.length === 0 ? (

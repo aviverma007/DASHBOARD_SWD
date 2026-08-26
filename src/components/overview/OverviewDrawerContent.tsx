@@ -202,7 +202,7 @@ export function OverviewDrawerContent() {
                 <span className="sw" style={{ background: "var(--bk)" }} /> Booked
               </span>
               <span>
-                <span className="sw" style={{ background: "var(--blk)" }} /> Management
+                <span className="sw" style={{ background: "var(--blk)" }} /> Blocked
               </span>
             </div>
             {towerRows.map((row) => {
@@ -323,7 +323,7 @@ export function OverviewDrawerContent() {
                       color: unit.status === "AVAILABLE" ? "#0f6e56" : unit.status === "BOOKED" ? "#6b6b6b" : "#8a531b",
                     }}
                   >
-                    {unit.status === "AVAILABLE" ? "Available" : unit.status === "BOOKED" ? "Booked" : "Management"}
+                    {unit.status === "AVAILABLE" ? "Available" : unit.status === "BOOKED" ? "Booked" : "Blocked"}
                   </span>
                 </td>
               </tr>
@@ -356,7 +356,7 @@ export function OverviewDrawerContent() {
             color: unit.status === "AVAILABLE" ? "#0f6e56" : unit.status === "BOOKED" ? "#6b6b6b" : "#8a531b",
           }}
         >
-          {unit.status === "AVAILABLE" ? "Available" : unit.status === "BOOKED" ? "Booked" : "Management"}
+          {unit.status === "AVAILABLE" ? "Available" : unit.status === "BOOKED" ? "Booked" : "Blocked"}
         </span>
         <div className="kv">
           <div className="k">Unit</div>

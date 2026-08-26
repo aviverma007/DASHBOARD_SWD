@@ -15,9 +15,10 @@
   --bg: #f4f2ec;
   --card: #ffffff;
   --line: #e4e0d6;
-  --av: #2e7d6f;
-  --bk: #8a93a6;
-  --blk: #c99a3b;
+  --av: #e3b93c;   /* Available — light yellow (bars/slices/swatches) */
+  --av-text: #a8821b; /* Available as TEXT — darker amber for contrast on white */
+  --bk: #1a7a4a;   /* Booked/Sold — green */
+  --blk: #d64545;  /* Blocked — red */
   --teal: #2e7d6f;
   --clay: #c2674a;
   --amber: #c99a3b;
@@ -513,16 +514,16 @@
   display: inline-block;
 }
 .sw-inv .pav {
+  background: #fdf4d7;
+  color: #8a6d1a;
+}
+.sw-inv .pbk {
   background: #e2f3ec;
   color: #0f6e56;
 }
-.sw-inv .pbk {
-  background: #eee9df;
-  color: #6b6b6b;
-}
 .sw-inv .pblk {
-  background: #f7ead9;
-  color: #8a531b;
+  background: #fde3e3;
+  color: #b3362c;
 }
 .sw-inv .mxwrap {
   overflow-x: auto;

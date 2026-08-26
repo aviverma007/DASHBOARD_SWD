@@ -78,13 +78,13 @@ export function SmartworldInventoryPage() {
   const statusSegs = [
     { label: "Available", value: s.av, color: "var(--av)", act: "kst", v: 0 },
     { label: "Booked", value: s.bk, color: "var(--bk)", act: "kst", v: 1 },
-    { label: "Management unit", value: s.bl, color: "var(--blk)", act: "kst", v: 2 },
+    { label: "Blocked unit", value: s.bl, color: "var(--blk)", act: "kst", v: 2 },
   ].filter((x) => x.value > 0);
 
   const statusAreaSegs = [
     { label: "Available", value: s.areaAv, color: "var(--av)", act: "kst", v: 0 },
     { label: "Booked", value: s.areaBk, color: "var(--bk)", act: "kst", v: 1 },
-    { label: "Management unit", value: s.areaBl, color: "var(--blk)", act: "kst", v: 2 },
+    { label: "Blocked unit", value: s.areaBl, color: "var(--blk)", act: "kst", v: 2 },
   ].filter((x) => x.value > 0);
 
   const catSegs = [
@@ -125,7 +125,7 @@ export function SmartworldInventoryPage() {
     setScope([]);
   }
   function handleKSt(v: number) {
-    setScope([{ k: "st", v, label: ["Available", "Booked", "Management unit"][v] }]);
+    setScope([{ k: "st", v, label: ["Available", "Booked", "Blocked unit"][v] }]);
   }
   function handleProj(pi: number) {
     setScope([{ k: "p", v: pi, label: P[pi] }]);
@@ -160,7 +160,7 @@ export function SmartworldInventoryPage() {
 
         {s.bl > 0 && (
           <div className="blkbar">
-            Management units: {s.bl} — held back by the developer, not available for sale
+            Blocked units: {s.bl} — held back by the developer, not available for sale
           </div>
         )}
 

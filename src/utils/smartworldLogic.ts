@@ -66,8 +66,8 @@ export function ordinal(f: number): string {
   return f + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-export const STL = ["Available", "Booked", "Management unit"];
-export const BLL = ["On hold", "In progress", "Management unit"];
+export const STL = ["Available", "Booked", "Blocked unit"];
+export const BLL = ["On hold", "In progress", "Blocked unit"];
 
 /** baseUnits() — applies the top filter bar (project/status/category/config). */
 export function baseUnits(
@@ -130,7 +130,7 @@ export interface Stats {
   bl: number;
   areaAv: number; // total super area of available units, sq ft
   areaBk: number; // total super area of booked units, sq ft
-  areaBl: number; // total super area of management units, sq ft
+  areaBl: number; // total super area of blocked units, sq ft
 }
 
 /** stats(a) — Total/Available/Booked/Management + area available/booked/management. */

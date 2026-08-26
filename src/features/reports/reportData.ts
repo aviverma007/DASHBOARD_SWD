@@ -28,7 +28,7 @@ export interface ProjectInventoryRow {
   "Total Units": number;
   "Available Units": number;
   "Booked Units": number;
-  "Management Units": number;
+  "Blocked Units": number;
   "Available %": string;
   "Booked %": string;
   "Total Area (L sq ft)": string;
@@ -56,7 +56,7 @@ export function buildProjectInventoryReport(): ProjectInventoryRow[] {
       "Total Units": total,
       "Available Units": avail.length,
       "Booked Units": booked.length,
-      "Management Units": mgmt.length,
+      "Blocked Units": mgmt.length,
       "Available %": total ? `${((avail.length / total) * 100).toFixed(1)}%` : "0%",
       "Booked %": total ? `${((booked.length / total) * 100).toFixed(1)}%` : "0%",
       "Total Area (L sq ft)": (areaTotal / 100000).toFixed(2),

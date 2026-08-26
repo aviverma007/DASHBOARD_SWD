@@ -24,5 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "leadconversion", label: "Lead Conversion", path: "/lead-conversion", icon: "Filter", status: "active", section: "Sales" },
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
+  { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },
+  { key: "guide", label: "Guide", path: "/guide", icon: "BookOpen", status: "active", section: "Workspace" },
   { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "active", section: "Workspace" },
 ];

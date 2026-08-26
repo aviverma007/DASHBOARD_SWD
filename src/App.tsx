@@ -10,6 +10,8 @@ import { ChannelPartnerPage } from "./features/channelpartner/ChannelPartnerPage
 import { LeadConversionPage } from "./features/leads/LeadConversionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
+import { NotesPage } from "./features/workspace/NotesPage";
+import { GuidePage } from "./features/workspace/GuidePage";
 
 function App() {
   return (
@@ -23,6 +25,8 @@ function App() {
           <Route path="/lead-conversion" element={<LeadConversionPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/notes" element={<NotesPage />} />
+          <Route path="/guide" element={<GuidePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>

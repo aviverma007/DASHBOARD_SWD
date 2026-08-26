@@ -222,6 +222,7 @@ export function TargetActualPage() {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set()); // empty = All
   const [location, setLocation] = useState<string>("");                             // "" = all
   const [chartGranularity, setChartGranularity] = useState<"month" | "quarter" | "year">("month");
+  const [chartStyle, setChartStyle] = useState<"bar" | "line">("bar");
   const [periodType, setPeriodType] = useState<PeriodType>("all");
   const [yearIdx, setYearIdx] = useState<number>(YEAR_OPTIONS.length - 1);
   const [quarter, setQuarter] = useState<number>(1);
@@ -905,6 +906,35 @@ export function TargetActualPage() {
             <strong>{selectionLabel}</strong> · {periodLabel}
           </div>
 
+          {/* Bar/Line style toggle — flips the three Target vs Achieved charts together */}
+          <div style={{
+            display: "inline-flex", background: "#fff", borderRadius: 999, padding: 4,
+            boxShadow: "0 1px 3px rgba(20,33,61,.08), 0 4px 14px rgba(20,33,61,.08)", border: "1px solid #e4e0d6",
+            marginRight: 10,
+          }}>
+            {(["bar", "line"] as const).map(sty => (
+              <button
+                key={sty}
+                onClick={() => setChartStyle(sty)}
+                style={{
+                  border: "none",
+                  background: chartStyle === sty ? "#0097a7" : "transparent",
+                  color: chartStyle === sty ? "#fff" : "#0097a7",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: "8px 20px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  transition: "background 0.15s, color 0.15s",
+                  textTransform: "capitalize",
+                }}
+              >
+                {sty}
+              </button>
+            ))}
+          </div>
+
           {/* Chart granularity toggle — shared across all 4 Target vs Achieved charts */}
           <div style={{
             display: "inline-flex", background: "#fff", borderRadius: 999, padding: 4,
@@ -946,15 +976,15 @@ export function TargetActualPage() {
 
         {/* Cards 1-2: Units, TSV */}
         <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
-          <UnitsTargetCard data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth}
+          <UnitsTargetCard chartStyle={chartStyle} data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
-          <UnitsTargetCard data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth}
+          <UnitsTargetCard chartStyle={chartStyle} data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
         </div>
 
         {/* Cards 3-4: Area, Avg Rate — same 2-column size as above, same shared offset */}
         <div className="resp-grid2" style={{ gap: 14, marginBottom: 14 }}>
-          <UnitsTargetCard data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
+          <UnitsTargetCard chartStyle={chartStyle} data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
           <AvgRateCard
             data={rateDataWithAdjusted}

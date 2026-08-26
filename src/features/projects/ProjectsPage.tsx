@@ -117,7 +117,7 @@ export function ProjectsPage() {
               k: "Available",
               v: RD.U.filter((u) => u[8] === 0).length.toLocaleString("en-IN"),
               s: `${Math.round((RD.U.filter((u) => u[8] === 0).length / RD.U.length) * 100)}% of stock`,
-              color: "var(--av)",
+              color: "var(--av-text)",
             },
             {
               k: "Booked",

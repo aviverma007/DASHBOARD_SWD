@@ -18,7 +18,7 @@ const STATUS_CLASS: Record<Unit["status"], string> = {
 const STATUS_LABEL: Record<Unit["status"], string> = {
   AVAILABLE: "Available",
   BOOKED: "Booked",
-  MANAGEMENT: "Management",
+  MANAGEMENT: "Blocked",
 };
 
 /**

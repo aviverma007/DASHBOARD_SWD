@@ -68,7 +68,7 @@ export function OverviewKpis({ totals, onOpenGroup }: OverviewKpisProps) {
 
       {managementUnits > 0 && (
         <div className="blkbar" style={{ marginBottom: 14 }}>
-          {managementUnits} Management units are held back by the developer and excluded from
+          {managementUnits} Blocked units are held back by the developer and excluded from
           Total.
         </div>
       )}

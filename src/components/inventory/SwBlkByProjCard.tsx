@@ -6,7 +6,7 @@ interface SwBlkByProjCardProps {
   onRowClick: (projectIndex: number) => void;
 }
 
-/** Direct port of blkByProjCard(arr) — shown when the top Status filter is "Management unit". */
+/** Direct port of blkByProjCard(arr) — shown when the top Status filter is "Blocked unit". */
 export function SwBlkByProjCard({ arr, P, onRowClick }: SwBlkByProjCardProps) {
   const bl = arr.filter((u) => u[8] === 2);
   if (!bl.length) return null;
@@ -27,7 +27,7 @@ export function SwBlkByProjCard({ arr, P, onRowClick }: SwBlkByProjCardProps) {
   return (
     <div className="card">
       <h3>
-        Management units by project{" "}
+        Blocked units by project{" "}
         <span className="hint">total {total} units · not available for sale · click a row → project</span>
       </h3>
       <div className="mxwrap">
@@ -35,7 +35,7 @@ export function SwBlkByProjCard({ arr, P, onRowClick }: SwBlkByProjCardProps) {
           <thead>
             <tr>
               <th>Project</th>
-              <th style={{ textAlign: "right" }}>Management units</th>
+              <th style={{ textAlign: "right" }}>Blocked units</th>
             </tr>
           </thead>
           <tbody>

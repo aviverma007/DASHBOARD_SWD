@@ -83,7 +83,7 @@ function insightLine(
 /** blockedLine(s) — management-units summary sentence. */
 function blockedLine(s: ReturnType<typeof stats>): string {
   if (!s.bl) return "";
-  return `Management units: ${s.bl} — held back by the developer, not available for sale`;
+  return `Blocked units: ${s.bl} — held back by the developer, not available for sale`;
 }
 
 /** Direct port of renderDrawer() — right-side sliding panel with breadcrumbs,
@@ -102,7 +102,7 @@ export function SwDrawer({ RD, base, scope, catOf, onClose, onCrumbClick, onPush
   const dseg = [
     { label: "Available", value: s.av, color: "var(--av)" },
     { label: "Booked", value: s.bk, color: "var(--bk)" },
-    { label: "Management unit", value: s.bl, color: "var(--blk)" },
+    { label: "Blocked unit", value: s.bl, color: "var(--blk)" },
   ].filter((x) => x.value > 0);
 
   return (

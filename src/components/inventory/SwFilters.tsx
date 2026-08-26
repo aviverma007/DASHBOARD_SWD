@@ -81,7 +81,7 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
           <option value="all">All</option>
           <option value="av">Available</option>
           <option value="bk">Booked</option>
-          <option value="blk">Management unit</option>
+          <option value="blk">Blocked unit</option>
         </select>
       </div>
 

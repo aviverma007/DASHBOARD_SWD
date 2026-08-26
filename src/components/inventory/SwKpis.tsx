@@ -11,31 +11,48 @@ interface SwKpisProps {
  * ₹-value cards (Value available / Value booked) replaced by area
  * equivalents — this app shows area, not value, throughout. */
 export function SwKpis({ s, onAll, onStatus }: SwKpisProps) {
+  const totalArea = s.areaAv + s.areaBk + s.areaBl;
   const items = [
-    { k: "Total units", v: s.t.toLocaleString("en-IN"), u: "units", sub: "all inventory", onClick: onAll },
+    {
+      k: "Total units",
+      v: s.t.toLocaleString("en-IN"),
+      u: "units",
+      sub: `${fArea(totalArea)} total area · ${s.av.toLocaleString("en-IN")} open to sell`,
+      onClick: onAll,
+    },
     {
       k: "Available",
       v: s.av.toLocaleString("en-IN"),
       u: "units",
-      sub: `${pct(s.av, s.t)}% of stock`,
+      sub: `${pct(s.av, s.t)}% of stock · ${fArea(s.areaAv)}`,
       onClick: () => onStatus(0),
     },
     {
       k: "Booked · absorption",
       v: s.bk.toLocaleString("en-IN"),
       u: "units",
-      sub: `${pct(s.bk, s.t)}% absorbed`,
+      sub: `${pct(s.bk, s.t)}% absorbed · ${fArea(s.areaBk)} sold`,
       onClick: () => onStatus(1),
     },
     {
-      k: "Management units",
+      k: "Blocked units",
       v: s.bl.toLocaleString("en-IN"),
       u: "units",
-      sub: "not for sale",
+      sub: `not for sale · ${pct(s.bl, s.t)}% of stock · ${fArea(s.areaBl)}`,
       onClick: () => onStatus(2),
     },
-    { k: "Area available", v: fArea(s.areaAv), sub: "available stock", onClick: () => onStatus(0) },
-    { k: "Area booked", v: fArea(s.areaBk), sub: "sold stock", onClick: () => onStatus(1) },
+    {
+      k: "Area available",
+      v: fArea(s.areaAv),
+      sub: `area except blocked units · ${pct(Math.round(s.areaAv), Math.round(totalArea))}% of total area`,
+      onClick: () => onStatus(0),
+    },
+    {
+      k: "Area booked",
+      v: fArea(s.areaBk),
+      sub: `sold stock · ${pct(Math.round(s.areaBk), Math.round(totalArea))}% of total area`,
+      onClick: () => onStatus(1),
+    },
   ];
 
   return (

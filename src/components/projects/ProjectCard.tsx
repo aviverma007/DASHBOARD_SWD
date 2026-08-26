@@ -83,7 +83,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
               fontFamily: "Georgia,serif",
               fontSize: 22,
               fontWeight: 700,
-              color: "var(--av)",
+              color: "var(--av-text)",
               lineHeight: 1,
             }}
           >
@@ -157,7 +157,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
         }}
       >
         <span>
-          <span style={{ color: "var(--av)", fontWeight: 600 }}>{fArea(areaAvail)}</span> available
+          <span style={{ color: "var(--av-text)", fontWeight: 600 }}>{fArea(areaAvail)}</span> available
         </span>
         <span style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600 }}>
           Click for stack plan ›
@@ -166,7 +166,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
 
       {management > 0 && (
         <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 6 }}>
-          {management} management unit{management !== 1 ? "s" : ""} excluded from total
+          {management} blocked unit{management !== 1 ? "s" : ""} excluded from total
         </div>
       )}
     </div>

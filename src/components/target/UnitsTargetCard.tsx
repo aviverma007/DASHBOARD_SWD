@@ -30,6 +30,9 @@ interface UnitsCardProps {
   offset: number;
   windowSize: number;
   onOffsetChange: (o: number) => void;
+  /** "bar" (default) or "line" — one page-level toggle flips all three
+   * Target-vs-Achieved cards together. */
+  chartStyle?: "bar" | "line";
 }
 
 // ── Custom adjusted dot ───────────────────────────────────────────────────────
@@ -83,10 +86,18 @@ function Slider({ offset, maxOffset, total, windowSize, onOffset }: { offset: nu
 }
 
 // ── Main card ─────────────────────────────────────────────────────────────────
-export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units", onBarClick, offset, windowSize, onOffsetChange }: UnitsCardProps) {
+export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", achievedLabel, formatVal, unit = "Units", onBarClick, offset, windowSize, onOffsetChange, chartStyle = "bar" }: UnitsCardProps) {
   const maxOffset = Math.max(0, data.length - windowSize);
   const clampedOffset = Math.min(offset, maxOffset);
   const visible = data.slice(clampedOffset, clampedOffset + windowSize);
+  // Line mode plots achieved only where a real (non-future, non-zero)
+  // value exists, and target only where a target exists — recharts
+  // leaves gaps at nulls instead of drawing misleading zero dips.
+  const visibleLine = visible.map(d => ({
+    ...d,
+    achievedLine: d.isFuture || d.achieved === 0 ? null : d.achieved,
+    targetLine: d.target > 0 ? d.target : null,
+  }));
   const fmt = formatVal ?? ((n: number) => n.toString());
 
   const totalAchieved = useMemo(() => data.filter(d => !d.isFuture).reduce((s, d) => s + d.achieved, 0), [data]);
@@ -161,7 +172,7 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752", letterSpacing: "0.3px" }}>{title}</div>
         {onBarClick && (
-          <div style={{ fontSize: 11, color: "#0097a7", textAlign: "right" }}>click a green bar → drill down</div>
+          <div style={{ fontSize: 11, color: "#0097a7", textAlign: "right" }}>{chartStyle === "bar" ? "click a green bar → drill down" : "click a green dot → drill down"}</div>
         )}
       </div>
 
@@ -176,31 +187,70 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
 
       {/* Chart */}
       <ResponsiveContainer width="100%" height={220}>
-        <ComposedChart data={visible} margin={{ top: 40, right: 14, left: -6, bottom: 4 }} barCategoryGap="22%" barGap={3}>
+        <ComposedChart data={chartStyle === "bar" ? visible : visibleLine} margin={{ top: 40, right: 14, left: -6, bottom: 4 }} barCategoryGap="22%" barGap={3}>
           <CartesianGrid vertical={false} stroke="#eceff1" strokeDasharray="3 3" />
           <XAxis dataKey="month" tick={{ fontSize: 13.5, fill: "#1f2937", fontWeight: 700 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 13, fill: "#1f2937", fontWeight: 700 }} axisLine={false} tickLine={false} width={44} />
           <Tooltip content={renderTooltip} />
 
-          {/* Target bars — always render regardless of Achieved */}
-          <Bar dataKey="target" name="Target" maxBarSize={26} label={<TargetLabel />}>
-            {visible.map((d, i) => (
-              <Cell key={i} fill={d.isFuture ? "#eceff1" : "#cfd8dc"} opacity={d.isFuture ? 0.7 : 1} />
-            ))}
-          </Bar>
+          {chartStyle === "bar" ? (
+            <>
+              {/* Target bars — always render regardless of Achieved */}
+              <Bar dataKey="target" name="Target" maxBarSize={26} label={<TargetLabel />}>
+                {visible.map((d, i) => (
+                  <Cell key={i} fill={d.isFuture ? "#eceff1" : "#cfd8dc"} opacity={d.isFuture ? 0.7 : 1} />
+                ))}
+              </Bar>
 
-          {/* Achieved bars — render whenever achieved>0, independent of target */}
-          <Bar dataKey="achieved" name="Achieved" maxBarSize={26}>
-            {visible.map((d, i) => (
-              <Cell
-                key={i}
-                fill={d.isFuture || d.achieved === 0 ? "transparent" : "#2e7d32"}
-                style={{ cursor: !d.isFuture && d.achieved > 0 && onBarClick ? "pointer" : "default" }}
-                onClick={() => { if (!d.isFuture && d.achieved > 0 && onBarClick) onBarClick(d); }}
+              {/* Achieved bars — render whenever achieved>0, independent of target */}
+              <Bar dataKey="achieved" name="Achieved" maxBarSize={26}>
+                {visible.map((d, i) => (
+                  <Cell
+                    key={i}
+                    fill={d.isFuture || d.achieved === 0 ? "transparent" : "#2e7d32"}
+                    style={{ cursor: !d.isFuture && d.achieved > 0 && onBarClick ? "pointer" : "default" }}
+                    onClick={() => { if (!d.isFuture && d.achieved > 0 && onBarClick) onBarClick(d); }}
+                  />
+                ))}
+                <LabelList content={<AchievedLabel />} />
+              </Bar>
+            </>
+          ) : (
+            <>
+              {/* Target line — solid grey-blue so Achieved stays the hero */}
+              <Line
+                dataKey="targetLine"
+                name="Target"
+                stroke="#8fa0b8"
+                strokeWidth={2.2}
+                dot={{ r: 3.5, fill: "#8fa0b8", strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: "#8fa0b8" }}
+                connectNulls={false}
               />
-            ))}
-            <LabelList content={<AchievedLabel />} />
-          </Bar>
+              {/* Achieved line — green, dots clickable for drill-down */}
+              <Line
+                dataKey="achievedLine"
+                name="Achieved"
+                stroke="#2e7d32"
+                strokeWidth={2.6}
+                dot={(props) => {
+                  const { cx, cy, payload, index } = props as { cx?: number; cy?: number; payload: TVADataPoint; index?: number };
+                  if (cx == null || cy == null) return <g key={`ad-${index}`} />;
+                  return (
+                    <circle
+                      key={`ad-${index}`}
+                      cx={cx} cy={cy} r={5}
+                      fill="#2e7d32" stroke="#fff" strokeWidth={1.5}
+                      style={{ cursor: onBarClick ? "pointer" : "default" }}
+                      onClick={() => onBarClick?.(payload)}
+                    />
+                  );
+                }}
+                activeDot={{ r: 7, fill: "#2e7d32" }}
+                connectNulls={false}
+              />
+            </>
+          )}
 
           {/* Adjusted dashed line */}
           <Line
@@ -219,7 +269,9 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
       {/* Legend */}
       <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6, fontSize: 12, color: "#4a5568" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 13, height: 13, borderRadius: 2, background: "#2e7d32", display: "inline-block" }} />
+          {chartStyle === "bar"
+            ? <span style={{ width: 13, height: 13, borderRadius: 2, background: "#2e7d32", display: "inline-block" }} />
+            : <svg width="24" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#2e7d32" strokeWidth="2.6" /><circle cx="12" cy="6" r="4" fill="#2e7d32" stroke="#fff" strokeWidth="1.5" /></svg>}
           Achieved
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -227,7 +279,9 @@ export function UnitsTargetCard({ data, title = "UNITS — TARGET VS ACHIEVED", 
           Adjusted
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 13, height: 13, borderRadius: 2, background: "#cfd8dc", display: "inline-block" }} />
+          {chartStyle === "bar"
+            ? <span style={{ width: 13, height: 13, borderRadius: 2, background: "#cfd8dc", display: "inline-block" }} />
+            : <svg width="24" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#8fa0b8" strokeWidth="2.2" /><circle cx="12" cy="6" r="3.5" fill="#8fa0b8" /></svg>}
           Target
         </span>
       </div>
