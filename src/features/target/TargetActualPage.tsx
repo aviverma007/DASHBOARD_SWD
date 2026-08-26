@@ -71,22 +71,31 @@ function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows 
   };
   const pct = (p: SummaryPair) => (p.t > 0 ? Math.round((p.a / p.t) * 100) : null);
 
-  const TH: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", textAlign: "right", padding: "6px 8px" };
-  const TD: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 14.5, color: "var(--ink)", textAlign: "right", padding: "7px 8px", whiteSpace: "nowrap" };
+  const TH: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)", textAlign: "right", padding: "8px 10px" };
+  const TD: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 19, color: "var(--ink)", textAlign: "right", padding: "12px 10px", whiteSpace: "nowrap" };
 
   return (
-    <div className="card" style={{ padding: "14px 16px" }}>
-      <div style={{ fontFamily: "Georgia,serif", fontSize: 15, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>{title}</div>
+    <div
+      className="card"
+      style={{
+        padding: "18px 20px 12px",
+        borderLeft: "4px solid var(--gold)",
+        boxShadow: "0 2px 4px rgba(20,33,61,.06), 0 8px 28px rgba(20,33,61,.10)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 18, fontWeight: 700, color: "var(--ink)", letterSpacing: "0.2px" }}>{title}</div>
+      </div>
       {rows === null ? (
-        <p style={{ color: "var(--mut)", fontSize: 12.5, margin: 0 }}>Outside the plan timeline.</p>
+        <p style={{ color: "var(--mut)", fontSize: 13.5, margin: 0, paddingBottom: 8 }}>Outside the plan timeline.</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--line)" }}>
-              <th style={{ ...TH, textAlign: "left" }}></th>
+            <tr style={{ borderBottom: "2px solid var(--line)" }}>
+              <th style={{ ...TH, textAlign: "left", paddingLeft: 0 }}></th>
               <th style={TH}>Total</th>
               <th style={TH}>Achieved</th>
-              <th style={TH}>%age</th>
+              <th style={{ ...TH, paddingRight: 0 }}>%age</th>
             </tr>
           </thead>
           <tbody>
@@ -94,15 +103,32 @@ function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows 
               ["UNITS", rows.units, fmt.units],
               ["AREA",  rows.area,  fmt.area],
               ["TSV",   rows.tsv,   fmt.tsv],
-            ] as const).map(([lbl, pair, f]) => {
+            ] as const).map(([lbl, pair, f], i) => {
               const p = pct(pair);
+              const good = p !== null && p >= 100;
               return (
-                <tr key={lbl} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: "var(--mut)", padding: "7px 8px 7px 0" }}>{lbl}</td>
-                  <td style={TD}>{f(pair.t)}</td>
+                <tr key={lbl} style={{ borderBottom: i < 2 ? "1px solid var(--line)" : "none" }}>
+                  <td style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.2px", color: "var(--ink-soft)", padding: "12px 10px 12px 0" }}>{lbl}</td>
+                  <td style={{ ...TD, color: "var(--mut)" }}>{f(pair.t)}</td>
                   <td style={{ ...TD, fontWeight: 700 }}>{f(pair.a)}</td>
-                  <td style={{ ...TD, fontWeight: 700, color: p === null ? "var(--mut)" : p >= 100 ? "#1a7a4a" : "#c97a1a" }}>
-                    {p === null ? "—" : p + "%"}
+                  <td style={{ ...TD, paddingRight: 0 }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        minWidth: 52,
+                        textAlign: "center",
+                        fontFamily: "Georgia,serif",
+                        fontSize: 15.5,
+                        fontWeight: 700,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        color: p === null ? "var(--mut)" : good ? "#1a7a4a" : "#c97a1a",
+                        background: p === null ? "transparent" : good ? "rgba(26,122,74,.10)" : "rgba(201,122,26,.12)",
+                        border: p === null ? "1px solid var(--line)" : `1px solid ${good ? "rgba(26,122,74,.25)" : "rgba(201,122,26,.3)"}`,
+                      }}
+                    >
+                      {p === null ? "—" : p + "%"}
+                    </span>
                   </td>
                 </tr>
               );
