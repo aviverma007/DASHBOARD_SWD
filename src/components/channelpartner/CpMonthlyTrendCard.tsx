@@ -70,7 +70,7 @@ function Slider({ offset, maxOffset, total, onOffset }: { offset: number; maxOff
   );
 }
 
-export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PARTNER SALES" }: { data: TrendPoint[]; title?: string }) {
+export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PARTNER SALES", onBarClick }: { data: TrendPoint[]; title?: string; onBarClick?: (p: TrendPoint) => void }) {
   const [metric, setMetric] = useState<Metric>("units");
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
   const [containerRef, containerWidth] = useContainerWidth<HTMLDivElement>();
@@ -108,7 +108,7 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
   return (
     <div style={CARD_STYLE}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752" }}>{title}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "#1a3752" }}>{title}{onBarClick && <span style={{ fontSize: 11, fontWeight: 400, color: "#0097a7", marginLeft: 10 }}>click a month → CP breakdown</span>}</div>
         <div style={{ display: "inline-flex", background: "#f4f2ed", borderRadius: 999, padding: 3 }}>
           {(["units", "area", "tsv"] as Metric[]).map(m => (
             <button key={m} onClick={() => setMetric(m)}
@@ -149,6 +149,8 @@ export function CpMonthlyTrendCard({ data, title = "MONTHLY TREND — CHANNEL PA
               <g key={d.key}>
                 <rect
                   x={PAD.l + i * slot} y={PAD.t} width={slot} height={innerH} fill="transparent"
+                  onClick={() => onBarClick?.(d)}
+                  style={{ cursor: onBarClick ? "pointer" : "default" }}
                   onMouseEnter={e => showTooltip(e, (
                     <>
                       <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.label}</div>

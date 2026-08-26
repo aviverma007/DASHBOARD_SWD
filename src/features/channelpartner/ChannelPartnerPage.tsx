@@ -3,13 +3,14 @@ import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
   monthlyTrend, cancelledRebookingSummary, filterRecords, CP_YEAR_OPTIONS,
-  fArea, fCr, fRate, cpRateExtremes,
+  fArea, fCr, cpMinMax,
 } from "../../utils/cpLogic";
 import type { PeriodScope } from "../../utils/cpLogic";
 import { TopEntitiesBarChart } from "../../components/channelpartner/TopEntitiesBarChart";
 import { CpMonthlyTrendCard } from "../../components/channelpartner/CpMonthlyTrendCard";
 import { CancelledRebookingCard } from "../../components/channelpartner/CancelledRebookingCard";
 import { CpDrillDrawer } from "../../components/channelpartner/CpDrillDrawer";
+import { CpMonthDrawer } from "../../components/channelpartner/CpMonthDrawer";
 import "../../components/inventory/smartworldInventory.css";
 
 const TOP_N = 12;
@@ -66,9 +67,79 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
   );
 }
 
+/** Searchable multi-select over 400+ channel partners: type to filter
+ * the list, tick any combination, All is the master option. Direct
+ * (no-CP) sales are not listed — they're shown separately on the page. */
+function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; onChange: (s: Set<number>) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const options = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return CP.CP
+      .map((name, idx) => ({ name, idx }))
+      .filter(o => o.name !== "Direct" && (!q || o.name.toLowerCase().includes(q)))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [query]);
+
+  function toggle(idx: number) {
+    const next = new Set(selected);
+    if (next.has(idx)) next.delete(idx); else next.add(idx);
+    onChange(next);
+  }
+
+  const label = selected.size === 0 ? "All CPs"
+    : selected.size === 1 ? CP.CP[[...selected][0]]
+    : `${selected.size} CPs`;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Channel partner</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ minWidth: 180, maxWidth: 240, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 300, maxHeight: 360, display: "flex", flexDirection: "column" }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search channel partners…"
+            style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "8px 11px", fontSize: 13, fontFamily: "inherit", marginBottom: 6, color: "var(--ink)" }}
+          />
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All CPs
+          </label>
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {options.length === 0 && <div style={{ fontSize: 12.5, color: "var(--mut)", padding: "8px 9px" }}>No partner matches "{query.trim()}".</div>}
+            {options.map(o => (
+              <label key={o.idx} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 9px", borderRadius: 6, fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
+                <input type="checkbox" checked={selected.has(o.idx)} onChange={() => toggle(o.idx)} style={{ accentColor: "#B8893C", width: 14, height: 14, flexShrink: 0 }} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChannelPartnerPage() {
   const [drillCpIdx, setDrillCpIdx] = useState<number | null>(null);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set()); // empty = all
+  const [selectedCps, setSelectedCps] = useState<Set<number>>(new Set());            // cpIdx; empty = all
+  const [drillMonth, setDrillMonth] = useState<{ key: string; label: string } | null>(null);
   const [periodType, setPeriodType] = useState<PeriodType>("all");
   const [fyIdx, setFyIdx] = useState<number>(CP_YEAR_OPTIONS.length - 1);
   const [quarter, setQuarter] = useState<number>(0); // 0-3
@@ -82,10 +153,10 @@ export function ChannelPartnerPage() {
     return { type: "month", year: monthYear, month };
   }, [periodType, fyIdx, quarter, monthYear, month]);
 
-  const scopedRecords = useMemo(
-    () => filterRecords(selectedProjects, period),
-    [selectedProjects, period]
-  );
+  const scopedRecords = useMemo(() => {
+    const recs = filterRecords(selectedProjects, period);
+    return selectedCps.size > 0 ? recs.filter(r => selectedCps.has(r.cpIdx)) : recs;
+  }, [selectedProjects, period, selectedCps]);
 
   const allCps = useMemo(() => summariseByChannelPartner(scopedRecords).filter(s => s.name !== "Direct"), [scopedRecords]);
   const directCp = useMemo(() => summariseByChannelPartner(scopedRecords).find(s => s.name === "Direct"), [scopedRecords]);
@@ -102,10 +173,12 @@ export function ChannelPartnerPage() {
   const topTsv = useMemo(() => topByTsv(scopedRecords, TOP_N, true), [scopedRecords]);
 
   const trend = useMemo(() => monthlyTrend(scopedRecords, true), [scopedRecords]);
-  const rateX = useMemo(() => cpRateExtremes(scopedRecords), [scopedRecords]);
+  const minMax = useMemo(() => cpMinMax(scopedRecords), [scopedRecords]);
 
   function handleReset() {
     setSelectedProjects(new Set());
+    setSelectedCps(new Set());
+    setDrillMonth(null);
     setPeriodType("all");
     setFyIdx(CP_YEAR_OPTIONS.length - 1);
     setQuarter(0);
@@ -123,6 +196,7 @@ export function ChannelPartnerPage() {
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
+        <CpSearchMultiSelect selected={selectedCps} onChange={setSelectedCps} />
 
         <div>
           <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
@@ -212,28 +286,41 @@ export function ChannelPartnerPage() {
           </div>
         </div>
 
-        {/* CP rate extremes — highest & lowest ₹/sqft achieved by any
-            channel partner in scope; click a row to drill that CP */}
-        {rateX.hi && rateX.lo && (
+        {/* Consolidated CP minimum / maximum — one card, all metrics.
+            For every metric, the channel partner at the top and at the
+            bottom of the scope; names click through to that CP. */}
+        {minMax.length > 0 && (
           <div className="card" style={{ marginBottom: 14, padding: "14px 18px" }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "#1a3752", marginBottom: 8 }}>
-              CP RATE EXTREMES <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>avg {fRate(rateX.avg)} · active CP sales only · click → drill CP</span>
+              CP MINIMUM / MAXIMUM <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>across {allCps.length} channel partners in scope · click a name → drill CP</span>
             </div>
-            {([["Highest", rateX.hi, "#1a7a4a"], ["Lowest", rateX.lo, "#c97a1a"]] as const).map(([tag, x, color]) => (
-              <div
-                key={tag}
-                className="barrow"
-                onClick={() => setDrillCpIdx(x.cpIdx)}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 4px", cursor: "pointer" }}
-              >
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "#fff", background: color, borderRadius: 5, padding: "3px 8px", flexShrink: 0, minWidth: 58, textAlign: "center" }}>{tag}</span>
-                <span style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color, flexShrink: 0 }}>{fRate(x.rate)}</span>
-                <span style={{ fontSize: 12.5, color: "var(--ink-soft)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  <strong>{x.cpName}</strong> · {CP.P[x.record.projIdx]} · {x.record.unitNo} · {x.record.area.toLocaleString("en-IN")} sq ft · {fCr(x.record.tsv)}
-                </span>
-                <span style={{ marginLeft: "auto", color: "var(--gold)", fontSize: 13, flexShrink: 0 }}>›</span>
-              </div>
-            ))}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--line)" }}>
+                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "6px 8px 6px 0" }}></th>
+                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "6px 8px" }}>Maximum</th>
+                  <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "6px 8px" }}>Minimum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {minMax.map((row, i) => (
+                  <tr key={row.metric} style={{ borderBottom: i < minMax.length - 1 ? "1px solid var(--line)" : "none" }}>
+                    <td style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.6px", color: "var(--ink-soft)", padding: "9px 8px 9px 0", whiteSpace: "nowrap" }}>{row.metric}</td>
+                    {([["max", "#1a7a4a"], ["min", "#c97a1a"]] as const).map(([side, color]) => {
+                      const cell = row[side];
+                      return (
+                        <td key={side} style={{ padding: "9px 8px" }}>
+                          <span onClick={() => setDrillCpIdx(cell.cpIdx)} style={{ cursor: "pointer" }}>
+                            <span style={{ fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color }}>{row.fmt(cell.value)}</span>
+                            <span style={{ fontSize: 12, color: "var(--ink-soft)", marginLeft: 8 }}>{cell.name} <span style={{ color: "var(--gold)" }}>›</span></span>
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -245,7 +332,7 @@ export function ChannelPartnerPage() {
 
         {/* Monthly trend */}
         <div style={{ marginBottom: 16 }}>
-          <CpMonthlyTrendCard data={trend} />
+          <CpMonthlyTrendCard data={trend} onBarClick={p => setDrillMonth({ key: p.key, label: p.label })} />
         </div>
 
         {/* Top CP rankings */}
@@ -288,6 +375,15 @@ export function ChannelPartnerPage() {
         </div>
       </div>
 
+      {drillMonth !== null && drillCpIdx === null && (
+        <CpMonthDrawer
+          monthKey={drillMonth.key}
+          monthLabel={drillMonth.label}
+          records={scopedRecords}
+          onCpClick={idx => setDrillCpIdx(idx)}
+          onClose={() => setDrillMonth(null)}
+        />
+      )}
       {drillCpIdx !== null && (
         <CpDrillDrawer cpIdx={drillCpIdx} onClose={() => setDrillCpIdx(null)} />
       )}

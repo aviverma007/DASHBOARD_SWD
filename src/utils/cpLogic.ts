@@ -97,6 +97,40 @@ export function cpRateExtremes(records: CpRecord[]): { hi: CpRateExtreme | null;
   return { hi: wrap(hi), lo: wrap(lo), avg: areaSum > 0 ? Math.round(tsvSum / areaSum) : null };
 }
 
+export interface CpMinMaxRow {
+  metric: string;
+  fmt: (v: number) => string;
+  max: { cpIdx: number; name: string; value: number };
+  min: { cpIdx: number; name: string; value: number };
+}
+
+/** One consolidated min/max view across ALL channel partners in scope
+ * (active sales, Direct excluded): for each metric, which CP is at the
+ * top and which at the bottom. Avg rate only considers CPs with sold
+ * area, so a zero-area partner can't fake a ₹0 minimum. */
+export function cpMinMax(records: CpRecord[]): CpMinMaxRow[] {
+  const cps = summariseByChannelPartner(records).filter(s => s.name !== "Direct" && s.units > 0);
+  if (cps.length === 0) return [];
+  const pick = (get: (s: CpSummary) => number, eligible = cps) => {
+    let max = eligible[0], min = eligible[0];
+    for (const s of eligible) {
+      if (get(s) > get(max)) max = s;
+      if (get(s) < get(min)) min = s;
+    }
+    return {
+      max: { cpIdx: max.cpIdx, name: max.name, value: get(max) },
+      min: { cpIdx: min.cpIdx, name: min.name, value: get(min) },
+    };
+  };
+  const withArea = cps.filter(s => s.area > 0);
+  return [
+    { metric: "Units sold", fmt: v => Math.round(v).toLocaleString("en-IN"), ...pick(s => s.units) },
+    { metric: "Area sold", fmt: v => fArea(v), ...pick(s => s.area) },
+    { metric: "TSV", fmt: v => fCr(v), ...pick(s => s.tsv) },
+    ...(withArea.length ? [{ metric: "Avg rate", fmt: (v: number) => fRate(v), ...pick(s => s.tsv / s.area, withArea) }] : []),
+  ];
+}
+
 export function fRate(n: number | null): string {
   if (n === null || !isFinite(n)) return "—";
   return "₹" + Math.round(n).toLocaleString("en-IN") + "/sqft";
