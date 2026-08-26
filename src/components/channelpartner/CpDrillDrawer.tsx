@@ -3,6 +3,7 @@ import {
   CP, summariseByChannelPartner, byProjectForCp, unitsForCpAndProject,
   unitStatusLabel, monthlyTrendForCp, fArea, fCr,
 } from "../../utils/cpLogic";
+import { ChartTooltip, useChartTooltip, tRow } from "../target/ChartTooltip";
 import type { CpRecord } from "../../utils/cpLogic";
 
 interface CpDrillDrawerProps {
@@ -39,6 +40,7 @@ export function CpDrillDrawer({ cpIdx, onClose }: CpDrillDrawerProps) {
 
   const byProject = useMemo(() => byProjectForCp(cpIdx), [cpIdx]);
   const monthly = useMemo(() => monthlyTrendForCp(cpIdx), [cpIdx]);
+  const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
   const projectUnits = useMemo(
     () => (current.level === "project" && current.projIdx !== undefined ? unitsForCpAndProject(cpIdx, current.projIdx) : []),
     [current, cpIdx]
@@ -95,22 +97,38 @@ export function CpDrillDrawer({ cpIdx, onClose }: CpDrillDrawerProps) {
               </div>
 
               {/* Monthly trend for this CP */}
-              {monthly.length > 0 && (
-                <div className="card">
-                  <h3>Monthly units sold <span className="hint">this channel partner</span></h3>
-                  <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 100, overflowX: "auto" }}>
-                    {monthly.map(m => {
-                      const max = Math.max(...monthly.map(x => x.units), 1);
-                      return (
-                        <div key={m.key} title={`${m.label}: ${m.units} units`} style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 24, flexShrink: 0 }}>
-                          <div style={{ width: 14, height: `${(m.units / max) * 80}px`, background: "#0e7490", borderRadius: 2, minHeight: 2 }} />
-                          <div style={{ fontSize: 8.5, color: "var(--mut)", marginTop: 3, whiteSpace: "nowrap" }}>{m.label}</div>
+              {monthly.length > 0 && (() => {
+                const max = Math.max(...monthly.map(x => x.units), 1);
+                return (
+                  <div className="card">
+                    <h3>Monthly units sold <span className="hint">this channel partner · hover for details</span></h3>
+                    <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 168, overflowX: "auto", paddingTop: 4 }}>
+                      {monthly.map(m => (
+                        <div
+                          key={m.key}
+                          onMouseEnter={e => showTooltip(e, (
+                            <>
+                              <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13.5 }}>{m.label}</div>
+                              {tRow("Units sold", m.units.toLocaleString("en-IN"), "#22d3ee")}
+                              {tRow("Area", fArea(m.area))}
+                              {tRow("TSV", fCr(m.tsv), "#fbbf24")}
+                            </>
+                          ))}
+                          onMouseMove={moveTooltip}
+                          onMouseLeave={hideTooltip}
+                          style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", minWidth: 38, flexShrink: 0, cursor: "default", height: "100%" }}
+                        >
+                          {/* Always-visible count above the bar */}
+                          <div style={{ fontFamily: "Georgia,serif", fontSize: 12, fontWeight: 700, color: "#0e7490", marginBottom: 3 }}>{m.units}</div>
+                          <div style={{ width: 22, height: `${Math.max((m.units / max) * 110, 3)}px`, background: "#0e7490", borderRadius: 3 }} />
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "#1f2937", marginTop: 5, whiteSpace: "nowrap" }}>{m.label}</div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+                    <ChartTooltip tooltip={tooltip} />
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="card">
                 <h3>By project <span className="hint">click → project</span></h3>

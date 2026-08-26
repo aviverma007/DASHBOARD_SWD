@@ -186,18 +186,20 @@ export function monthlyTrend(records: CpRecord[] = CP.R, excludeDirect = true): 
 }
 
 /** Monthly units for one specific channel partner (used inside the drill-down). */
-export function monthlyTrendForCp(cpIdx: number): { key: string; label: string; units: number }[] {
-  const map = new Map<string, { units: number; year: number; month: number }>();
+export function monthlyTrendForCp(cpIdx: number): { key: string; label: string; units: number; tsv: number; area: number }[] {
+  const map = new Map<string, { units: number; tsv: number; area: number; year: number; month: number }>();
   ACTIVE_RECORDS.filter(r => r.cpIdx === cpIdx).forEach(r => {
     const key = `${r.year}-${String(r.month).padStart(2, "0")}`;
-    const e = map.get(key) ?? { units: 0, year: r.year, month: r.month };
+    const e = map.get(key) ?? { units: 0, tsv: 0, area: 0, year: r.year, month: r.month };
     e.units += 1;
+    e.tsv += r.tsv;
+    e.area += r.area;
     map.set(key, e);
   });
   const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, v]) => ({ key, label: `${MONTHS[v.month]}'${String(v.year).slice(2)}`, units: v.units }));
+    .map(([key, v]) => ({ key, label: `${MONTHS[v.month]}'${String(v.year).slice(2)}`, units: v.units, tsv: v.tsv, area: v.area }));
 }
 
 /** Cancellation / rebooking summary within the given record scope. */
