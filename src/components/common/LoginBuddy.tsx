@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 
 export type BuddyMode = "idle" | "typing" | "success" | "error";
 
@@ -18,6 +18,15 @@ interface LoginBuddyProps {
  *  error   → thumbs-down, worried brows, frown */
 export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   const boxRef = useRef<HTMLDivElement>(null);
+  // Click him and he greets you with a speech bubble for a moment
+  const [speaking, setSpeaking] = useState(false);
+  const speakTimer = useRef<number | null>(null);
+  function greet() {
+    setSpeaking(true);
+    if (speakTimer.current !== null) window.clearTimeout(speakTimer.current);
+    speakTimer.current = window.setTimeout(() => setSpeaking(false), 2600);
+  }
+  useEffect(() => () => { if (speakTimer.current !== null) window.clearTimeout(speakTimer.current); }, []);
 
   const dirX = useMotionValue(0);
   const dirY = useMotionValue(0);
@@ -67,9 +76,9 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
   const SKIN = "#EDBE93", SKIN_DARK = "#D9A87C", HAIR = "#2B2118", NAVY = "#1E3163", GOLD = "#B8893C";
 
-  const happyEyes = mode === "success";
+  const happyEyes = mode === "success" || (speaking && mode !== "error");
   const mouthD =
-    mode === "success" ? "M61 78 Q75 94 89 78 Q75 86 61 78 Z"
+    mode === "success" || (speaking && mode !== "error") ? "M61 78 Q75 94 89 78 Q75 86 61 78 Z"
     : mode === "error" ? "M64 85 Q75 77 86 85 Q75 81.5 64 85 Z"
     : mode === "typing" ? "M64 80 Q75 85.5 86 80 Q75 83 64 80 Z"
     : "M66 80 Q75 84 84 80 Q75 82.5 66 80 Z";
@@ -79,7 +88,44 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
     mode === "error" ? "M79 49 Q86 46 94 44" : "M79 46 Q86 42 97 46";
 
   return (
-    <div ref={boxRef} style={{ width: 170, height: 158, margin: "0 auto 8px" }}>
+    <div
+      ref={boxRef}
+      onClick={greet}
+      title="Say hi"
+      style={{ width: 170, height: 158, margin: "0 auto 8px", position: "relative", cursor: "pointer", userSelect: "none" }}
+    >
+      {/* Speech bubble */}
+      <AnimatePresence>
+        {speaking && (
+          <motion.div
+            key="bubble"
+            initial={{ opacity: 0, y: 8, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.9, transition: { duration: 0.18 } }}
+            transition={{ type: "spring", stiffness: 380, damping: 20 }}
+            style={{
+              position: "absolute",
+              bottom: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              marginBottom: 6,
+              background: "#fff",
+              color: "#1E3163",
+              fontWeight: 700,
+              fontSize: 14,
+              whiteSpace: "nowrap",
+              padding: "9px 16px",
+              borderRadius: 12,
+              boxShadow: "0 8px 26px rgba(0,0,0,.3)",
+              zIndex: 6,
+            }}
+          >
+            Welcome to Smart World! 👋
+            {/* Bubble tail */}
+            <span style={{ position: "absolute", top: "100%", left: "50%", marginLeft: -7, width: 0, height: 0, borderLeft: "7px solid transparent", borderRight: "7px solid transparent", borderTop: "8px solid #fff" }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <svg viewBox="0 0 170 158" width="170" height="158" style={{ display: "block", overflow: "visible" }}>
         {/* ── Shoulders / blazer ── */}
         <path d="M30 158 C32 128 52 116 70 112 L100 112 C118 116 138 128 140 158 Z" fill={NAVY} />
