@@ -3,7 +3,7 @@ import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
   monthlyTrend, cancelledRebookingSummary, filterRecords, CP_YEAR_OPTIONS,
-  fArea, fCr,
+  fArea, fCr, fRate, cpRateExtremes,
 } from "../../utils/cpLogic";
 import type { PeriodScope } from "../../utils/cpLogic";
 import { TopEntitiesBarChart } from "../../components/channelpartner/TopEntitiesBarChart";
@@ -102,6 +102,7 @@ export function ChannelPartnerPage() {
   const topTsv = useMemo(() => topByTsv(scopedRecords, TOP_N, true), [scopedRecords]);
 
   const trend = useMemo(() => monthlyTrend(scopedRecords, true), [scopedRecords]);
+  const rateX = useMemo(() => cpRateExtremes(scopedRecords), [scopedRecords]);
 
   function handleReset() {
     setSelectedProjects(new Set());
@@ -210,6 +211,31 @@ export function ChannelPartnerPage() {
             <div className="s">back into an active sale</div>
           </div>
         </div>
+
+        {/* CP rate extremes — highest & lowest ₹/sqft achieved by any
+            channel partner in scope; click a row to drill that CP */}
+        {rateX.hi && rateX.lo && (
+          <div className="card" style={{ marginBottom: 14, padding: "14px 18px" }}>
+            <div style={{ fontWeight: 600, fontSize: 14, color: "#1a3752", marginBottom: 8 }}>
+              CP RATE EXTREMES <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>avg {fRate(rateX.avg)} · active CP sales only · click → drill CP</span>
+            </div>
+            {([["Highest", rateX.hi, "#1a7a4a"], ["Lowest", rateX.lo, "#c97a1a"]] as const).map(([tag, x, color]) => (
+              <div
+                key={tag}
+                className="barrow"
+                onClick={() => setDrillCpIdx(x.cpIdx)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 4px", cursor: "pointer" }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "#fff", background: color, borderRadius: 5, padding: "3px 8px", flexShrink: 0, minWidth: 58, textAlign: "center" }}>{tag}</span>
+                <span style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color, flexShrink: 0 }}>{fRate(x.rate)}</span>
+                <span style={{ fontSize: 12.5, color: "var(--ink-soft)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <strong>{x.cpName}</strong> · {CP.P[x.record.projIdx]} · {x.record.unitNo} · {x.record.area.toLocaleString("en-IN")} sq ft · {fCr(x.record.tsv)}
+                </span>
+                <span style={{ marginLeft: "auto", color: "var(--gold)", fontSize: 13, flexShrink: 0 }}>›</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {directCp && directCp.units > 0 && (
           <div className="blkbar" style={{ marginBottom: 14 }}>

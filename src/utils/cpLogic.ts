@@ -71,6 +71,37 @@ export function filterRecords(projects: string | Set<string> | null, period: Per
   });
 }
 
+export interface CpRateExtreme {
+  rate: number;          // ₹/sqft for that one unit
+  cpIdx: number;
+  cpName: string;
+  record: CpRecord;
+}
+
+/** Highest- and lowest-rate ACTIVE channel-partner sale in the scope
+ * (rate = unit TSV ÷ unit super area). Cancelled bookings and Direct
+ * (no-CP) sales are excluded — the ask is about channel partners. */
+export function cpRateExtremes(records: CpRecord[]): { hi: CpRateExtreme | null; lo: CpRateExtreme | null; avg: number | null } {
+  const eligible = records.filter(r =>
+    r.status === 0 && r.area > 0 && r.tsv > 0 && CP.CP[r.cpIdx] !== "Direct"
+  );
+  if (eligible.length === 0) return { hi: null, lo: null, avg: null };
+  let hi = eligible[0], lo = eligible[0];
+  let tsvSum = 0, areaSum = 0;
+  for (const r of eligible) {
+    if (r.tsv / r.area > hi.tsv / hi.area) hi = r;
+    if (r.tsv / r.area < lo.tsv / lo.area) lo = r;
+    tsvSum += r.tsv; areaSum += r.area;
+  }
+  const wrap = (r: CpRecord): CpRateExtreme => ({ rate: Math.round(r.tsv / r.area), cpIdx: r.cpIdx, cpName: CP.CP[r.cpIdx], record: r });
+  return { hi: wrap(hi), lo: wrap(lo), avg: areaSum > 0 ? Math.round(tsvSum / areaSum) : null };
+}
+
+export function fRate(n: number | null): string {
+  if (n === null || !isFinite(n)) return "—";
+  return "₹" + Math.round(n).toLocaleString("en-IN") + "/sqft";
+}
+
 export function fArea(sqft: number): string {
   if (sqft >= 100000) return (sqft / 100000).toFixed(2) + " L sq ft";
   return Math.round(sqft).toLocaleString("en-IN") + " sq ft";
