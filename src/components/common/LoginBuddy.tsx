@@ -33,15 +33,13 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   const sx = useSpring(dirX, { stiffness: 200, damping: 21 });
   const sy = useSpring(dirY, { stiffness: 200, damping: 21 });
 
-  // Layered "turn": head < features < pupils
-  const headX = useTransform(sx, (v) => v * 4);
-  const headY = useTransform(sy, (v) => v * 2.5);
-  const headRot = useTransform(sx, (v) => v * 6);
-  const faceX = useTransform(sx, (v) => v * 7);
-  const faceY = useTransform(sy, (v) => v * 4.5);
-  const fringeX = useTransform(sx, (v) => v * 2.5);
-  const pupilX = useTransform(sx, (v) => v * 3.2);
-  const pupilY = useTransform(sy, (v) => v * 2.4);
+  // FRONT-FACING: the face never slides sideways. Gaze lives in the
+  // pupils, with only a gentle head tilt/lean for life.
+  const headX = useTransform(sx, (v) => v * 2.5);
+  const headY = useTransform(sy, (v) => v * 1.5);
+  const headRot = useTransform(sx, (v) => v * 3.5);
+  const pupilX = useTransform(sx, (v) => v * 4.2);
+  const pupilY = useTransform(sy, (v) => v * 3);
 
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -78,10 +76,10 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
   const happyEyes = mode === "success" || (speaking && mode !== "error");
   const mouthD =
-    mode === "success" || (speaking && mode !== "error") ? "M61 78 Q75 94 89 78 Q75 86 61 78 Z"
-    : mode === "error" ? "M64 85 Q75 77 86 85 Q75 81.5 64 85 Z"
-    : mode === "typing" ? "M64 80 Q75 85.5 86 80 Q75 83 64 80 Z"
-    : "M66 80 Q75 84 84 80 Q75 82.5 66 80 Z";
+    mode === "success" || (speaking && mode !== "error") ? "M63 76 Q75 90 87 76 Q75 83 63 76 Z"
+    : mode === "error" ? "M65 83 Q75 76 85 83 Q75 79.5 65 83 Z"
+    : mode === "typing" ? "M65 78 Q75 83 85 78 Q75 80.5 65 78 Z"
+    : "M67 78 Q75 82 83 78 Q75 80.3 67 78 Z";
   const browL =
     mode === "error" ? "M56 44 Q64 46 71 49" : "M56 46 Q64 42 71 46";
   const browR =
@@ -107,7 +105,7 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
               position: "absolute",
               bottom: "100%",
               left: "50%",
-              transform: "translateX(-50%)",
+              x: "-50%",
               marginBottom: 6,
               background: "#fff",
               color: "#1E3163",
@@ -163,14 +161,14 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
 
         {/* ── Head group ── */}
         <motion.g style={{ x: headX, y: headY, rotate: headRot, originX: "85px", originY: "70px" }}>
-          <ellipse cx="57" cy="64" rx="6" ry="9" fill={SKIN} />
-          <ellipse cx="113" cy="64" rx="6" ry="9" fill={SKIN} />
+          <ellipse cx="59" cy="62" rx="5" ry="7.5" fill={SKIN} />
+          <ellipse cx="111" cy="62" rx="5" ry="7.5" fill={SKIN} />
           <path d="M60 52 C60 30 73 20 85 20 C97 20 110 30 110 52 C110 74 102 94 85 96 C68 94 60 74 60 52 Z" fill={SKIN} />
           <path d="M58 56 C56 26 70 14 85 14 C100 14 114 26 112 56 C112 44 106 30 98 30 L72 30 C64 30 58 44 58 56 Z" fill={HAIR} />
 
-          {/* ── Face features (parallax layer) ── */}
-          <motion.g style={{ x: faceX, y: faceY }}>
-            <motion.path d="M68 32 C74 24 96 24 102 32 C94 28 76 28 68 32 Z" fill={HAIR} style={{ x: fringeX }} />
+          {/* ── Face features — fixed to the skull, front-facing ── */}
+          <g>
+            <path d="M68 32 C74 24 96 24 102 32 C94 28 76 28 68 32 Z" fill={HAIR} />
 
             <motion.path fill="none" stroke={HAIR} strokeWidth="3" strokeLinecap="round"
               animate={{ d: browL, y: happyEyes ? -2.5 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
@@ -184,17 +182,17 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
               <motion.circle cx="97" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
             </motion.g>
 
-            <path d="M85 58 L82 70 Q85 73 88 70 Z" fill={SKIN_DARK} />
+            <path d="M85 60 L83 69 Q85 71.5 87 69 Z" fill={SKIN_DARK} />
 
-            <motion.ellipse cx="67" cy="70" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
-            <motion.ellipse cx="103" cy="70" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="67" cy="68" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
+            <motion.ellipse cx="103" cy="68" rx="5" ry="3.4" fill="#E8A0A0" animate={{ opacity: happyEyes ? 0.7 : 0 }} transition={{ duration: 0.25 }} />
 
             <motion.path
               fill="#8C3B2E"
               animate={{ d: mouthD }}
               transition={{ type: "spring", stiffness: 260, damping: 20 }}
             />
-          </motion.g>
+          </g>
         </motion.g>
       </svg>
     </div>
