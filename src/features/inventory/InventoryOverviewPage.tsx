@@ -39,7 +39,17 @@ export function InventoryOverviewPage() {
     const unsold = { units: projs.reduce((s,p)=>s+p.unsold.units,0), area: projs.reduce((s,p)=>s+p.unsold.area,0) };
     const total  = { units: sold.units+unsold.units, area: sold.area+unsold.area };
     const soldPct = total.units ? Math.round(sold.units/total.units*100) : 0;
-    return { sold, unsold, total, soldPct, management: 0, projects: projs };
+    // Same derivation as calcOverall(): blended avg from summed tsv/area,
+    // highest/lowest from the extremes of the selected projects' own
+    // extremes (equivalent to recomputing from every underlying record).
+    const maxes = projs.map(p => p.rate.max).filter((v): v is number => v !== null);
+    const mins  = projs.map(p => p.rate.min).filter((v): v is number => v !== null);
+    const rate = {
+      avg: sold.area > 0 ? sold.tsv / sold.area : null,
+      max: maxes.length ? Math.max(...maxes) : null,
+      min: mins.length ? Math.min(...mins) : null,
+    };
+    return { sold, unsold, total, soldPct, management: 0, projects: projs, rate };
   }, [overall, selectedProjects, visibleProjects]);
 
   function handleReset() {

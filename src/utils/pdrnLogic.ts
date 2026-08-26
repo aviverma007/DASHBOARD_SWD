@@ -88,6 +88,7 @@ export interface ProjectStats {
   total: { units: number; area: number };
   soldPct: number;   // % of total units sold
   management: number; // management units (from INVR, not in sold/unsold/total)
+  rate: RateStats;
 }
 
 export interface OverallStats {
@@ -97,6 +98,39 @@ export interface OverallStats {
   soldPct: number;
   management: number;
   projects: ProjectStats[];
+  rate: RateStats;
+}
+
+/** Per-sqft sale rate summary over a set of sold records.
+ * avg = blended rate (total TSV / total area) — the standard "average
+ * selling rate" a project reports, not a simple mean of per-unit rates.
+ * max/min = the individual unit rates (TSV/area for that one record)
+ * at the extremes. null across the board when there's no sold area to
+ * derive a rate from (e.g. a project/period with zero bookings). */
+export interface RateStats {
+  avg: number | null;
+  max: number | null;
+  min: number | null;
+}
+
+function computeRateStats(records: SalesRecord[]): RateStats {
+  const withArea = records.filter((r) => r.area > 0 && r.tsv > 0);
+  if (withArea.length === 0) return { avg: null, max: null, min: null };
+  const totalTsv = withArea.reduce((s, r) => s + r.tsv, 0);
+  const totalArea = withArea.reduce((s, r) => s + r.area, 0);
+  const unitRates = withArea.map((r) => r.tsv / r.area);
+  return {
+    avg: totalArea > 0 ? totalTsv / totalArea : null,
+    max: Math.max(...unitRates),
+    min: Math.min(...unitRates),
+  };
+}
+
+/** Formats a ₹/sqft rate, e.g. "₹12,450/sqft". Returns an em-dash when
+ * no rate could be derived (no sold units in scope). */
+export function fRate(n: number | null): string {
+  if (n === null || !isFinite(n)) return "—";
+  return "₹" + Math.round(n).toLocaleString("en-IN") + "/sqft";
 }
 
 function recordInPeriod(r: SalesRecord, period: PeriodFilter): boolean {
@@ -158,6 +192,7 @@ export function calcProjectStats(
     total,
     soldPct: total.units ? Math.round((sold.units / total.units) * 100) : 0,
     management: invMgmt.length,
+    rate: computeRateStats(soldRecords),
   };
 }
 
@@ -184,6 +219,17 @@ export function calcOverall(period: PeriodFilter): OverallStats {
     })(),
     management: projects.reduce((s, p) => s + p.management, 0),
     projects,
+    rate: (() => {
+      const totalTsv = projects.reduce((s, p) => s + p.sold.tsv, 0);
+      const totalArea = projects.reduce((s, p) => s + p.sold.area, 0);
+      const maxes = projects.map((p) => p.rate.max).filter((v): v is number => v !== null);
+      const mins = projects.map((p) => p.rate.min).filter((v): v is number => v !== null);
+      return {
+        avg: totalArea > 0 ? totalTsv / totalArea : null,
+        max: maxes.length ? Math.max(...maxes) : null,
+        min: mins.length ? Math.min(...mins) : null,
+      };
+    })(),
   };
 }
 

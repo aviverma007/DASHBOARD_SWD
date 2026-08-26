@@ -1,5 +1,5 @@
 import type { ProjectStats, OverallStats } from "../../utils/pdrnLogic";
-import { fArea, fCr } from "../../utils/pdrnLogic";
+import { fArea, fCr, fRate } from "../../utils/pdrnLogic";
 
 interface KpiTableProps {
   stats: ProjectStats | OverallStats;
@@ -14,9 +14,10 @@ interface KpiTableProps {
 const SOLD_COLOR   = "#1a7a4a";   // green
 const UNSOLD_COLOR = "#c97a1a";   // orange
 const TOTAL_COLOR  = "#14213d";   // near-black
+const RATE_COLOR   = "#0e7490";   // teal
 
 export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProject, isOverall }: KpiTableProps) {
-  const { sold, unsold, total, soldPct } = stats;
+  const { sold, unsold, total, soldPct, rate } = stats;
   const tsv = sold.tsv;
   const unsoldPct = 100 - soldPct;
 
@@ -126,6 +127,17 @@ export function KpiTable({ stats, label, onClick, accent = "var(--gold)", isProj
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
           <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)" }}>{fArea(total.area)}</span>
+        </div>
+      </div>
+
+      {/* AVG RATE — teal, with highest/lowest as sub-text */}
+      <div className="ov-row-metric" style={colStyle}>
+        <div style={labelStyle}>Avg rate</div>
+        <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: RATE_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
+          {fRate(rate.avg)}
+        </div>
+        <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap", fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)" }}>
+          H {fRate(rate.max)} · L {fRate(rate.min)}
         </div>
       </div>
 
