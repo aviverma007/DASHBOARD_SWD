@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LoginBuddy } from "../../components/common/LoginBuddy";
 import { Lock, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
@@ -13,6 +14,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [typingFocus, setTypingFocus] = useState(false); // either credential field focused → buddy smiles
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +48,7 @@ export function LoginPage() {
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <LoginBuddy happy={typingFocus} />
           {/* Wordmark is navy — sit it on a white plate so it reads on
               the dark login background */}
           <div
@@ -107,6 +110,8 @@ export function LoginPage() {
                 autoFocus
                 value={userId}
                 onChange={(e) => { setUserId(e.target.value); setError(""); }}
+                onFocus={() => setTypingFocus(true)}
+                onBlur={() => setTypingFocus(false)}
                 placeholder="Enter your user ID"
                 style={{
                   width: "100%",
@@ -156,6 +161,8 @@ export function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  onFocus={() => setTypingFocus(true)}
+                  onBlur={() => setTypingFocus(false)}
                   placeholder="Password"
                   style={{
                     width: "100%",
