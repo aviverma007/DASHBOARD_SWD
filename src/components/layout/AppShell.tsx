@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -63,9 +64,22 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          <div className={managesOwnChrome ? "" : "p-4 md:p-6"}>
-            <Outlet />
-          </div>
+          {/* Opacity-only route transition — deliberately no transform:
+              a transform on this wrapper would become the containing
+              block for the pages' position:fixed drawers and lightboxes,
+              breaking their viewport pinning. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className={managesOwnChrome ? "" : "p-4 md:p-6"}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

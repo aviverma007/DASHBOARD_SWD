@@ -1,5 +1,6 @@
 import type { ProjectStats, OverallStats } from "../../utils/pdrnLogic";
 import { fArea, fCr, fRate } from "../../utils/pdrnLogic";
+import { AnimatedNumber } from "../common/AnimatedNumber";
 
 interface KpiTableProps {
   stats: ProjectStats | OverallStats;
@@ -110,7 +111,7 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
       <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>SOLD</div>
         <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: SOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
-          {sold.units.toLocaleString("en-IN")}
+          <AnimatedNumber value={sold.units} />
           <span style={{ fontSize: metaSize, fontWeight: 400, color: SOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
@@ -123,7 +124,7 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
       <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>UNSOLD</div>
         <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: UNSOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
-          {unsold.units.toLocaleString("en-IN")}
+          <AnimatedNumber value={unsold.units} />
           <span style={{ fontSize: metaSize, fontWeight: 400, color: UNSOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
@@ -136,7 +137,7 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
       <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>TOTAL</div>
         <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: TOTAL_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
-          {total.units.toLocaleString("en-IN")}
+          <AnimatedNumber value={total.units} />
           <span style={{ fontSize: metaSize, fontWeight: 400, color: TOTAL_COLOR, opacity: 0.6, marginLeft: 4 }}>units</span>
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
@@ -148,7 +149,7 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
       <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>Avg rate</div>
         <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: RATE_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
-          {fRate(rate.avg)}
+          {rate.avg === null ? "—" : <AnimatedNumber value={rate.avg} format={fRate} />}
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap", fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)" }}>
           H {fRate(rate.max)} · L {fRate(rate.min)}

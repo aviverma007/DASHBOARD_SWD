@@ -4,6 +4,7 @@ import type { PeriodFilter, ProjectStats } from "../../utils/pdrnLogic";
 import { KpiTable } from "../../components/overview/KpiTable";
 import { PdrnFilters } from "../../components/overview/PdrnFilters";
 import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
+import { motion } from "framer-motion";
 import "../../components/inventory/smartworldInventory.css";
 
 const ACCENT_COLORS = ["#3c6db0","#2e7d6f","#b8893c","#c2674a","#7a5c84","#4b7b3f"];
@@ -102,10 +103,16 @@ export function InventoryOverviewPage() {
         />
 
         {/* Project rows: [thumbnail] [KPI card] */}
-        {visibleProjects.map(proj => {
+        {visibleProjects.map((proj, cardIdx) => {
           const imgSrc = PROJECT_IMAGES[proj.projectName];
           return (
-            <div key={proj.invProjIdx} style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <motion.div
+              key={proj.invProjIdx}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: cardIdx * 0.055, duration: 0.32, ease: "easeOut" }}
+              style={{ display: "flex", gap: 8, alignItems: "stretch" }}
+            >
 
               {/* Site plan thumbnail */}
               {imgSrc && (
@@ -153,7 +160,7 @@ export function InventoryOverviewPage() {
                   isProject
                 />
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
