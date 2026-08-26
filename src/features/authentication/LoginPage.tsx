@@ -107,7 +107,6 @@ export function LoginPage() {
               <input
                 type="text"
                 required
-                autoFocus
                 value={userId}
                 onChange={(e) => { setUserId(e.target.value); setError(""); }}
                 placeholder="Enter your user ID"
