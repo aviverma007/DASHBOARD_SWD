@@ -135,30 +135,6 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
         <path d="M94 108 L85 118 L100 113 Z" fill="#f2f2f2" />
         <rect x="76" y="96" width="18" height="16" rx="6" fill={SKIN_DARK} />
 
-        {/* ── Thumbs up / down hand (pops on verdicts) ── */}
-        <motion.g
-          initial={false}
-          animate={{ opacity: mode === "success" || mode === "error" ? 1 : 0, y: mode === "success" || mode === "error" ? 0 : 26 }}
-          transition={{ type: "spring", stiffness: 320, damping: 20 }}
-        >
-          {/* Sleeve */}
-          <path d="M118 148 L134 112 L148 118 L134 152 Z" fill={NAVY} />
-          <path d="M132 116 L147 122 L144 129 L129 123 Z" fill="#fff" />
-          {/* Fist + thumb — rotates 180° for thumbs-down */}
-          <motion.g
-            initial={false}
-            animate={{ rotate: mode === "error" ? 180 : 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 18 }}
-            style={{ originX: "142px", originY: "104px" }}
-          >
-            <rect x="132" y="94" width="20" height="19" rx="6" fill={SKIN} />
-            <rect x="134.5" y="97" width="15" height="2.6" rx="1.3" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="134.5" y="102" width="15" height="2.6" rx="1.3" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="134.5" y="107" width="15" height="2.6" rx="1.3" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="137" y="74" width="8.5" height="24" rx="4.2" fill={SKIN} />
-          </motion.g>
-        </motion.g>
-
         {/* ── Head group ── */}
         <motion.g style={{ x: headX, y: headY, rotate: headRot, originX: "85px", originY: "70px" }}>
           <ellipse cx="59" cy="62" rx="5" ry="7.5" fill={SKIN} />
@@ -193,6 +169,36 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
               transition={{ type: "spring", stiffness: 260, damping: 20 }}
             />
           </g>
+        </motion.g>
+
+        {/* ── Verdict arm: raised from the right shoulder, fist beside
+            the head; the fist rotates at the WRIST for thumbs-down so
+            hand and arm always stay connected ── */}
+        <motion.g
+          initial={false}
+          animate={{
+            opacity: mode === "success" || mode === "error" ? 1 : 0,
+            y: mode === "success" || mode === "error" ? 0 : 18,
+          }}
+          transition={{ type: "spring", stiffness: 320, damping: 20 }}
+        >
+          {/* Upper arm + forearm sleeve, shoulder → wrist */}
+          <path d="M98 156 L112 106 L129 112 L116 158 Z" fill={NAVY} />
+          {/* Shirt cuff at the wrist */}
+          <path d="M111 108 L128 114 L125 122 L108 116 Z" fill="#fff" />
+          {/* Fist + thumb — pivots around the wrist (120,97) */}
+          <motion.g
+            initial={false}
+            animate={{ rotate: mode === "error" ? 180 : 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 18 }}
+            style={{ originX: "120px", originY: "97px" }}
+          >
+            <rect x="109" y="88" width="21" height="18" rx="6" fill={SKIN} />
+            <rect x="112" y="91" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
+            <rect x="112" y="95.5" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
+            <rect x="112" y="100" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
+            <rect x="112.5" y="68" width="8.5" height="23" rx="4.2" fill={SKIN} />
+          </motion.g>
         </motion.g>
       </svg>
     </div>
