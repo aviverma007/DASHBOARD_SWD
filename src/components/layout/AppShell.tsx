@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useOutlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Header } from "./Header";
@@ -11,6 +11,7 @@ export function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
+  const outlet = useOutlet();
   // Both Overview (/) and Inventory (/inventory) now ship their own
   // navy filter bar and full-bleed layout (redesigned to match
   // Inventory's design system) — the generic FilterBar and content
@@ -64,20 +65,24 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          {/* Opacity-only route transition — deliberately no transform:
-              a transform on this wrapper would become the containing
-              block for the pages' position:fixed drawers and lightboxes,
-              breaking their viewport pinning. */}
+          {/* Route transition. Two things matter here:
+              1. useOutlet() snapshots the CURRENT page element — a plain
+                 <Outlet/> inside the exiting wrapper would re-render to
+                 the NEW route mid-exit (router context), collapsing the
+                 whole transition into a flicker.
+              2. y animates back to 0, and Framer clears the transform to
+                 `none` at rest — so the pages' position:fixed drawers
+                 are unaffected once the entrance settles. */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
               className={managesOwnChrome ? "" : "p-4 md:p-6"}
             >
-              <Outlet />
+              {outlet}
             </motion.div>
           </AnimatePresence>
         </main>

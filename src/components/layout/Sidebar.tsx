@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { NAV_ITEMS, NAV_SECTIONS } from "../../config/navigation";
@@ -103,8 +104,19 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
             </button>
           )}
           {/* When the rail is collapsed to icons, folding is disabled —
-              there's no heading to click, so every item stays visible. */}
-          {(collapsed || !closedSections.has(section)) && NAV_ITEMS.filter((item) => item.section === section).map((item) => {
+              there's no heading to click, so every item stays visible.
+              Sections open/close with a smooth height + fade animation. */}
+          <AnimatePresence initial={false}>
+          {(collapsed || !closedSections.has(section)) && (
+            <motion.div
+              key="items"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: 2 }}
+            >
+          {NAV_ITEMS.filter((item) => item.section === section).map((item) => {
         const Icon =
           (Icons as unknown as Record<string, Icons.LucideIcon>)[item.icon] ??
           Icons.Circle;
@@ -194,6 +206,9 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
           </NavLink>
         );
           })}
+            </motion.div>
+          )}
+          </AnimatePresence>
         </div>
       ))}
     </nav>
