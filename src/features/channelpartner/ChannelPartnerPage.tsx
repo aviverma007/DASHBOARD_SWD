@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
@@ -17,9 +17,58 @@ type PeriodType = PeriodScope["type"];
 const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"];
 const MONTHS_LIST = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
+/** Multi-select project dropdown with an "All projects" master option —
+ * same interaction pattern as Overview and Target vs Actual. */
+function CpProjectMultiSelect({ projects, selected, onChange }: { projects: string[]; selected: Set<string>; onChange: (s: Set<string>) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  function toggle(name: string) {
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    if (next.size === projects.length) onChange(new Set()); // all picked = All
+    else onChange(next);
+  }
+
+  const label = selected.size === 0 ? "All projects"
+    : selected.size === 1 ? [...selected][0].replace("SMARTWORLD ", "")
+    : `${selected.size} projects`;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Project</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ minWidth: 200, textAlign: "left", background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All projects
+          </label>
+          {projects.map(name => (
+            <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              {name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChannelPartnerPage() {
   const [drillCpIdx, setDrillCpIdx] = useState<number | null>(null);
-  const [selectedProject, setSelectedProject] = useState<string>(""); // "" = all
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set()); // empty = all
   const [periodType, setPeriodType] = useState<PeriodType>("all");
   const [fyIdx, setFyIdx] = useState<number>(CP_YEAR_OPTIONS.length - 1);
   const [quarter, setQuarter] = useState<number>(0); // 0-3
@@ -34,8 +83,8 @@ export function ChannelPartnerPage() {
   }, [periodType, fyIdx, quarter, monthYear, month]);
 
   const scopedRecords = useMemo(
-    () => filterRecords(selectedProject || null, period),
-    [selectedProject, period]
+    () => filterRecords(selectedProjects, period),
+    [selectedProjects, period]
   );
 
   const allCps = useMemo(() => summariseByChannelPartner(scopedRecords).filter(s => s.name !== "Direct"), [scopedRecords]);
@@ -55,7 +104,7 @@ export function ChannelPartnerPage() {
   const trend = useMemo(() => monthlyTrend(scopedRecords, true), [scopedRecords]);
 
   function handleReset() {
-    setSelectedProject("");
+    setSelectedProjects(new Set());
     setPeriodType("all");
     setFyIdx(CP_YEAR_OPTIONS.length - 1);
     setQuarter(0);
@@ -72,13 +121,7 @@ export function ChannelPartnerPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       {/* Filter bar */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Project</label>
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{ minWidth: 200, background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-            <option value="">All projects</option>
-            {CP.P.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
+        <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
 
         <div>
           <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
@@ -131,7 +174,7 @@ export function ChannelPartnerPage() {
 
       <div className="wrap">
         <div style={{ marginBottom: 12, fontSize: 12.5, color: "var(--mut)" }}>
-          <strong>{selectedProject || "All projects"}</strong> · {periodLabel} · {allCps.length} channel partners · click any bar or row to drill down
+          <strong>{selectedProjects.size === 0 ? "All projects" : selectedProjects.size === 1 ? [...selectedProjects][0] : `${selectedProjects.size} projects`}</strong> · {periodLabel} · {allCps.length} channel partners · click any bar or row to drill down
         </div>
 
         {/* KPI strip */}

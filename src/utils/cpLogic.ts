@@ -54,9 +54,14 @@ export interface PeriodScope {
 }
 
 /** Scope the full record set down to a project (optional) + period (optional). */
-export function filterRecords(projectName: string | null, period: PeriodScope): CpRecord[] {
+/** projects: null/empty set = all projects; otherwise records must
+ * belong to one of the named projects. (A plain string still works
+ * for any older single-select callers.) */
+export function filterRecords(projects: string | Set<string> | null, period: PeriodScope): CpRecord[] {
+  const projSet = typeof projects === "string" ? (projects ? new Set([projects]) : null)
+    : projects && projects.size > 0 ? projects : null;
   return CP.R.filter(r => {
-    if (projectName && CP.P[r.projIdx] !== projectName) return false;
+    if (projSet && !projSet.has(CP.P[r.projIdx])) return false;
     if (period.type === "all") return true;
     if (r.year === 0 || r.month === 0) return false; // no valid booking date
     if (period.type === "year") return period.fy !== undefined && fyEndYear(r.year, r.month) === period.fy;
