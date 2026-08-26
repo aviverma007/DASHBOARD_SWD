@@ -14,8 +14,8 @@ interface LoginBuddyProps {
  *  idle    → head + eyes turn to follow the cursor (3-layer parallax)
  *  typing  → stops cursor-following, looks DOWN at the field and reads
  *            left→right with the caret; calm professional smile
- *  success → thumbs-up pops, happy squint, big smile
- *  error   → thumbs-down, worried brows, frown */
+ *  success → happy squint, big smile
+ *  error   → angry face: slanted brows, narrowed glare, deep frown */
 export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   // Click him and he greets you with a speech bubble for a moment
@@ -77,13 +77,14 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
   const happyEyes = mode === "success" || (speaking && mode !== "error");
   const mouthD =
     mode === "success" || (speaking && mode !== "error") ? "M73 81 Q85 95 97 81 Q85 88 73 81 Z"
-    : mode === "error" ? "M75 88 Q85 81 95 88 Q85 84.5 75 88 Z"
+    : mode === "error" ? "M74 89 Q85 79 96 89 Q85 83.5 74 89 Z"
     : mode === "typing" ? "M75 84 Q85 89 95 84 Q85 86.5 75 84 Z"
     : "M77 84 Q85 88 93 84 Q85 86.2 77 84 Z";
+  // Angry = brows slant sharply DOWN toward the nose
   const browL =
-    mode === "error" ? "M66 46 Q74 44 82 41" : "M66 43 Q74 39 82 43";
+    mode === "error" ? "M66 40 Q74 42 82 47" : "M66 43 Q74 39 82 43";
   const browR =
-    mode === "error" ? "M89 41 Q97 44 105 46" : "M89 43 Q97 39 105 43";
+    mode === "error" ? "M89 47 Q97 42 105 40" : "M89 43 Q97 39 105 43";
 
   return (
     <div
@@ -151,7 +152,7 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
             <motion.path fill="none" stroke={HAIR} strokeWidth="3" strokeLinecap="round"
               animate={{ d: browR, y: happyEyes ? -2.5 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} />
 
-            <motion.g animate={{ scaleY: happyEyes ? 0.5 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85.5px", originY: "55px" }}>
+            <motion.g animate={{ scaleY: happyEyes ? 0.5 : mode === "error" ? 0.62 : 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} style={{ originX: "85.5px", originY: "55px" }}>
               <ellipse cx="74" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <ellipse cx="97" cy="55" rx="7.5" ry="6.5" fill="#fff" stroke={HAIR} strokeWidth="1.6" />
               <motion.circle cx="74" cy="55" r="3.4" fill={NAVY} style={{ x: pupilX, y: pupilY }} />
@@ -171,35 +172,6 @@ export function LoginBuddy({ mode, typingProgress }: LoginBuddyProps) {
           </g>
         </motion.g>
 
-        {/* ── Verdict arm: raised from the right shoulder, fist beside
-            the head; the fist rotates at the WRIST for thumbs-down so
-            hand and arm always stay connected ── */}
-        <motion.g
-          initial={false}
-          animate={{
-            opacity: mode === "success" || mode === "error" ? 1 : 0,
-            y: mode === "success" || mode === "error" ? 0 : 18,
-          }}
-          transition={{ type: "spring", stiffness: 320, damping: 20 }}
-        >
-          {/* Upper arm + forearm sleeve, shoulder → wrist */}
-          <path d="M98 156 L112 106 L129 112 L116 158 Z" fill={NAVY} />
-          {/* Shirt cuff at the wrist */}
-          <path d="M111 108 L128 114 L125 122 L108 116 Z" fill="#fff" />
-          {/* Fist + thumb — pivots around the wrist (120,97) */}
-          <motion.g
-            initial={false}
-            animate={{ rotate: mode === "error" ? 180 : 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 18 }}
-            style={{ originX: "120px", originY: "97px" }}
-          >
-            <rect x="109" y="88" width="21" height="18" rx="6" fill={SKIN} />
-            <rect x="112" y="91" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="112" y="95.5" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="112" y="100" width="15" height="2.5" rx="1.25" fill={SKIN_DARK} opacity="0.55" />
-            <rect x="112.5" y="68" width="8.5" height="23" rx="4.2" fill={SKIN} />
-          </motion.g>
-        </motion.g>
       </svg>
     </div>
   );
