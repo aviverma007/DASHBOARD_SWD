@@ -1,4 +1,5 @@
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
+import { useContainerWidth } from "./useContainerWidth";
 
 interface CfgRow { name: string; sold: number; unsold: number; total: number; sold_pct: number; avg_area: number; }
 
@@ -10,6 +11,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]; onConfigClick?: (name: string) => void }) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const { ref: boxRef, width } = useContainerWidth<HTMLDivElement>();
   const filtered = configs.filter(c => c.total > 0);
 
   if (filtered.length === 0) {
@@ -22,9 +24,16 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
   }
 
   // Wider bars, generous group spacing, extra top padding for % labels + dashed line
-  const BAR_W = 46, GAP_IN_PAIR = 6, GROUP_GAP = 56, PAD = { l: 20, r: 20, t: 46, b: 46 };
+  const BAR_W = 46, GAP_IN_PAIR = 6, PAD = { l: 20, r: 20, t: 46, b: 46 };
   const groupW = BAR_W * 2 + GAP_IN_PAIR;
-  const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
+  // Fill-the-card layout (see TowerSoldPctCard).
+  const MIN_SPAN = groupW + 40, MAX_SPAN = groupW + 180, FALLBACK_W = 680;
+  const n = filtered.length;
+  const cardW = width || FALLBACK_W;
+  const avail = cardW - PAD.l - PAD.r;
+  const span = Math.max(MIN_SPAN, Math.min(MAX_SPAN, avail / n));
+  const W = Math.max(cardW, n * span + PAD.l + PAD.r);
+  const startX = PAD.l + Math.max(0, (W - PAD.l - PAD.r - n * span) / 2);
   const H = 280;
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
@@ -50,19 +59,19 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
           (no stretch/squash — preserveAspectRatio="none" distorted bars
           and text for very few or very many groups). Wide charts scroll
           horizontally; narrow ones sit centred. */}
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
+      <div ref={boxRef} style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
           {/* % sold trend line */}
           <path
             d={filtered.map((c, i) => {
-              const gx = PAD.l + i * (groupW + GROUP_GAP) + groupW / 2;
+              const gx = startX + i * span + span / 2;
               const py = PAD.t + innerH - (c.sold_pct / 100) * innerH;
               return `${i === 0 ? "M" : "L"}${gx} ${py}`;
             }).join(" ")}
             fill="none" stroke="#0e7490" strokeWidth="2" strokeDasharray="6,4"
           />
           {filtered.map((c, i) => {
-            const gx = PAD.l + i * (groupW + GROUP_GAP);
+            const gx = startX + i * span + (span - groupW) / 2;
             const soldH = (c.sold / maxUnits) * innerH;
             const unsoldH = (c.unsold / maxUnits) * innerH;
             const dotY = PAD.t + innerH - (c.sold_pct / 100) * innerH;
@@ -76,7 +85,7 @@ export function TypeWiseSaleCard({ configs, onConfigClick }: { configs: CfgRow[]
                 style={{ cursor: onConfigClick ? "pointer" : "default" }}
               >
                 {/* Invisible wider hit-zone spanning the whole group */}
-                <rect x={gx - GROUP_GAP / 2} y={PAD.t} width={groupW + GROUP_GAP} height={innerH} fill="transparent" />
+                <rect x={gx - (span - groupW) / 2} y={PAD.t} width={span} height={innerH} fill="transparent" />
                 <rect x={gx} y={baseY - soldH} width={BAR_W} height={soldH} fill="#0e7490" rx="3" />
                 <rect x={gx + BAR_W + GAP_IN_PAIR} y={baseY - unsoldH} width={BAR_W} height={unsoldH} fill="#a5f3fc" rx="3" />
                 <circle cx={gx + groupW / 2} cy={dotY} r="6" fill="#fff" stroke="#0e7490" strokeWidth="2.5" />

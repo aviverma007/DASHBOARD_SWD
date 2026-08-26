@@ -1,4 +1,5 @@
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
+import { useContainerWidth } from "./useContainerWidth";
 
 interface TowerYearRate {
   name: string;
@@ -26,6 +27,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovementProps) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const { ref: boxRef, width } = useContainerWidth<HTMLDivElement>();
   const filtered = towers.filter(t => Object.keys(t.year_rates).length > 0);
 
   if (filtered.length === 0) {
@@ -48,14 +50,22 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
   });
 
   // Wider bars, tighter within-group gap, generous group gap and top padding for labels
-  const BAR_W = 24, BAR_GAP = 2, GROUP_GAP = 34, PAD = { l: 68, r: 20, t: 40, b: 34 };
+  const BAR_W = 24, BAR_GAP = 2, PAD = { l: 68, r: 20, t: 40, b: 34 };
   const groupW = allYears.length * (BAR_W + BAR_GAP) - BAR_GAP;
-  const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
+  // Fill-the-card layout (see TowerSoldPctCard): clamped spacing, full
+  // width when few towers, horizontal scroll when many.
+  const MIN_SPAN = groupW + 26, MAX_SPAN = groupW + 120, FALLBACK_W = 680;
+  const n = filtered.length;
+  const cardW = width || FALLBACK_W;
+  const avail = cardW - PAD.l - PAD.r;
+  const span = Math.max(MIN_SPAN, Math.min(MAX_SPAN, avail / n));
+  const W = Math.max(cardW, n * span + PAD.l + PAD.r);
+  const startX = PAD.l + Math.max(0, (W - PAD.l - PAD.r - n * span) / 2);
   const H = 280;
   const innerH = H - PAD.t - PAD.b;
 
   const barH = (v: number) => ((v - minRate) / (maxRate - minRate)) * innerH;
-  const groupX = (i: number) => PAD.l + i * (groupW + GROUP_GAP);
+  const groupX = (i: number) => startX + i * span + (span - groupW) / 2;
   const avgY = (v: number) => PAD.t + innerH - ((v - minRate) / (maxRate - minRate)) * innerH;
   const baseY = PAD.t + innerH;
 
@@ -79,8 +89,8 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
           (no stretch/squash — preserveAspectRatio="none" distorted bars
           and text for very few or very many groups). Wide charts scroll
           horizontally; narrow ones sit centred. */}
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
+      <div ref={boxRef} style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
           {[0, 0.25, 0.5, 0.75, 1].map(t => {
             const yv = PAD.t + innerH * t;
             const v = maxRate - (maxRate - minRate) * t;
@@ -108,7 +118,7 @@ export function TowerRateMovementCard({ towers, onTowerClick }: TowerRateMovemen
               style={{ cursor: onTowerClick ? "pointer" : "default" }}
             >
               {/* Invisible wider hit-zone spanning the whole group */}
-              <rect x={groupX(ti) - GROUP_GAP / 2} y={PAD.t} width={groupW + GROUP_GAP} height={innerH} fill="transparent" />
+              <rect x={groupX(ti) - (span - groupW) / 2} y={PAD.t} width={span} height={innerH} fill="transparent" />
               {allYears.map((yr, yi) => {
                 const v = tw.year_rates[yr];
                 if (!v) return null;

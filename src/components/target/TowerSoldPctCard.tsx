@@ -1,4 +1,5 @@
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
+import { useContainerWidth } from "./useContainerWidth";
 
 interface TowerRow {
   name: string; sold: number; unsold: number; total: number; sold_pct: number; tsv: number; avg_rate: number;
@@ -14,6 +15,7 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
   towers: TowerRow[]; projectTsv: number; projectSold: number; onTowerClick?: (name: string) => void;
 }) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const { ref: boxRef, width } = useContainerWidth<HTMLDivElement>();
   const filtered = towers.filter(t => t.total > 0).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
   if (filtered.length === 0) {
@@ -25,9 +27,20 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
     );
   }
 
-  const BAR_W = 28, PAIR_GAP = 5, GROUP_GAP = 34, PAD = { l: 46, r: 20, t: 40, b: 34 };
+  const BAR_W = 28, PAIR_GAP = 5, PAD = { l: 46, r: 20, t: 40, b: 34 };
   const groupW = BAR_W * 2 + PAIR_GAP;
-  const W = filtered.length * (groupW + GROUP_GAP) + PAD.l + PAD.r;
+  // Fill-the-card layout: measure the card and distribute tower groups
+  // across its full width. Spacing is clamped — many towers never
+  // squeeze below MIN_SPAN (the chart widens and scrolls instead), and
+  // one or two towers never stretch beyond MAX_SPAN (the group block
+  // centres, with axis + gridlines still spanning the whole card).
+  const MIN_SPAN = groupW + 26, MAX_SPAN = groupW + 120, FALLBACK_W = 680;
+  const n = filtered.length;
+  const cardW = width || FALLBACK_W;
+  const avail = cardW - PAD.l - PAD.r;
+  const span = Math.max(MIN_SPAN, Math.min(MAX_SPAN, avail / n));
+  const W = Math.max(cardW, n * span + PAD.l + PAD.r);
+  const startX = PAD.l + Math.max(0, (W - PAD.l - PAD.r - n * span) / 2);
   const H = 280;
   const innerH = H - PAD.t - PAD.b;
   const baseY = PAD.t + innerH;
@@ -52,8 +65,8 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
           (no stretch/squash — preserveAspectRatio="none" distorted bars
           and text for very few or very many groups). Wide charts scroll
           horizontally; narrow ones sit centred. */}
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
+      <div ref={boxRef} style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
           {[0, 25, 50, 75, 100].map(p => {
             const yv = baseY - (p / 100) * innerH;
             return (
@@ -64,7 +77,7 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
             );
           })}
           {filtered.map((tw, i) => {
-            const gx = PAD.l + i * (groupW + GROUP_GAP);
+            const gx = startX + i * span + (span - groupW) / 2;
             const tsvPct = projectTsv > 0 ? Math.round((tw.tsv / projectTsv) * 100) : 0;
             const unitPct = projectSold > 0 ? Math.round((tw.sold / projectSold) * 100) : 0;
             const tsvH = (tsvPct / 100) * innerH;
@@ -78,7 +91,7 @@ export function TowerSoldPctCard({ towers, projectTsv, projectSold, onTowerClick
                 onMouseLeave={hideTooltip}
                 style={{ cursor: onTowerClick ? "pointer" : "default" }}
               >
-                <rect x={gx - GROUP_GAP / 2} y={PAD.t} width={groupW + GROUP_GAP} height={innerH} fill="transparent" />
+                <rect x={gx - (span - groupW) / 2} y={PAD.t} width={span} height={innerH} fill="transparent" />
                 <rect x={gx} y={baseY - unitH} width={BAR_W} height={unitH} fill="#0e7490" rx="3" />
                 <text x={gx + BAR_W / 2} y={baseY - unitH - 7} fontSize="12" fill="#0e7490" fontWeight="700" textAnchor="middle">{unitPct}%</text>
                 <rect x={gx + BAR_W + PAIR_GAP} y={baseY - tsvH} width={BAR_W} height={tsvH} fill="#f97316" rx="3" />

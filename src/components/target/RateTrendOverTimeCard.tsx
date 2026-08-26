@@ -1,4 +1,5 @@
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
+import { useContainerWidth } from "./useContainerWidth";
 
 interface RateTrendPoint { key: string; rate: number; units: number }
 
@@ -10,6 +11,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendPoint[]; onPointClick?: (key: string) => void }) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const { ref: boxRef, width } = useContainerWidth<HTMLDivElement>();
 
   if (data.length === 0) {
     return (
@@ -24,7 +26,8 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
   const max = Math.max(...data.map(d => d.rate)) * 1.06;
   const avg = data.reduce((s, d) => s + d.rate, 0) / data.length;
 
-  const W = Math.max(680, data.length * 34), H = 280, PAD = { l: 62, r: 20, t: 24, b: 36 };
+  // Fill the card exactly; grow (and scroll) only when months need >58px each
+  const W = Math.max(width || 680, data.length * 58 + 82), H = 280, PAD = { l: 62, r: 20, t: 24, b: 36 };
   const innerW = W - PAD.l - PAD.r, innerH = H - PAD.t - PAD.b;
   const x = (i: number) => PAD.l + (data.length > 1 ? i * (innerW / (data.length - 1)) : innerW / 2);
   const y = (v: number) => PAD.t + innerH - ((v - min) / (max - min)) * innerH;
@@ -52,8 +55,8 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
           (no stretch/squash — preserveAspectRatio="none" distorted bars
           and text for very few or very many groups). Wide charts scroll
           horizontally; narrow ones sit centred. */}
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
+      <div ref={boxRef} style={{ flex: 1, minHeight: 0, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
           {[0, 0.5, 1].map(t => {
             const yv = PAD.t + innerH * t, v = max - (max - min) * t;
             return (
