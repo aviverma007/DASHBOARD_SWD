@@ -2,9 +2,9 @@ import { motion } from "framer-motion";
 
 /** Big white showcase card for the right half of the login screen:
  * dashboard-flavoured visuals (donut, bars, trend line, KPI chips)
- * gently floating around a headline — every figure is a real number
- * from the dashboard so the preview is honest. Hidden on small
- * screens via the .swd-login-visual CSS in LoginPage. */
+ * gently floating around a headline — deliberately number-free so
+ * nothing confidential shows pre-login. Hidden on small screens via
+ * the .swd-login-visual CSS in LoginPage. */
 
 /** Slow infinite bob; phase/duration vary per piece so the motion
  * never syncs into a mechanical pattern. */
@@ -27,8 +27,7 @@ function DonutChart() {
         strokeDasharray={`${C * 0.29} ${C}`} strokeDashoffset={-C * 0.63} strokeLinecap="round" transform="rotate(-90 48 48)" />
       <circle cx="48" cy="48" r="34" fill="none" stroke="#d64545" strokeWidth="14"
         strokeDasharray={`${C * 0.05} ${C}`} strokeDashoffset={-C * 0.94} strokeLinecap="round" transform="rotate(-90 48 48)" />
-      <text x="48" y="45" textAnchor="middle" fontSize="15" fontWeight="700" fill="#14213d" fontFamily="Georgia,serif">61%</text>
-      <text x="48" y="59" textAnchor="middle" fontSize="8" fill="#8a93a6">SOLD</text>
+
     </svg>
   );
 }
@@ -100,13 +99,13 @@ export function LoginShowcase() {
 
       {/* KPI chips */}
       <motion.div {...float(10, 5.2, 0.4)} style={{ position: "absolute", top: "33%", left: "46%", background: "#14213d", color: "#fff", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        2,064 <span style={{ opacity: 0.75, fontWeight: 400 }}>units sold</span>
+        Sales <span style={{ opacity: 0.75, fontWeight: 400 }}>at a glance</span>
       </motion.div>
       <motion.div {...float(13, 7.2, 2.2)} style={{ position: "absolute", top: "52%", right: 60, background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 700, color: "#1a7a4a", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        ₹11,205 Cr <span style={{ color: "#8a93a6", fontWeight: 400 }}>TSV</span>
+        Value <span style={{ color: "#8a93a6", fontWeight: 400 }}>&amp; rate insights</span>
       </motion.div>
       <motion.div {...float(9, 6.4, 3.1)} style={{ position: "absolute", top: "24%", left: "38%", background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "8px 15px", fontSize: 12.5, fontWeight: 700, color: "#B8893C", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        6 projects · 2 cities
+        Projects · Towers · Units
       </motion.div>
 
       {/* ── Headline (reference-style) ── */}
