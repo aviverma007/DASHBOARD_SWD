@@ -26,6 +26,9 @@ export function AppShell() {
       <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
 
       <div className="flex">
+        {/* Left rail clearance: reserves the strip the dock floats in
+            so page content never sits underneath it */}
+        <div className="hidden shrink-0 border-r border-border-subtle bg-white lg:block" style={{ width: 86 }} />
         {/* Mobile drawer nav */}
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -76,8 +79,6 @@ export function AppShell() {
               {outlet}
             </motion.div>
           </AnimatePresence>
-          {/* Clearance so page bottoms aren't hidden behind the dock */}
-          <div className="hidden lg:block" style={{ height: 96 }} />
         </main>
       </div>
 

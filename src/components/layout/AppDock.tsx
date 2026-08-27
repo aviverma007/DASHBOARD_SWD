@@ -4,7 +4,7 @@ import { Dock, DockIcon, DockItem, DockLabel } from "../ui/dock";
 import { NAV_ITEMS } from "../../config/navigation";
 
 /** The app's tab selector: a macOS-style magnifying dock pinned to
- * the bottom centre. Hover swells the nearest icons; every tab shows
+ * the LEFT edge, vertically centred. Hover swells the nearest icons; every tab shows
  * a tooltip label; the active tab is navy with a gold dot beneath.
  * Desktop only — mobile keeps the drawer nav (no hover on touch). */
 export function AppDock() {
@@ -12,13 +12,14 @@ export function AppDock() {
   const location = useLocation();
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 hidden lg:block">
+    <div className="pointer-events-none fixed inset-y-0 left-2.5 z-40 hidden items-center lg:flex">
       <div className="pointer-events-auto">
         <Dock
-          className="items-end border border-gray-200 bg-white/90 pb-2.5 shadow-[0_14px_44px_rgba(20,33,61,0.18)] backdrop-blur-md"
-          magnification={72}
-          distance={130}
-          panelHeight={60}
+          orientation="vertical"
+          className="items-center border border-gray-200 bg-white/90 shadow-[14px_0_44px_rgba(20,33,61,0.14)] backdrop-blur-md"
+          magnification={66}
+          distance={120}
+          panelHeight={58}
         >
           {NAV_ITEMS.map((item) => {
             const Icon = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[item.icon] ?? Icons.Circle;
