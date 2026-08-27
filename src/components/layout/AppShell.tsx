@@ -3,22 +3,14 @@ import { useOutlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Header } from "./Header";
+import clsx from "clsx";
 import { Sidebar } from "./Sidebar";
-import { AppDock } from "./AppDock";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
 import { useIdleLogout } from "../../hooks/useIdleLogout";
 
-const NAV_EXPANDED_KEY = "swd_nav_expanded";
-
 export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [navExpanded, setNavExpanded] = useState(() => localStorage.getItem(NAV_EXPANDED_KEY) === "1");
-  function toggleNavExpanded() {
-    setNavExpanded(v => {
-      localStorage.setItem(NAV_EXPANDED_KEY, v ? "0" : "1");
-      return !v;
-    });
-  }
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
   const outlet = useOutlet();
   useIdleLogout(); // 30-min inactivity → sign out (AppShell only renders when authenticated)
@@ -35,12 +27,18 @@ export function AppShell() {
       <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
 
       <div className="flex">
-        {/* Left rail clearance: reserves the strip the dock floats in
-            so page content never sits underneath it */}
-        <div
-          className="hidden shrink-0 border-r border-border-subtle bg-white transition-all duration-300 lg:block"
-          style={{ width: navExpanded ? 260 : 86 }}
-        />
+        {/* Desktop sidebar — sticky below the header so it never scrolls
+            away with the page content; own overflow scroll in case the
+            nav list ever grows taller than the viewport. */}
+        <aside
+          className={clsx(
+            "hidden shrink-0 self-start border-r border-border-subtle bg-white transition-all duration-200 lg:block",
+            "sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto",
+            sidebarCollapsed ? "w-16" : "w-56"
+          )}
+        >
+          <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((v) => !v)} />
+        </aside>
         {/* Mobile drawer nav */}
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -93,9 +91,6 @@ export function AppShell() {
           </AnimatePresence>
         </main>
       </div>
-
-      {/* Desktop tab selector: magnifying dock */}
-      <AppDock expanded={navExpanded} onToggleExpanded={toggleNavExpanded} />
 
       <OverviewDrawer />
     </div>
