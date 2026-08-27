@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { AppDock } from "./AppDock";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
 import { useIdleLogout } from "../../hooks/useIdleLogout";
-import clsx from "clsx";
 
 export function AppShell() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
   const outlet = useOutlet();
@@ -27,19 +26,6 @@ export function AppShell() {
       <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
 
       <div className="flex">
-        {/* Desktop sidebar — sticky below the header so it never scrolls
-            away with the page content; own overflow scroll in case the
-            nav list ever grows taller than the viewport. */}
-        <aside
-          className={clsx(
-            "hidden shrink-0 self-start border-r border-border-subtle bg-white transition-all duration-200 lg:block",
-            "sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto",
-            sidebarCollapsed ? "w-16" : "w-56"
-          )}
-        >
-          <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed((v) => !v)} />
-        </aside>
-
         {/* Mobile drawer nav */}
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -90,8 +76,13 @@ export function AppShell() {
               {outlet}
             </motion.div>
           </AnimatePresence>
+          {/* Clearance so page bottoms aren't hidden behind the dock */}
+          <div className="hidden lg:block" style={{ height: 96 }} />
         </main>
       </div>
+
+      {/* Desktop tab selector: magnifying dock */}
+      <AppDock />
 
       <OverviewDrawer />
     </div>
