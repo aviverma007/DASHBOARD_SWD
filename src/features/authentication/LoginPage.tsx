@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LoginBuddy } from "../../components/common/LoginBuddy";
 import { CursorTrail } from "../../components/common/CursorTrail";
+import { LoginShowcase } from "./LoginShowcase";
 import { IDLE_LOGOUT_FLAG } from "../../hooks/useIdleLogout";
 
 /** Apartment-building cursor (navy tower, gold windows) shown across
@@ -55,7 +56,9 @@ export function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 20,
+        gap: 48,
+        flexWrap: "wrap",
+        padding: 28,
         fontFamily: "inherit",
         cursor: APARTMENT_CURSOR,
       }}
@@ -64,7 +67,7 @@ export function LoginPage() {
       <CursorTrail />
       {/* Everything on the login screen (inputs, buttons) shares the
           apartment cursor for a consistent feel */}
-      <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; }`}</style>
+      <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; } @media (max-width: 1100px) { .swd-login-visual { display: none; } }`}</style>
       <div style={{ width: "100%", maxWidth: 480 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
@@ -261,6 +264,9 @@ export function LoginPage() {
           Smart World Developers · Internal Analytics Platform
         </p>
       </div>
+
+        {/* Right showcase: big white card with floating analytics */}
+        <LoginShowcase />
     </div>
   );
 }
