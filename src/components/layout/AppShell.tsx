@@ -8,8 +8,17 @@ import { AppDock } from "./AppDock";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
 import { useIdleLogout } from "../../hooks/useIdleLogout";
 
+const NAV_EXPANDED_KEY = "swd_nav_expanded";
+
 export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [navExpanded, setNavExpanded] = useState(() => localStorage.getItem(NAV_EXPANDED_KEY) === "1");
+  function toggleNavExpanded() {
+    setNavExpanded(v => {
+      localStorage.setItem(NAV_EXPANDED_KEY, v ? "0" : "1");
+      return !v;
+    });
+  }
   const location = useLocation();
   const outlet = useOutlet();
   useIdleLogout(); // 30-min inactivity → sign out (AppShell only renders when authenticated)
@@ -28,7 +37,10 @@ export function AppShell() {
       <div className="flex">
         {/* Left rail clearance: reserves the strip the dock floats in
             so page content never sits underneath it */}
-        <div className="hidden shrink-0 border-r border-border-subtle bg-white lg:block" style={{ width: 86 }} />
+        <div
+          className="hidden shrink-0 border-r border-border-subtle bg-white transition-all duration-300 lg:block"
+          style={{ width: navExpanded ? 260 : 86 }}
+        />
         {/* Mobile drawer nav */}
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -83,7 +95,7 @@ export function AppShell() {
       </div>
 
       {/* Desktop tab selector: magnifying dock */}
-      <AppDock />
+      <AppDock expanded={navExpanded} onToggleExpanded={toggleNavExpanded} />
 
       <OverviewDrawer />
     </div>
