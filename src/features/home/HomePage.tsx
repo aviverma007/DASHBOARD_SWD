@@ -5,6 +5,7 @@ import { useAuthStore } from "../../store/authStore";
 import { INV, PDRN, fCr } from "../../utils/pdrnLogic";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import { AnimatedNumber } from "../../components/common/AnimatedNumber";
+import AnimatedGradient from "../../components/ui/animated-gradient";
 import "../../components/inventory/smartworldInventory.css";
 
 /** Landing page — greets the user, shows the company snapshot, and
@@ -45,29 +46,38 @@ export function HomePage() {
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "26px 22px 44px" }}>
-        {/* Greeting */}
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 27, fontWeight: 700, color: "var(--ink)" }}>
-            {greeting}{userLabel ? `, ${userLabel}` : ""} 👋
-          </div>
-          <div style={{ fontSize: 13.5, color: "var(--mut)", marginTop: 4 }}>
-            Here's where Smart World stands — data as on <strong style={{ color: "var(--ink-soft)" }}>{DATA_AS_ON}</strong>.
-          </div>
-        </motion.div>
-
-        {/* Snapshot */}
+        {/* Hero: greeting + snapshot on a live navy/gold gradient */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, margin: "20px 0 26px" }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          style={{ position: "relative", borderRadius: 18, overflow: "hidden", padding: "26px 26px 24px", marginBottom: 26, background: "#1E3163" }}
         >
-          {KPIS.map((s) => (
-            <div key={s.k} className="card" style={{ padding: "16px 18px", borderLeft: "4px solid var(--gold)" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1.3px", textTransform: "uppercase", color: "var(--mut)" }}>{s.k}</div>
-              <div style={{ fontFamily: "Georgia,serif", fontSize: 25, fontWeight: 700, color: "var(--ink)", marginTop: 5 }}>
-                <AnimatedNumber value={s.v} format={s.fmt} />
-              </div>
+          <AnimatedGradient
+            config={{ preset: "custom", color1: "#14213d", color2: "#1E3163", color3: "#B8893C", rotation: -35, proportion: 42, scale: 0.5, speed: 14, distortion: 3, swirl: 45, swirlIterations: 6, softness: 100, offset: -120, shape: "Checks", shapeSize: 34 }}
+            noise={{ opacity: 0.14, scale: 1.2 }}
+            style={{ zIndex: 0 }}
+          />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontFamily: "Georgia,serif", fontSize: 27, fontWeight: 700, color: "#fff" }}>
+              {greeting}{userLabel ? `, ${userLabel}` : ""} 👋
             </div>
-          ))}
+            <div style={{ fontSize: 13.5, color: "#c7cedf", marginTop: 4 }}>
+              Here's where Smart World stands — data as on <strong style={{ color: "#F5D9A8" }}>{DATA_AS_ON}</strong>.
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 20 }}
+            >
+              {KPIS.map((s) => (
+                <div key={s.k} className="card" style={{ padding: "16px 18px", borderLeft: "4px solid var(--gold)" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1.3px", textTransform: "uppercase", color: "var(--mut)" }}>{s.k}</div>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 25, fontWeight: 700, color: "var(--ink)", marginTop: 5 }}>
+                    <AnimatedNumber value={s.v} format={s.fmt} />
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
         </motion.div>
 
         {/* Module cards */}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LoginBuddy } from "../../components/common/LoginBuddy";
 import { CursorTrail } from "../../components/common/CursorTrail";
 import { LoginShowcase } from "./LoginShowcase";
+import AnimatedGradient from "../../components/ui/animated-gradient";
 import { IDLE_LOGOUT_FLAG } from "../../hooks/useIdleLogout";
 
 /** Apartment-building cursor (navy tower, gold windows) shown across
@@ -66,8 +67,14 @@ export function LoginPage() {
       {/* Everything on the login screen (inputs, buttons) shares the
           apartment cursor for a consistent feel */}
       <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; } @media (max-width: 1100px) { .swd-login-visual { display: none; } }`}</style>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, minHeight: "100vh" }}>
-      <div style={{ width: "100%", maxWidth: 480 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, minHeight: "100vh", position: "relative" }}>
+      {/* Gentle animated wash over the grey half — same tones, so the
+          seam blend into the white panel still matches */}
+      <AnimatedGradient
+        config={{ preset: "custom", color1: "#e9ecf0", color2: "#d5def0", color3: "#f6f8fb", rotation: -20, proportion: 45, scale: 0.55, speed: 10, distortion: 2, swirl: 35, swirlIterations: 5, softness: 100, offset: -60, shape: "Checks", shapeSize: 30 }}
+        style={{ zIndex: 0 }}
+      />
+      <div style={{ width: "100%", maxWidth: 480, position: "relative", zIndex: 1 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <LoginBuddy
