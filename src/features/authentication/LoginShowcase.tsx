@@ -98,7 +98,7 @@ export function LoginShowcase() {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
-    const t = window.setInterval(() => setIdx(i => (i + 1) % CHARTS.length), 1000);
+    const t = window.setInterval(() => setIdx(i => (i + 1) % CHARTS.length), 2000);
     return () => window.clearInterval(t);
   }, []);
 

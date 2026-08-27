@@ -2,12 +2,13 @@ import { useEffect, useRef } from "react";
 
 interface TrailPoint { x: number; y: number; t: number }
 
-const TRAIL_LIFE_MS = 550;   // how long a stroke stays visible
-const TRAIL_WIDTH = 16;      // highlighter thickness
+const TRAIL_LIFE_MS = 120;   // very short — a small highlight, not a tail
+const TRAIL_WIDTH = 11;      // slim highlight nub
 const TRAIL_COLOR = "59, 130, 246"; // blue-500 — reads on the light background
 
-/** Full-screen canvas that paints a fading light-blue highlighter
- * stroke along the cursor path. pointer-events: none, so it never
+/** Full-screen canvas that paints a SMALL blue highlight at the
+ * cursor — a soft halo plus a very short fading nub (long comet
+ * trail removed by request). pointer-events: none, so it never
  * interferes with the form underneath. */
 export function CursorTrail() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,6 +47,16 @@ export function CursorTrail() {
       points.current = points.current.filter((p) => now - p.t < TRAIL_LIFE_MS);
       const pts = points.current;
       if (pts.length < 2) return;
+
+      // Soft halo at the cursor itself — the "small highlighted cursor"
+      const last = pts[pts.length - 1];
+      const halo = ctx.createRadialGradient(last.x, last.y, 0, last.x, last.y, 16);
+      halo.addColorStop(0, `rgba(${TRAIL_COLOR}, 0.28)`);
+      halo.addColorStop(1, `rgba(${TRAIL_COLOR}, 0)`);
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(last.x, last.y, 16, 0, Math.PI * 2);
+      ctx.fill();
 
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
