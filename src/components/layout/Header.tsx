@@ -52,9 +52,11 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2.5">
-          {/* Icon mark on small screens, full wordmark from sm: up */}
-          <img src="/brand/smartworld-mark.png" alt="Smart World" className="h-8 w-auto sm:hidden" />
-          <img src="/brand/smartworld-logo.png" alt="Smart World — iLive. iWork. iPlay." className="hidden h-9 w-auto sm:block" />
+          {/* Logo → Home. Icon mark on small screens, wordmark from sm: up */}
+          <button onClick={() => navigate("/")} aria-label="Go to Home" className="flex items-center border-0 bg-transparent p-0" style={{ cursor: "pointer" }}>
+            <img src="/brand/smartworld-mark.png" alt="Smart World" className="h-8 w-auto sm:hidden" />
+            <img src="/brand/smartworld-logo.png" alt="Smart World — iLive. iWork. iPlay." className="hidden h-9 w-auto sm:block" />
+          </button>
           <span className="hidden border-l border-border-subtle pl-2.5 text-[11px] leading-tight text-charcoal-soft md:block">
             Analytics<br />Inventory &amp; Sales
           </span>

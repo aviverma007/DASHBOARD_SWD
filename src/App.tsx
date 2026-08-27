@@ -10,6 +10,7 @@ import { ChannelPartnerPage } from "./features/channelpartner/ChannelPartnerPage
 import { LeadConversionPage } from "./features/leads/LeadConversionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
+import { HomePage } from "./features/home/HomePage";
 import { NotesPage } from "./features/workspace/NotesPage";
 import { GuidePage } from "./features/workspace/GuidePage";
 
@@ -18,7 +19,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-          <Route path="/" element={<InventoryOverviewPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/overview" element={<InventoryOverviewPage />} />
           <Route path="/inventory" element={<SmartworldInventoryPage />} />
           <Route path="/target" element={<TargetActualPage />} />
           <Route path="/channel-partners" element={<ChannelPartnerPage />} />

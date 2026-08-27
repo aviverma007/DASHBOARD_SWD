@@ -17,7 +17,8 @@ export const NAV_SECTIONS = ["Sales", "Inventory", "Workspace"] as const;
  * so the nav is scalable without building unused pages.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: "overview", label: "Overview", path: "/", icon: "LayoutDashboard", status: "active", section: "Sales" },
+  { key: "home", label: "Home", path: "/", icon: "House", status: "active", section: "Sales" },
+  { key: "overview", label: "Overview", path: "/overview", icon: "LayoutDashboard", status: "active", section: "Sales" },
   { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },
   { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active", section: "Sales" },
