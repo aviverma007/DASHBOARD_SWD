@@ -54,11 +54,9 @@ export function LoginPage() {
         minHeight: "100vh",
         background: "linear-gradient(135deg, #0f1c36 0%, #1e3163 60%, #2a4488 100%)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 48,
-        flexWrap: "wrap",
-        padding: 28,
+        alignItems: "stretch",
+        gap: 0,
+        padding: 0,
         fontFamily: "inherit",
         cursor: APARTMENT_CURSOR,
       }}
@@ -68,6 +66,7 @@ export function LoginPage() {
       {/* Everything on the login screen (inputs, buttons) shares the
           apartment cursor for a consistent feel */}
       <style>{`.swd-login-root, .swd-login-root * { cursor: ${APARTMENT_CURSOR} !important; } @media (max-width: 1100px) { .swd-login-visual { display: none; } }`}</style>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, minHeight: "100vh" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         {/* Logo block */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
@@ -265,7 +264,9 @@ export function LoginPage() {
         </p>
       </div>
 
-        {/* Right showcase: big white card with floating analytics */}
+      </div>
+
+        {/* Right showcase: full-height card flush to the right edge */}
         <LoginShowcase />
     </div>
   );

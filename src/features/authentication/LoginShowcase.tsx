@@ -64,49 +64,53 @@ export function LoginShowcase() {
     <div
       className="swd-login-visual"
       style={{
-        flex: 1,
+        // Full-bleed right panel: top of the viewport to the bottom,
+        // flush against the right edge; only the left corners round.
+        width: "min(46vw, 780px)",
         minWidth: 480,
-        maxWidth: 640,
+        alignSelf: "stretch",
+        minHeight: "100vh",
         background: "#fff",
-        borderRadius: 24,
-        boxShadow: "0 30px 80px rgba(0,0,0,.42)",
+        borderRadius: "32px 0 0 32px",
+        // White glow spilling from the card's LEFT edge onto the navy
+        boxShadow: "-28px 0 70px rgba(255,255,255,.30), -8px 0 26px rgba(255,255,255,.18), 0 24px 70px rgba(0,0,0,.35)",
         position: "relative",
         overflow: "hidden",
-        minHeight: 620,
+        flexShrink: 0,
       }}
     >
       {/* Soft backdrop tint so floating white tiles read against it */}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #fdfcf9 0%, #f4f1ea 100%)" }} />
 
       {/* ── Floating visuals ── */}
-      <motion.div {...float(14, 5.6, 0, 1.5)} style={{ position: "absolute", top: 42, left: 38, background: "#fff", borderRadius: 16, padding: "12px 14px", boxShadow: cardShadow }}>
+      <motion.div {...float(14, 5.6, 0, 1.5)} style={{ position: "absolute", top: "7%", left: 42, background: "#fff", borderRadius: 16, padding: "12px 14px", boxShadow: cardShadow }}>
         <DonutChart />
         <div style={{ fontSize: 10, color: "#8a93a6", textAlign: "center", letterSpacing: "1px" }}>INVENTORY MIX</div>
       </motion.div>
 
-      <motion.div {...float(18, 6.8, 0.9, -1.5)} style={{ position: "absolute", top: 64, right: 44, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
+      <motion.div {...float(18, 6.8, 0.9, -1.5)} style={{ position: "absolute", top: "10%", right: 48, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
         <div style={{ fontSize: 10, color: "#8a93a6", letterSpacing: "1px", marginBottom: 4 }}>MONTHLY SALES</div>
         <MiniBars />
       </motion.div>
 
-      <motion.div {...float(12, 6.1, 1.6)} style={{ position: "absolute", bottom: 150, left: 46, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
+      <motion.div {...float(12, 6.1, 1.6)} style={{ position: "absolute", top: "46%", left: 52, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
         <div style={{ fontSize: 10, color: "#8a93a6", letterSpacing: "1px", marginBottom: 2 }}>RATE TREND ₹/SQFT</div>
         <TrendLine />
       </motion.div>
 
       {/* KPI chips */}
-      <motion.div {...float(10, 5.2, 0.4)} style={{ position: "absolute", top: 250, left: "44%", background: "#14213d", color: "#fff", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, boxShadow: cardShadow, whiteSpace: "nowrap" }}>
+      <motion.div {...float(10, 5.2, 0.4)} style={{ position: "absolute", top: "33%", left: "46%", background: "#14213d", color: "#fff", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, boxShadow: cardShadow, whiteSpace: "nowrap" }}>
         2,064 <span style={{ opacity: 0.75, fontWeight: 400 }}>units sold</span>
       </motion.div>
-      <motion.div {...float(13, 7.2, 2.2)} style={{ position: "absolute", bottom: 210, right: 52, background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 700, color: "#1a7a4a", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
+      <motion.div {...float(13, 7.2, 2.2)} style={{ position: "absolute", top: "52%", right: 60, background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 700, color: "#1a7a4a", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
         ₹11,205 Cr <span style={{ color: "#8a93a6", fontWeight: 400 }}>TSV</span>
       </motion.div>
-      <motion.div {...float(9, 6.4, 3.1)} style={{ position: "absolute", top: 168, left: "40%", background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "8px 15px", fontSize: 12.5, fontWeight: 700, color: "#B8893C", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
+      <motion.div {...float(9, 6.4, 3.1)} style={{ position: "absolute", top: "24%", left: "38%", background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "8px 15px", fontSize: 12.5, fontWeight: 700, color: "#B8893C", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
         6 projects · 2 cities
       </motion.div>
 
       {/* ── Headline (reference-style) ── */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 44, textAlign: "center", padding: "0 48px" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: "7%", textAlign: "center", padding: "0 48px" }}>
         <div style={{ fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700, color: "#14213d", lineHeight: 1.22 }}>
           Real-estate analytics
         </div>
