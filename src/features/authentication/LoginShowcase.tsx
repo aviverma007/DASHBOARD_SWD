@@ -112,9 +112,10 @@ export function LoginShowcase() {
         minWidth: 480,
         alignSelf: "stretch",
         minHeight: "100vh",
-        // Blend into the grey page: the panel's left edge fades from
-        // the page colour into white so there's no hard seam.
-        background: "linear-gradient(90deg, #f2f3f5 0%, #fbfbfc 10%, #ffffff 22%, #ffffff 100%)",
+        // Two distinct halves (grey page, white panel) — only the
+        // CONNECTING band blends: grey melts into white across the
+        // first ~70px, everything after is pure white.
+        background: "linear-gradient(90deg, #e9ecf0 0%, #ffffff 70px, #ffffff 100%)",
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,

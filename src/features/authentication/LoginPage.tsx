@@ -52,7 +52,7 @@ export function LoginPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f2f3f5",
+        background: "#e9ecf0",
         display: "flex",
         alignItems: "stretch",
         gap: 0,
