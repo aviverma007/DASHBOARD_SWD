@@ -9,7 +9,8 @@ export interface NavItem {
 }
 
 /** Section display order in the sidebar. */
-export const NAV_SECTIONS = ["Sales", "Inventory", "Workspace"] as const;
+/** "Top" renders without a heading — standalone items above the groups. */
+export const NAV_SECTIONS = ["Top", "Sales", "Inventory", "Workspace"] as const;
 
 /**
  * Only Overview and Inventory are fully built in this phase.
@@ -17,7 +18,7 @@ export const NAV_SECTIONS = ["Sales", "Inventory", "Workspace"] as const;
  * so the nav is scalable without building unused pages.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: "home", label: "Home", path: "/", icon: "House", status: "active", section: "Sales" },
+  { key: "home", label: "Home", path: "/", icon: "House", status: "active", section: "Top" },
   { key: "overview", label: "Overview", path: "/overview", icon: "LayoutDashboard", status: "active", section: "Sales" },
   { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },

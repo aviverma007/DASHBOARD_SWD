@@ -70,7 +70,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
         <div key={section} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {/* Section sub-heading — a thin divider stands in when the
               rail is collapsed and there's no room for a label */}
-          {collapsed ? (
+          {section === "Top" ? null : collapsed ? (
             si > 0 && <div style={{ height: 1, background: "#e8eaf0", margin: "8px 6px" }} />
           ) : (
             <button
@@ -107,7 +107,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
               there's no heading to click, so every item stays visible.
               Sections open/close with a smooth height + fade animation. */}
           <AnimatePresence initial={false}>
-          {(collapsed || !closedSections.has(section)) && (
+          {(section === "Top" || collapsed || !closedSections.has(section)) && (
             <motion.div
               key="items"
               initial={{ height: 0, opacity: 0 }}
