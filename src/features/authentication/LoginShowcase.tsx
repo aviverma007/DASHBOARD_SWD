@@ -1,121 +1,173 @@
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
-/** Big white showcase card for the right half of the login screen:
- * dashboard-flavoured visuals (donut, bars, trend line, KPI chips)
- * gently floating around a headline — deliberately number-free so
- * nothing confidential shows pre-login. Hidden on small screens via
- * the .swd-login-visual CSS in LoginPage. */
+/** Right panel of the login screen: pure white on a white page (no
+ * shadow), with ONE full-width visual that FLIPS to a new chart type
+ * every second — pie → bars → line → area → horizontal bars — all
+ * number-free so nothing confidential shows pre-login. */
 
-/** Slow infinite bob; phase/duration vary per piece so the motion
- * never syncs into a mechanical pattern. */
-const float = (dy: number, dur: number, delay = 0, rot = 0) => ({
-  animate: { y: [0, -dy, 0], rotate: rot ? [0, rot, 0] : undefined },
-  transition: { duration: dur, delay, repeat: Infinity, ease: "easeInOut" as const },
-});
+const NAVY = "#1E3163", GREEN = "#1a7a4a", YELLOW = "#e3b93c", RED = "#d64545", GOLD = "#B8893C", GRID = "#eceff3";
 
-const cardShadow = "0 6px 18px rgba(20,33,61,.10), 0 2px 6px rgba(20,33,61,.06)";
+const VB_W = 560, VB_H = 320;
 
-function DonutChart() {
-  // Sold / Available / Blocked share — green, light yellow, red
-  const C = 2 * Math.PI * 34;
+function PieFull() {
+  // Simple 3-slice pie, brand status colours
+  const cx = VB_W / 2, cy = 158, r = 128;
+  const slice = (a0: number, a1: number, fill: string) => {
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return <path d={`M${cx} ${cy} L${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`} fill={fill} />;
+  };
+  const t = -Math.PI / 2;
+  const a1 = t + 2 * Math.PI * 0.61, a2 = a1 + 2 * Math.PI * 0.29;
   return (
-    <svg width="120" height="120" viewBox="0 0 96 96">
-      <circle cx="48" cy="48" r="34" fill="none" stroke="#f0ede5" strokeWidth="14" />
-      <circle cx="48" cy="48" r="34" fill="none" stroke="#1a7a4a" strokeWidth="14"
-        strokeDasharray={`${C * 0.61} ${C}`} strokeLinecap="round" transform="rotate(-90 48 48)" />
-      <circle cx="48" cy="48" r="34" fill="none" stroke="#e3b93c" strokeWidth="14"
-        strokeDasharray={`${C * 0.29} ${C}`} strokeDashoffset={-C * 0.63} strokeLinecap="round" transform="rotate(-90 48 48)" />
-      <circle cx="48" cy="48" r="34" fill="none" stroke="#d64545" strokeWidth="14"
-        strokeDasharray={`${C * 0.05} ${C}`} strokeDashoffset={-C * 0.94} strokeLinecap="round" transform="rotate(-90 48 48)" />
-
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" style={{ display: "block" }}>
+      {slice(t, a1, GREEN)}
+      {slice(a1, a2, YELLOW)}
+      {slice(a2, t + 2 * Math.PI, RED)}
+      <circle cx={cx} cy={cy} r={52} fill="#fff" />
     </svg>
   );
 }
 
-function MiniBars() {
-  const bars = [34, 52, 40, 66, 48, 78];
+function BarsFull() {
+  const bars = [96, 150, 118, 190, 140, 226, 172, 246];
+  const bw = 44, gap = 22, x0 = (VB_W - bars.length * (bw + gap) + gap) / 2;
   return (
-    <svg width="140" height="84" viewBox="0 0 140 84">
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" style={{ display: "block" }}>
+      {[60, 130, 200].map(y => <line key={y} x1="30" y1={y} x2={VB_W - 30} y2={y} stroke={GRID} strokeWidth="1.5" strokeDasharray="4 5" />)}
       {bars.map((h, i) => (
+        <rect key={i} x={x0 + i * (bw + gap)} y={278 - h} width={bw} height={h} rx="7"
+          fill={i === bars.length - 1 ? GREEN : NAVY} opacity={i === bars.length - 1 ? 1 : 0.55 + i * 0.055} />
+      ))}
+      <line x1="30" y1="278.5" x2={VB_W - 30} y2="278.5" stroke="#dfe3ea" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function LineFull() {
+  const pts: [number, number][] = [[40, 236], [110, 210], [180, 224], [250, 158], [320, 176], [390, 104], [460, 118], [520, 58]];
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ");
+  return (
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" style={{ display: "block" }}>
+      {[70, 140, 210].map(y => <line key={y} x1="30" y1={y} x2={VB_W - 30} y2={y} stroke={GRID} strokeWidth="1.5" strokeDasharray="4 5" />)}
+      <path d={d} fill="none" stroke={GREEN} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="7" fill={GREEN} stroke="#fff" strokeWidth="2.5" />)}
+      <line x1="30" y1="278.5" x2={VB_W - 30} y2="278.5" stroke="#dfe3ea" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function AreaFull() {
+  const line = "M40 240 C110 218 150 170 220 186 C290 202 330 96 400 88 C450 82 490 66 520 54";
+  return (
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" style={{ display: "block" }}>
+      {[70, 140, 210].map(y => <line key={y} x1="30" y1={y} x2={VB_W - 30} y2={y} stroke={GRID} strokeWidth="1.5" strokeDasharray="4 5" />)}
+      <path d={`${line} L520 278 L40 278 Z`} fill="rgba(30,49,99,.14)" />
+      <path d={line} fill="none" stroke={NAVY} strokeWidth="5" strokeLinecap="round" />
+      <path d="M40 258 C120 244 180 216 250 224 C320 232 380 168 520 148" fill="none" stroke={GOLD} strokeWidth="4.5" strokeLinecap="round" strokeDasharray="1 12" />
+      <line x1="30" y1="278.5" x2={VB_W - 30} y2="278.5" stroke="#dfe3ea" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function HBarsFull() {
+  const rows = [430, 330, 262, 196, 132];
+  return (
+    <svg viewBox={`0 0 ${VB_W} ${VB_H}`} width="100%" style={{ display: "block" }}>
+      {rows.map((w, i) => (
         <g key={i}>
-          <rect x={8 + i * 22} y={70 - h} width="13" height={h} rx="3" fill={i === 5 ? "#1a7a4a" : "#1E3163"} opacity={i === 5 ? 1 : 0.82 - (5 - i) * 0.09} />
+          <rect x="50" y={44 + i * 50} width={VB_W - 100} height="30" rx="8" fill="#f2f4f8" />
+          <rect x="50" y={44 + i * 50} width={w} height="30" rx="8" fill={i === 0 ? GREEN : NAVY} opacity={i === 0 ? 1 : 0.85 - i * 0.14} />
         </g>
       ))}
-      <line x1="4" y1="70.5" x2="136" y2="70.5" stroke="#e4e0d6" strokeWidth="1.5" />
     </svg>
   );
 }
 
-function TrendLine() {
-  return (
-    <svg width="170" height="76" viewBox="0 0 170 76">
-      <path d="M6 58 C30 52 40 40 62 44 C86 48 96 26 118 22 C136 19 152 14 164 10" fill="none" stroke="#1a7a4a" strokeWidth="3" strokeLinecap="round" />
-      <path d="M6 58 C30 52 40 40 62 44 C86 48 96 26 118 22 C136 19 152 14 164 10 L164 72 L6 72 Z" fill="rgba(26,122,74,.10)" stroke="none" />
-      {[[6, 58], [62, 44], [118, 22], [164, 10]].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="3.4" fill="#1a7a4a" stroke="#fff" strokeWidth="1.6" />
-      ))}
-    </svg>
-  );
-}
+const CHARTS: { label: string; C: () => React.ReactElement }[] = [
+  { label: "Inventory mix", C: PieFull },
+  { label: "Monthly sales", C: BarsFull },
+  { label: "Rate trend", C: LineFull },
+  { label: "Target vs achieved", C: AreaFull },
+  { label: "Top channel partners", C: HBarsFull },
+];
 
 export function LoginShowcase() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const t = window.setInterval(() => setIdx(i => (i + 1) % CHARTS.length), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const { label, C } = CHARTS[idx];
+
   return (
     <div
       className="swd-login-visual"
       style={{
-        // Full-bleed right panel: top of the viewport to the bottom,
-        // flush against the right edge; only the left corners round.
         width: "min(46vw, 780px)",
         minWidth: 480,
         alignSelf: "stretch",
         minHeight: "100vh",
         background: "#fff",
-        borderRadius: "32px 0 0 32px",
-        // White glow on the LEFT edge, with a soft blue drop for depth
-        boxShadow: "-28px 0 70px rgba(255,255,255,.85), -10px 0 30px rgba(30,64,120,.16), 0 24px 70px rgba(30,64,120,.22)",
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 40px",
       }}
     >
-      {/* Soft backdrop tint so floating white tiles read against it */}
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #fdfcf9 0%, #f4f1ea 100%)" }} />
+      {/* Full-width flipping chart */}
+      <div style={{ width: "100%", perspective: 1400 }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={idx}
+            initial={{ rotateY: 90, opacity: 0 }}
+            animate={{ rotateY: 0, opacity: 1 }}
+            exit={{ rotateY: -90, opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformStyle: "preserve-3d", width: "100%" }}
+          >
+            <C />
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-      {/* ── Floating visuals ── */}
-      <motion.div {...float(14, 5.6, 0, 1.5)} style={{ position: "absolute", top: "7%", left: 42, background: "#fff", borderRadius: 16, padding: "12px 14px", boxShadow: cardShadow }}>
-        <DonutChart />
-        <div style={{ fontSize: 10, color: "#8a93a6", textAlign: "center", letterSpacing: "1px" }}>INVENTORY MIX</div>
-      </motion.div>
+      {/* Chart-type caption + progress dots */}
+      <div style={{ marginTop: 18, textAlign: "center" }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "1.6px", textTransform: "uppercase", color: "#8a93a6" }}
+          >
+            {label}
+          </motion.div>
+        </AnimatePresence>
+        <div style={{ display: "flex", gap: 7, justifyContent: "center", marginTop: 10 }}>
+          {CHARTS.map((_, i) => (
+            <span key={i} style={{ width: 7, height: 7, borderRadius: 999, background: i === idx ? GOLD : "#e2e6ee", transition: "background 0.25s" }} />
+          ))}
+        </div>
+      </div>
 
-      <motion.div {...float(18, 6.8, 0.9, -1.5)} style={{ position: "absolute", top: "10%", right: 48, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
-        <div style={{ fontSize: 10, color: "#8a93a6", letterSpacing: "1px", marginBottom: 4 }}>MONTHLY SALES</div>
-        <MiniBars />
-      </motion.div>
-
-      <motion.div {...float(12, 6.1, 1.6)} style={{ position: "absolute", top: "46%", left: 52, background: "#fff", borderRadius: 16, padding: "14px 14px 8px", boxShadow: cardShadow }}>
-        <div style={{ fontSize: 10, color: "#8a93a6", letterSpacing: "1px", marginBottom: 2 }}>RATE TREND ₹/SQFT</div>
-        <TrendLine />
-      </motion.div>
-
-      {/* KPI chips */}
-      <motion.div {...float(10, 5.2, 0.4)} style={{ position: "absolute", top: "33%", left: "46%", background: "#14213d", color: "#fff", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        Sales <span style={{ opacity: 0.75, fontWeight: 400 }}>at a glance</span>
-      </motion.div>
-      <motion.div {...float(13, 7.2, 2.2)} style={{ position: "absolute", top: "52%", right: 60, background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "10px 18px", fontSize: 13.5, fontWeight: 700, color: "#1a7a4a", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        Value <span style={{ color: "#8a93a6", fontWeight: 400 }}>&amp; rate insights</span>
-      </motion.div>
-      <motion.div {...float(9, 6.4, 3.1)} style={{ position: "absolute", top: "24%", left: "38%", background: "#fff", border: "1.5px solid #e4e0d6", borderRadius: 999, padding: "8px 15px", fontSize: 12.5, fontWeight: 700, color: "#B8893C", boxShadow: cardShadow, whiteSpace: "nowrap" }}>
-        Projects · Towers · Units
-      </motion.div>
-
-      {/* ── Headline (reference-style) ── */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: "7%", textAlign: "center", padding: "0 48px" }}>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700, color: "#14213d", lineHeight: 1.22 }}>
+      {/* Headline */}
+      <div style={{ textAlign: "center", marginTop: 40, padding: "0 24px" }}>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 29, fontWeight: 700, color: "#14213d", lineHeight: 1.22 }}>
           Real-estate analytics
         </div>
-        <div style={{ fontSize: 19, color: "#4a5568", marginTop: 4, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 18, color: "#4a5568", marginTop: 4, lineHeight: 1.35 }}>
           that take your sales &amp; inventory to the{" "}
-          <span style={{ color: "#B8893C", fontWeight: 800, fontFamily: "Georgia,serif" }}>Next level.</span>
+          <span style={{ color: GOLD, fontWeight: 800, fontFamily: "Georgia,serif" }}>Next level.</span>
         </div>
       </div>
     </div>
