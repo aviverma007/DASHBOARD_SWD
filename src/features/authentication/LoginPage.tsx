@@ -3,6 +3,7 @@ import { LoginBuddy } from "../../components/common/LoginBuddy";
 import { CursorTrail } from "../../components/common/CursorTrail";
 import { LoginShowcase } from "./LoginShowcase";
 import AnimatedGradient from "../../components/ui/animated-gradient";
+import { findUser } from "../../config/users";
 import { IDLE_LOGOUT_FLAG } from "../../hooks/useIdleLogout";
 
 /** Apartment-building cursor (navy tower, gold windows) shown across
@@ -12,9 +13,6 @@ import { Lock, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
 // Hardcoded credentials — replace with a real auth backend when ready
-const VALID_ID = "admin@admin";
-const VALID_PW = "admin";
-const DISPLAY_NAME = "Admin";
 
 export function LoginPage() {
   const login = useAuthStore((s) => s.login);
@@ -35,7 +33,8 @@ export function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (userId.trim() !== VALID_ID || password !== VALID_PW) {
+    const user = findUser(userId, password);
+    if (!user) {
       setError("Invalid user ID or password. Please try again.");
       return;
     }
@@ -44,7 +43,7 @@ export function LoginPage() {
     setLoginSuccess(true); // buddy gives a thumbs-up…
     // …and holds it for a beat before the app takes over
     setTimeout(() => {
-      login(DISPLAY_NAME);
+      login(user.displayName);
       setLoading(false);
     }, 1000);
   }
