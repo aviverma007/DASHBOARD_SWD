@@ -71,8 +71,8 @@ export function LoginShowcase() {
         minHeight: "100vh",
         background: "#fff",
         borderRadius: "32px 0 0 32px",
-        // White glow spilling from the card's LEFT edge onto the navy
-        boxShadow: "-28px 0 70px rgba(255,255,255,.30), -8px 0 26px rgba(255,255,255,.18), 0 24px 70px rgba(0,0,0,.35)",
+        // White glow on the LEFT edge, with a soft blue drop for depth
+        boxShadow: "-28px 0 70px rgba(255,255,255,.85), -10px 0 30px rgba(30,64,120,.16), 0 24px 70px rgba(30,64,120,.22)",
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,

@@ -52,7 +52,7 @@ export function LoginPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f1c36 0%, #1e3163 60%, #2a4488 100%)",
+        background: "linear-gradient(135deg, #e8f2fd 0%, #cfe4fb 45%, #a8cdf5 100%)",
         display: "flex",
         alignItems: "stretch",
         gap: 0,
@@ -83,16 +83,16 @@ export function LoginPage() {
               borderRadius: 14,
               padding: "14px 22px",
               margin: "0 auto 16px",
-              boxShadow: "0 6px 26px rgba(0,0,0,.28)",
+              boxShadow: "0 6px 24px rgba(30,64,120,.18)",
             }}
           >
             <img src="/brand/smartworld-logo.png" alt="Smart World — iLive. iWork. iPlay." style={{ height: 46, width: "auto", display: "block" }} />
           </div>
-          <div style={{ fontSize: 13, color: "#a9b2c7" }}>
+          <div style={{ fontSize: 13, color: "#40598c", fontWeight: 500 }}>
             Analytics — Inventory &amp; Sales Dashboard
           </div>
           {idleNotice && (
-            <div style={{ marginTop: 12, display: "inline-block", background: "rgba(184,137,60,.16)", border: "1px solid rgba(184,137,60,.45)", color: "#F5D9A8", fontSize: 12.5, borderRadius: 8, padding: "7px 14px" }}>
+            <div style={{ marginTop: 12, display: "inline-block", background: "rgba(184,137,60,.16)", border: "1px solid rgba(184,137,60,.45)", color: "#8a6d1a", fontSize: 12.5, borderRadius: 8, padding: "7px 14px" }}>
               You were signed out after 30 minutes of inactivity.
             </div>
           )}
