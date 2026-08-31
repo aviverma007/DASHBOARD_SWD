@@ -13,7 +13,7 @@ import "../../components/inventory/smartworldInventory.css";
  * Home tab or by clicking the Smart World logo in the header. */
 
 const MODULES: { icon: keyof typeof Icons; label: string; desc: string; path: string }[] = [
-  { icon: "LayoutDashboard", label: "Overview",        desc: "Sold vs unsold, TSV, rates and drill-downs per project", path: "/overview" },
+  { icon: "LayoutDashboard", label: "Overview",        desc: "Sold vs available, TSV, rates and drill-downs per project", path: "/overview" },
   { icon: "Target",          label: "Target vs Actual", desc: "AOP plan vs achieved — units, TSV, area and rate pace",  path: "/target" },
   { icon: "Handshake",       label: "Channel Partners", desc: "CP rankings, rate ranges, trends and cancellations",     path: "/channel-partners" },
   { icon: "Filter",          label: "Lead Conversion",  desc: "Footfall, CP visits and digital funnels",                path: "/lead-conversion" },

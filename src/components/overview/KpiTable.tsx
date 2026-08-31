@@ -111,9 +111,9 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         </div>
       </div>
 
-      {/* UNSOLD — orange */}
+      {/* AVAILABLE (stock without a sale record) — orange */}
       <div className="ov-row-metric" style={colStyle}>
-        <div style={labelStyle}>UNSOLD</div>
+        <div style={labelStyle}>AVAILABLE</div>
         <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: UNSOLD_COLOR, whiteSpace: "nowrap", lineHeight: 1.1 }}>
           <AnimatedNumber value={unsold.units} />
           <span style={{ fontSize: metaSize, fontWeight: 400, color: UNSOLD_COLOR, opacity: 0.75, marginLeft: 4 }}>units</span>

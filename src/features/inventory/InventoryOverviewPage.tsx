@@ -225,6 +225,8 @@ export function InventoryOverviewPage() {
           onClose={() => setDrawerProject(null)}
           unsoldUnits={drawerProject.unsold.units}
           unsoldArea={drawerProject.unsold.area}
+          totalUnits={drawerProject.total.units}
+          totalArea={drawerProject.total.area}
         />
       )}
     </div>

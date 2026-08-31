@@ -209,7 +209,7 @@ export function SmartworldInventoryPage() {
         <SwLegend />
 
         <div className="grid g2">
-          <CollapsibleCard title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
+          <CollapsibleCard defaultOpen title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
             {pae.map((x) => {
               const bk = x.us.filter((u) => u[8] === 1).length;
               const bl = x.us.length - x.av - bk;
@@ -225,7 +225,7 @@ export function SmartworldInventoryPage() {
             })}
           </CollapsibleCard>
 
-          <CollapsibleCard title={<>Unsold area by project <span className="hint">sq ft available · click → project</span></>}>
+          <CollapsibleCard defaultOpen title={<>Available area by project <span className="hint">sq ft available · click → project</span></>}>
             {ua.map((x) => (
               <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
                 <div className="lbl">
@@ -238,27 +238,27 @@ export function SmartworldInventoryPage() {
           </CollapsibleCard>
         </div>
 
-        <CollapsibleCard title={<>Config gap analysis <span className="hint">available units by project × config · click a cell</span></>}>
+        <CollapsibleCard defaultOpen title={<>Config gap analysis <span className="hint">available units by project × config · click a cell</span></>}>
           <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
         </CollapsibleCard>
 
         <div className="grid g3">
-          <CollapsibleCard title={<>By configuration <span className="hint">click → config</span></>}>
+          <CollapsibleCard defaultOpen title={<>By configuration <span className="hint">click → config</span></>}>
             <SwGroupBars items={cfgBars} names={CFG} onClick={(v) => openScopeKey("cfg", v, CFG[v])} />
           </CollapsibleCard>
-          <CollapsibleCard title={<>Floor rise <span className="hint">click → band</span></>}>
+          <CollapsibleCard defaultOpen title={<>Floor rise <span className="hint">click → band</span></>}>
             <SwGroupBars items={fbBars} names={FB} onClick={(v) => openScopeKey("fb", v, FB[v])} />
           </CollapsibleCard>
-          <CollapsibleCard title={<>By size band <span className="hint">click → band</span></>}>
+          <CollapsibleCard defaultOpen title={<>By size band <span className="hint">click → band</span></>}>
             <SwGroupBars items={sbBars} names={SB} onClick={(v) => openScopeKey("sb", v, SB[v])} />
           </CollapsibleCard>
         </div>
 
-        <CollapsibleCard title={<>By unit type <span className="hint">click → type</span></>}>
+        <CollapsibleCard defaultOpen title={<>By unit type <span className="hint">click → type</span></>}>
           <SwGroupBars items={utBars} names={UT} onClick={(v) => openScopeKey("ut", v, UT[v])} />
         </CollapsibleCard>
 
-        <CollapsibleCard title={<>Unit records <span className="hint">{arr.length.toLocaleString("en-IN")} units · available first · click a row → detail</span></>}>
+        <CollapsibleCard defaultOpen title={<>Unit records <span className="hint">{arr.length.toLocaleString("en-IN")} units · available first · click a row → detail</span></>}>
           <SwRecordsCard
             arr={arr}
             P={P}

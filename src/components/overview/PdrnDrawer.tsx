@@ -32,9 +32,11 @@ interface PdrnDrawerProps {
   projectName: string;
   period: PeriodFilter;
   onClose: () => void;
-  /** INVR available units for this project (passed in for UNSOLD display) */
+  /** INVR stock complement for this project (units with no sale record) */
   unsoldUnits: number;
   unsoldArea: number;
+  totalUnits: number;
+  totalArea: number;
 }
 
 function summarise(records: SalesRecord[]) {
@@ -69,7 +71,7 @@ function Breadcrumbs({ path, onCrumb }: { path: DrillPath[]; onCrumb: (i: number
   );
 }
 
-export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUnits }: PdrnDrawerProps) {
+export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUnits, unsoldArea, totalUnits, totalArea }: PdrnDrawerProps) {
   const allSold = useMemo(() => getSoldRecords(invProjIdx, period), [invProjIdx, period]);
   const [path, setPath] = useState<DrillPath[]>([{ level: "project", label: projectName }]);
   const [selectedUnit, setSelectedUnit] = useState<SalesRecord | null>(null);
@@ -120,6 +122,9 @@ export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUni
               records={scopedRecords}
               scoped={scoped}
               unsoldUnits={current.level === "project" ? unsoldUnits : 0}
+              unsoldArea={current.level === "project" ? unsoldArea : 0}
+              totalUnits={current.level === "project" ? totalUnits : 0}
+              totalArea={current.level === "project" ? totalArea : 0}
               onTowerDrill={(towerIdx) =>
                 pushPath({
                   level: "tower",
@@ -144,18 +149,22 @@ interface DrillContentProps {
   records: SalesRecord[];
   scoped: ReturnType<typeof summarise>;
   unsoldUnits: number;
+  unsoldArea: number;
+  totalUnits: number;
+  totalArea: number;
   onTowerDrill: (idx: number) => void;
   onFloorDrill: (floorNum: number, label: string) => void;
   onUnitClick: (r: SalesRecord) => void;
 }
 
-function DrillContent({ level, records, scoped, unsoldUnits, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
+function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
   return (
     <>
       {/* Insight */}
       <div className="insight">
         {scoped.units} units sold · {fArea(scoped.area)} · TSV {fCr(scoped.tsv)}
-        {level === "project" && unsoldUnits > 0 && ` · ${unsoldUnits} unsold`}
+        {level === "project" && totalUnits > 0 &&
+          ` · ${totalUnits.toLocaleString("en-IN")} total · ${Math.round(((totalUnits - unsoldUnits) / totalUnits) * 100)}% absorbed · ${unsoldUnits} available (${fArea(unsoldArea)})`}
       </div>
 
       {/* KPI strip */}
@@ -163,7 +172,15 @@ function DrillContent({ level, records, scoped, unsoldUnits, onTowerDrill, onFlo
         <DkpiRow k="Sold units" v={scoped.units.toLocaleString("en-IN")} />
         <DkpiRow k="Sold area" v={fArea(scoped.area)} />
         <DkpiRow k="TSV" v={fCr(scoped.tsv)} />
-        {level === "project" && <DkpiRow k="Unsold" v={unsoldUnits.toLocaleString("en-IN") + " units"} />}
+        {level === "project" && (
+          <>
+            <DkpiRow k="Total units" v={totalUnits.toLocaleString("en-IN")} />
+            <DkpiRow k="Total area" v={fArea(totalArea)} />
+            <DkpiRow k="Available" v={unsoldUnits.toLocaleString("en-IN") + " units"} />
+            <DkpiRow k="Available area" v={fArea(unsoldArea)} />
+            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits) / Math.max(totalUnits, 1)) * 100) + "%"} />
+          </>
+        )}
       </div>
 
       {/* Highest / lowest rate units in the current scope — shown at
