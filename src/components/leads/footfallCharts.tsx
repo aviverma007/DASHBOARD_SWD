@@ -311,7 +311,7 @@ function MomentumCard({ records, showBooked = true }: { records: FfRecord[]; sho
 }
 
 /** Channel-partner performance board: search, compare, paginate. */
-function CpBoard({ rows, onDrill, showBooked = true }: { rows: FfRecord[]; onDrill: (cpIdx: number, name: string) => void; showBooked?: boolean }) {
+function CpBoard({ rows, onDrill, showBooked = true, visitsLabel = "Customer visits" }: { rows: FfRecord[]; onDrill: (cpIdx: number, name: string) => void; showBooked?: boolean; visitsLabel?: string }) {
   const [q, setQ] = useState("");
   const [pg, setPg] = useState(1);
   const [compareMode, setCompareMode] = useState(false);
@@ -408,7 +408,7 @@ function CpBoard({ rows, onDrill, showBooked = true }: { rows: FfRecord[]; onDri
           <thead>
             <tr style={{ borderBottom: "2px solid var(--line)" }}>
               {compareMode && <th style={{ width: 30 }} />}
-              {["Channel partner", "Customer visits", "Share", "Projects", "Galleries", "Last visit"].map((h, i) => (
+              {["Channel partner", visitsLabel, "Share", "Projects", "Galleries", ...(showBooked ? ["Booked"] : []), "Last visit"].map((h, i) => (
                 <th key={h} style={{ textAlign: i === 0 ? "left" : "right", padding: i === 0 ? "7px 8px 7px 0" : "7px 8px", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
@@ -428,6 +428,9 @@ function CpBoard({ rows, onDrill, showBooked = true }: { rows: FfRecord[]; onDri
                 <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--mut)" }}>{((p.visits / Math.max(cpTotal, 1)) * 100).toFixed(1)}%</td>
                 <td style={{ padding: "7px 8px", textAlign: "right" }}>{p.projects.size}</td>
                 <td style={{ padding: "7px 8px", textAlign: "right" }}>{p.galleries.size}</td>
+                {showBooked && (
+                  <td style={{ padding: "7px 8px", textAlign: "right", fontWeight: 700, color: p.booked > 0 ? "#1a7a4a" : "var(--mut)" }}>{fNum(p.booked)}</td>
+                )}
                 <td style={{ padding: "7px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{fdate(p.last)}</td>
               </tr>
             ))}

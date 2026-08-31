@@ -250,7 +250,7 @@ export function CpVisitsSection() {
           sub={`${fNum(uniq.size)} partners · click a partner to drill`}
         />
       </div>
-      <CpBoard rows={rows} onDrill={(cp, name) => openDrill("cp")(cp, name)} showBooked={false} />
+      <CpBoard rows={rows} onDrill={(cp, name) => openDrill("cp")(cp, name)} showBooked={false} visitsLabel="CP visits" />
 
       <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
         Source: {FF.meta.source} · a "CP gallery visit" = a customer site visit with Walk-in Source = Channel Partner;
