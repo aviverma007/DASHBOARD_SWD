@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { dayToDate, fNum, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
+import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
   DG, RECORDS, applyChips, digMonthly, digWeekday,
@@ -26,7 +26,19 @@ export function DigitalSection() {
   const openDrill = (dim: Dim) => (val: number | string, label: string) => setDrill({ dim, val, label });
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
-  const per: PeriodPreset = PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const per: PeriodPreset = useMemo(() => {
+    if (perKey === "custom") {
+      const from = customFrom ? isoToDay(customFrom) : -1;
+      const to = customTo ? isoToDay(customTo) : 1e9;
+      const lbl = customFrom || customTo
+        ? `Custom (${customFrom || "…"} → ${customTo || "…"})`
+        : "Custom range";
+      return { key: "custom", label: lbl, from, to };
+    }
+    return PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  }, [perKey, customFrom, customTo, PRESETS]);
   const [page, setPage] = useState(1);
   const [showLogic, setShowLogic] = useState(false);
 
@@ -87,11 +99,28 @@ export function DigitalSection() {
         <div>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 5 }}>Period</div>
           <select
-            style={{ fontFamily: "inherit", fontSize: 13, padding: "8px 12px", borderRadius: 9, border: "1.5px solid #cfd6e2", background: "#fff", color: "var(--ink)", cursor: "pointer", minWidth: 170 }}
-            value={per.key} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
+            style={SEL}
+            value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            <option value="custom">Custom range…</option>
           </select>
         </div>
+        {per.key === "custom" && (
+          <>
+            <div>
+              <div style={SELLBL}>From</div>
+              <input type="date" min="2022-01-01" value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+            <div>
+              <div style={SELLBL}>To</div>
+              <input type="date" min="2022-01-01" value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+          </>
+        )}
         {chips.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingBottom: 4 }}>
             {chips.map(c => (

@@ -24,12 +24,15 @@ const DIM_NAMES: Record<FfDim, string> = {
  * Clicking inside the drawer stacks more chips (e.g. Gallery 62 →
  * One DXP → Nov'24). Every number = a straight count over the Excel
  * rows matching the chips, so nothing can drift from the source. */
-export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
+export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBooking = true }: {
   seed: DrillSeed | null;
   /** Page-scoped rows (global project/period selections already applied) */
   baseRows: FfRecord[];
   baseLabel: string;
   onClose: () => void;
+  /** false on the CP-visits tab: hides the funnel, stage card and
+   * booking insights (bookings are a footfall/digital concern). */
+  showBooking?: boolean;
 }) {
   const [chips, setChips] = useState<FfFilter[]>([]);
   const [showLogic, setShowLogic] = useState(false);
@@ -54,7 +57,10 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
   }
   const has = (dim: FfDim) => chips.some(f => f.dim === dim);
 
-  const insights = useMemo(() => ffInsights(rows), [rows]);
+  const insights = useMemo(
+    () => ffInsights(rows).filter(i => showBooking || i.k !== "Booking outcome"),
+    [rows, showBooking]
+  );
   const monthly = useMemo(() => ffMonthly(rows), [rows]);
   const weekday = useMemo(() => ffWeekday(rows), [rows]);
 
@@ -156,12 +162,14 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
 
               <div><Banner title="FOOTFALL ANALYSIS" sub={`${fNum(total)} customer visits in selection`} /></div>
 
-              {/* Funnel — till booking */}
-              <div style={{ ...CARD, marginBottom: 12 }}>
-                <h3 style={H3}>Conversion funnel — till booking</h3>
-                <div style={CAP}>how this selection's visits progressed</div>
-                <FunnelChart records={rows} />
-              </div>
+              {/* Funnel — till booking (footfall/digital only) */}
+              {showBooking && (
+                <div style={{ ...CARD, marginBottom: 12 }}>
+                  <h3 style={H3}>Conversion funnel — till booking</h3>
+                  <div style={CAP}>how this selection's visits progressed</div>
+                  <FunnelChart records={rows} />
+                </div>
+              )}
 
               {/* Breakdown cards (hidden for filtered dims) */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
@@ -210,7 +218,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                     />
                   </div>
                 )}
-                {!has("stg") && (
+                {showBooking && !has("stg") && (
                   <div style={CARD}>
                     <h3 style={H3}>Opportunity stage</h3>
                     <div style={CAP}>current status mix</div>

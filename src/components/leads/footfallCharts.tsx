@@ -308,7 +308,7 @@ function MomentumCard({ records }: { records: FfRecord[] }) {
 }
 
 /** Channel-partner performance board: search, compare, paginate. */
-function CpBoard({ rows, onDrill }: { rows: FfRecord[]; onDrill: (cpIdx: number, name: string) => void }) {
+function CpBoard({ rows, onDrill, showBooked = true }: { rows: FfRecord[]; onDrill: (cpIdx: number, name: string) => void; showBooked?: boolean }) {
   const [q, setQ] = useState("");
   const [pg, setPg] = useState(1);
   const [compareMode, setCompareMode] = useState(false);
@@ -384,8 +384,10 @@ function CpBoard({ rows, onDrill }: { rows: FfRecord[]; onDrill: (cpIdx: number,
                 ["Share of CP footfall", (p: typeof selected[number]) => ((p.visits / Math.max(cpTotal, 1)) * 100).toFixed(1) + "%"],
                 ["Projects", (p: typeof selected[number]) => String(p.projects.size)],
                 ["Galleries", (p: typeof selected[number]) => String(p.galleries.size)],
-                ["Booked", (p: typeof selected[number]) => fNum(p.booked)],
-                ["Conversion", (p: typeof selected[number]) => ((p.booked / Math.max(p.visits, 1)) * 100).toFixed(1) + "%"],
+                ...(showBooked ? [
+                  ["Booked", (p: typeof selected[number]) => fNum(p.booked)],
+                  ["Conversion", (p: typeof selected[number]) => ((p.booked / Math.max(p.visits, 1)) * 100).toFixed(1) + "%"],
+                ] as [string, (p: typeof selected[number]) => string][] : []),
                 ["Last visit", (p: typeof selected[number]) => fdate(p.last)],
               ] as [string, (p: typeof selected[number]) => string][]).map(([name, fn]) => (
                 <tr key={name} style={{ borderBottom: "1px solid var(--line)" }}>

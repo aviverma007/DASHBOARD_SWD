@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate,
+  FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
   periodPresets, type PeriodPreset,
   type FfFilter, type FfDim,
 } from "../../utils/footfallLogic";
@@ -28,7 +28,19 @@ export function FootfallSection() {
   const [sortDir, setSortDir] = useState<-1 | 1>(-1);
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
-  const per: PeriodPreset = PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const per: PeriodPreset = useMemo(() => {
+    if (perKey === "custom") {
+      const from = customFrom ? isoToDay(customFrom) : -1;
+      const to = customTo ? isoToDay(customTo) : 1e9;
+      const lbl = customFrom || customTo
+        ? `Custom (${customFrom || "…"} → ${customTo || "…"})`
+        : "Custom range";
+      return { key: "custom", label: lbl, from, to };
+    }
+    return PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  }, [perKey, customFrom, customTo, PRESETS]);
 
   // Dimension filters first, then the global period window
   const dimRows = useMemo(() => ffScope(filters), [filters]);
@@ -109,10 +121,27 @@ export function FootfallSection() {
         </div>
         <div>
           <div style={SELLBL}>Period</div>
-          <select style={SEL} value={per.key} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
+          <select style={SEL} value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            <option value="custom">Custom range…</option>
           </select>
         </div>
+        {per.key === "custom" && (
+          <>
+            <div>
+              <div style={SELLBL}>From</div>
+              <input type="date" min="2022-01-01" value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+            <div>
+              <div style={SELLBL}>To</div>
+              <input type="date" min="2022-01-01" value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Momentum & comparison (own periods; respects dimension filters) */}

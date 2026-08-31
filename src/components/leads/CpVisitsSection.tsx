@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  FF, FF_RECORDS, ffApply, ffCount, ffMonthly, ffWeekday, fNum, dayToYm, ymLabel,
+  FF, FF_RECORDS, ffApply, ffCount, ffMonthly, ffWeekday, fNum, dayToYm, ymLabel, isoToDay,
   periodPresets, type PeriodPreset, type FfFilter, type FfDim,
 } from "../../utils/footfallLogic";
 import {
@@ -35,7 +35,19 @@ export function CpVisitsSection() {
   const [filters, setFilters] = useState<FfFilter[]>([]);
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
-  const per: PeriodPreset = PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const per: PeriodPreset = useMemo(() => {
+    if (perKey === "custom") {
+      const from = customFrom ? isoToDay(customFrom) : -1;
+      const to = customTo ? isoToDay(customTo) : 1e9;
+      const lbl = customFrom || customTo
+        ? `Custom (${customFrom || "…"} → ${customTo || "…"})`
+        : "Custom range";
+      return { key: "custom", label: lbl, from, to };
+    }
+    return PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
+  }, [perKey, customFrom, customTo, PRESETS]);
   const [drill, setDrill] = useState<DrillSeed | null>(null);
 
   const FIRST = useMemo(() => firstVisitMap(), []);
@@ -125,6 +137,7 @@ export function CpVisitsSection() {
         baseRows={rows}
         baseLabel={`CP visits · ${projFilter ? projFilter.label + " · " : ""}${per.label}`}
         onClose={() => setDrill(null)}
+        showBooking={false}
       />
 
       {/* Global filter bar */}
@@ -146,10 +159,27 @@ export function CpVisitsSection() {
         </div>
         <div>
           <div style={SELLBL}>Period</div>
-          <select style={SEL} value={per.key} onChange={e => setPerKey(e.target.value)}>
+          <select style={SEL} value={perKey} onChange={e => setPerKey(e.target.value)}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            <option value="custom">Custom range…</option>
           </select>
         </div>
+        {per.key === "custom" && (
+          <>
+            <div>
+              <div style={SELLBL}>From</div>
+              <input type="date" min="2022-01-01" value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+            <div>
+              <div style={SELLBL}>To</div>
+              <input type="date" min="2022-01-01" value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{ ...SEL, minWidth: 140 }} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Momentum */}
@@ -220,7 +250,7 @@ export function CpVisitsSection() {
           sub={`${fNum(uniq.size)} partners · click a partner to drill`}
         />
       </div>
-      <CpBoard rows={rows} onDrill={(cp, name) => openDrill("cp")(cp, name)} />
+      <CpBoard rows={rows} onDrill={(cp, name) => openDrill("cp")(cp, name)} showBooked={false} />
 
       <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
         Source: {FF.meta.source} · a "CP gallery visit" = a customer site visit with Walk-in Source = Channel Partner;

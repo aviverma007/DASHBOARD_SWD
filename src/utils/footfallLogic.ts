@@ -209,6 +209,11 @@ export function periodPresets(): PeriodPreset[] {
   ];
 }
 
+/** ISO date (yyyy-mm-dd) → day offset from the dataset epoch. */
+export function isoToDay(iso: string): number {
+  return Math.floor((new Date(iso + "T00:00:00").getTime() - new Date(FF.epoch + "T00:00:00").getTime()) / 86400000);
+}
+
 export function fNum(n: number): string {
   return Math.round(n).toLocaleString("en-IN");
 }
