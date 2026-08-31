@@ -5,9 +5,10 @@ import {
   CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
-  DG, RECORDS, applyChips, DigitalFunnelCard, digMonthly, digWeekday,
+  DG, RECORDS, applyChips, digMonthly, digWeekday,
   DIM_NAMES, type Dim, type Chip, type DigRec,
 } from "./digitalShared";
+import { DigitalFunnelCard } from "./DigitalFunnelCard";
 import { DigitalDrillDrawer } from "./DigitalDrillDrawer";
 
 /** Digital presales enquiries — full analytics preview of the 21-Aug

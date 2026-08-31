@@ -6,9 +6,10 @@ import {
   CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
-  DG, applyChips, DigitalFunnelCard, digMonthly, digWeekday, digInsights,
+  DG, applyChips, digMonthly, digWeekday, digInsights,
   DIM_NAMES, type Dim, type Chip, type DigRec,
 } from "./digitalShared";
+import { DigitalFunnelCard } from "./DigitalFunnelCard";
 
 export interface DigDrillSeed { dim: Dim; val: number | string; label: string }
 
