@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
-import raw from "../../data/digitalEnquiries.json";
-import { dayToDate, dayToYm, ymLabel, DOW, fNum, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
+import { dayToDate, fNum, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
   CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
+import {
+  DG, RECORDS, applyChips, DigitalFunnelCard, digMonthly, digWeekday,
+  DIM_NAMES, type Dim, type Chip, type DigRec,
+} from "./digitalShared";
+import { DigitalDrillDrawer } from "./DigitalDrillDrawer";
 
 /** Digital presales enquiries — full analytics preview of the 21-Aug
  * export (11,946 enquiries, Apr–Aug 2026), in the same visual system
@@ -15,129 +19,10 @@ import {
  * (names, emails, phones) are deliberately NOT in the app dataset.
  * Click any bar/slice to filter every card at once (chips clear it). */
 
-interface DigDataset {
-  SUB: string[]; PRJ: string[]; STA: string[]; AGN: string[]; OWN: string[]; STG: string[];
-  epoch: string; R: number[][];
-  meta: { rows: number; source: string; asOn: string; note: string };
-}
-const DG = raw as unknown as DigDataset;
-
-interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number }
-const RECORDS: DigRec[] = DG.R.map(r => ({ sub: r[0], p: r[1], sta: r[2], ag: r[3], ow: r[4], stg: r[5], day: r[6] }));
-
-type Dim = "sub" | "p" | "sta" | "ag" | "ow" | "stg" | "mon" | "dow";
-interface Chip { dim: Dim; val: number | string; label: string }
-const DIM_NAMES: Record<Dim, string> = {
-  sub: "Sub source", p: "Project", sta: "Status", ag: "Agency", ow: "Owner", stg: "Opp. stage", mon: "Month", dow: "Weekday",
-};
-
-function applyChips(records: DigRec[], chips: Chip[]): DigRec[] {
-  return records.filter(r =>
-    chips.every(c => {
-      switch (c.dim) {
-        case "sub": return r.sub === c.val;
-        case "p":   return r.p === c.val;
-        case "sta": return r.sta === c.val;
-        case "ag":  return r.ag === c.val;
-        case "ow":  return r.ow === c.val;
-        case "stg": return r.stg === c.val;
-        case "mon": return r.day >= 0 && dayToYm(r.day) === c.val;
-        case "dow": return r.day >= 0 && dayToDate(r.day).getDay() === c.val;
-        default: return true;
-      }
-    })
-  );
-}
-
-/** Digital funnel: enquiry → qualified → opportunity → site-visit-or-
- * beyond → booked. Qualified counts presales Status; the later steps
- * come from the opportunity Stage column (a stage exists ⇔ an
- * opportunity was created). Steps are nested populations. */
-function digitalFunnel(rows: DigRec[]) {
-  const total = rows.length;
-  const QUAL = DG.STA.indexOf("Qualified");
-  const svSet = new Set(["Site Visit", "In Progress", "Inventory", "Booked"].map(s => DG.STG.indexOf(s)).filter(i => i >= 0));
-  const BK = DG.STG.indexOf("Booked");
-  const qualified = rows.filter(r => r.sta === QUAL || r.stg >= 0).length; // qualified status OR already an opportunity
-  const opp = rows.filter(r => r.stg >= 0).length;
-  const sv = rows.filter(r => svSet.has(r.stg)).length;
-  const booked = rows.filter(r => r.stg === BK).length;
-  const lost = rows.filter(r => DG.STG[r.stg] === "Closed Lost").length;
-  const steps = [
-    { key: "enq", label: "Enquiries", value: total, hint: "every digital enquiry in scope" },
-    { key: "qual", label: "Qualified", value: qualified, hint: "presales-qualified or already an opportunity" },
-    { key: "opp", label: "Opportunity", value: opp, hint: "opportunity created in CRM" },
-    { key: "sv", label: "Site visit+", value: sv, hint: "reached site visit / in-progress / inventory / booked" },
-    { key: "bk", label: "Booked", value: booked, hint: "converted to a booking" },
-  ].map((s, i, arr) => ({
-    ...s,
-    pctOfTotal: total ? (s.value / total) * 100 : 0,
-    pctOfPrev: i === 0 ? 100 : arr[i - 1].value ? (s.value / arr[i - 1].value) * 100 : 0,
-  }));
-  return { steps, lost };
-}
-
-function DigitalFunnelCard({ rows }: { rows: DigRec[] }) {
-  const { steps, lost } = digitalFunnel(rows);
-  const max = Math.max(steps[0].value, 1);
-  const COLORS = [BLUE, TEAL, GOLD, "#7b5cb8", GREEN];
-  const cell: React.CSSProperties = { padding: "9px 10px", fontSize: 12.5, verticalAlign: "middle" };
-  const th: React.CSSProperties = { ...cell, padding: "5px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", textAlign: "left" };
-  return (
-    <div style={{ ...CARD, marginBottom: 14 }}>
-      <h3 style={H3}>Conversion funnel — enquiry till booking</h3>
-      <div style={CAP}>nested populations · recomputes with every filter</div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid var(--line)" }}>
-              <th style={{ ...th, width: 118 }}>Step</th>
-              <th style={th}>Volume</th>
-              <th style={{ ...th, width: 92, textAlign: "right" }}>Of enquiries</th>
-              <th style={{ ...th, width: 100, textAlign: "right" }}>Step conv.</th>
-              <th style={{ ...th, width: 100, textAlign: "right" }}>Drop-off</th>
-            </tr>
-          </thead>
-          <tbody>
-            {steps.map((s, i) => {
-              const prev = i === 0 ? s.value : steps[i - 1].value;
-              const drop = i === 0 ? 0 : prev - s.value;
-              return (
-                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={{ ...cell, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
-                    {s.label}
-                    <div style={{ fontSize: 10, fontWeight: 400, color: "var(--mut)" }}>{s.hint}</div>
-                  </td>
-                  <td style={{ ...cell, minWidth: 160 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ flex: 1, height: 18, background: "#f0ede5", borderRadius: 6, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(s.value / max) * 100}%`, background: COLORS[i], borderRadius: 6, transition: "width 0.4s cubic-bezier(0.22,1,0.36,1)" }} />
-                      </div>
-                      <b style={{ fontFamily: "Georgia,serif", fontSize: 13.5, color: "var(--ink)", whiteSpace: "nowrap" }}>{fNum(s.value)}</b>
-                    </div>
-                  </td>
-                  <td style={{ ...cell, textAlign: "right", color: "var(--mut)", whiteSpace: "nowrap" }}>{s.pctOfTotal.toFixed(1)}%</td>
-                  <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: i === 0 ? "var(--mut)" : s.pctOfPrev >= 50 ? "#1a7a4a" : "#c07a1a" }}>
-                    {i === 0 ? "—" : `${s.pctOfPrev.toFixed(1)}%`}
-                  </td>
-                  <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", color: drop > 0 ? "#c0392b" : "var(--mut)" }}>
-                    {i === 0 ? "—" : drop > 0 ? `−${fNum(drop)}` : "0"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 8 }}>
-        Of the opportunities, <b style={{ color: RED }}>{fNum(lost)}</b> are closed lost · a Stage exists only once an opportunity is created, so most enquiries have no stage
-      </div>
-    </div>
-  );
-}
-
 export function DigitalSection() {
   const [chips, setChips] = useState<Chip[]>([]);
+  const [drill, setDrill] = useState<import("./DigitalDrillDrawer").DigDrillSeed | null>(null);
+  const openDrill = (dim: Dim) => (val: number | string, label: string) => setDrill({ dim, val, label });
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
   const per: PeriodPreset = PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
@@ -151,12 +36,6 @@ export function DigitalSection() {
   );
   const total = rows.length;
 
-  function addChip(dim: Dim) {
-    return (val: number | string, label: string) => {
-      setChips(prev => [...prev.filter(c => c.dim !== dim), { dim, val, label }]);
-      setPage(1);
-    };
-  }
   function removeChip(dim: Dim) {
     setChips(prev => prev.filter(c => c.dim !== dim));
     setPage(1);
@@ -169,16 +48,8 @@ export function DigitalSection() {
   const opp = rows.filter(r => r.stg >= 0).length;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
 
-  const monthly = useMemo(() => {
-    const m = new Map<string, number>();
-    rows.forEach(r => { if (r.day >= 0) { const ym = dayToYm(r.day); m.set(ym, (m.get(ym) ?? 0) + 1); } });
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, value]) => ({ key, label: ymLabel(key), value }));
-  }, [rows]);
-  const weekday = useMemo(() => {
-    const c = [0, 0, 0, 0, 0, 0, 0];
-    rows.forEach(r => { if (r.day >= 0) c[dayToDate(r.day).getDay()]++; });
-    return [1, 2, 3, 4, 5, 6, 0].map(d => ({ key: d, label: DOW[d], value: c[d] }));
-  }, [rows]);
+  const monthly = useMemo(() => digMonthly(rows), [rows]);
+  const weekday = useMemo(() => digWeekday(rows), [rows]);
 
   const listFrom = (get: (r: DigRec) => number, names: string[], top = 10) => {
     const m = new Map<number, number>();
@@ -203,6 +74,13 @@ export function DigitalSection() {
 
   return (
     <div>
+      <DigitalDrillDrawer
+        seed={drill}
+        baseRows={rows}
+        baseLabel={per.label}
+        onClose={() => setDrill(null)}
+      />
+
       {/* Filter bar */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
         <div>
@@ -249,7 +127,7 @@ export function DigitalSection() {
           <div style={CARD}>
             <h3 style={H3}>By sub-source</h3>
             <div style={CAP}>where enquiries come from · click → channel</div>
-            <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={addChip("sub")} />
+            <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={openDrill("sub")} />
           </div>
         )}
         {!has("sta") && (
@@ -261,7 +139,7 @@ export function DigitalSection() {
                 ...s,
                 color: s.label === "Qualified" ? GREEN : s.label === "Not Qualified" ? RED : s.label === "In Progress" ? GOLD : TEAL,
               }))}
-              onPick={addChip("sta")}
+              onPick={openDrill("sta")}
             />
           </div>
         )}
@@ -269,21 +147,21 @@ export function DigitalSection() {
           <div style={CARD}>
             <h3 style={H3}>By project / campaign</h3>
             <div style={CAP}>click → project</div>
-            <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={addChip("p")} />
+            <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} />
           </div>
         )}
         {!has("ag") && (
           <div style={CARD}>
             <h3 style={H3}>Agency source</h3>
             <div style={CAP}>top 10 agencies · click → agency</div>
-            <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={addChip("ag")} />
+            <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={openDrill("ag")} />
           </div>
         )}
         {!has("ow") && (
           <div style={CARD}>
             <h3 style={H3}>Presales owner</h3>
             <div style={CAP}>enquiries handled · click → owner</div>
-            <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={addChip("ow")} />
+            <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} />
           </div>
         )}
         {!has("stg") && (
@@ -295,7 +173,7 @@ export function DigitalSection() {
                 ...s,
                 color: s.label === "Booked" ? GREEN : s.label === "Closed Lost" ? RED : s.label === "In Progress" ? GOLD : PAL[i % PAL.length],
               }))}
-              onPick={addChip("stg")}
+              onPick={openDrill("stg")}
             />
           </div>
         )}
@@ -306,14 +184,14 @@ export function DigitalSection() {
           <div style={CARD}>
             <h3 style={H3}>Enquiry trend</h3>
             <div style={CAP}>monthly volume · click a month</div>
-            <TrendChart items={monthly} onPick={addChip("mon")} />
+            <TrendChart items={monthly} onPick={openDrill("mon")} />
           </div>
         )}
         {!has("dow") && (
           <div style={CARD}>
             <h3 style={H3}>Weekday pattern</h3>
             <div style={CAP}>enquiries by day of week · click a day</div>
-            <WeekdayChart items={weekday} onPick={addChip("dow")} />
+            <WeekdayChart items={weekday} onPick={openDrill("dow")} />
           </div>
         )}
       </div>
