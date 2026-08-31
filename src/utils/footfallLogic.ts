@@ -49,8 +49,9 @@ export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export interface FfFilter { dim: FfDim; val: number | string; label: string }
 export type FfDim = "g" | "p" | "src" | "loc" | "age" | "mon" | "dow" | "stg" | "cat" | "cp";
 
-export function ffScope(filters: FfFilter[]): FfRecord[] {
-  return FF_RECORDS.filter(r =>
+/** Apply filters to any record subset (drawers stack on page scope). */
+export function ffApply(records: FfRecord[], filters: FfFilter[]): FfRecord[] {
+  return records.filter(r =>
     filters.every(f => {
       switch (f.dim) {
         case "g":   return r.g === f.val;
@@ -67,6 +68,42 @@ export function ffScope(filters: FfFilter[]): FfRecord[] {
       }
     })
   );
+}
+
+export function ffScope(filters: FfFilter[]): FfRecord[] {
+  return ffApply(FF_RECORDS, filters);
+}
+
+/** "Key insights for this selection" — reference-style tiles, each
+ * with the share maths spelled out. */
+export interface FfInsight { k: string; v: string; hint: string }
+export function ffInsights(rows: FfRecord[]): FfInsight[] {
+  const total = rows.length || 1;
+  const top = (get: (r: FfRecord) => number, names: string[]) => {
+    const m = new Map<number, number>();
+    rows.forEach(r => { const k = get(r); if (k >= 0) m.set(k, (m.get(k) ?? 0) + 1); });
+    const best = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
+    return best ? { name: names[best[0]], n: best[1] } : null;
+  };
+  const out: FfInsight[] = [];
+  const tp = top(r => r.p, FF.P);
+  if (tp) out.push({ k: "Top project/campaign", v: `${tp.name} · ${Math.round((tp.n / total) * 100)}%`, hint: `${fNum(tp.n)} of ${fNum(total)} visits` });
+  const direct = rows.filter(r => r.src === 0 || r.src === 2).length;
+  out.push({ k: "Walk-in source", v: `Direct ${Math.round((direct / total) * 100)}% · CP ${Math.round(((total - direct) / total) * 100)}%`, hint: `${fNum(direct)} direct · ${fNum(total - direct)} via partners` });
+  const tl = top(r => r.loc, FF.LOC);
+  if (tl) out.push({ k: "Top locality", v: `${tl.name} · ${Math.round((tl.n / total) * 100)}%`, hint: `${fNum(tl.n)} visitors` });
+  const ta = top(r => r.age, FF.AGE);
+  if (ta) out.push({ k: "Dominant age band", v: `${ta.name} · ${Math.round((ta.n / total) * 100)}%`, hint: `${fNum(ta.n)} of captured ages` });
+  const mm = new Map<string, number>();
+  rows.forEach(r => { if (r.day >= 0) { const ym = dayToYm(r.day); mm.set(ym, (mm.get(ym) ?? 0) + 1); } });
+  const bm = [...mm.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (bm) out.push({ k: "Busiest month", v: `${ymLabel(bm[0])} · ${fNum(bm[1])}`, hint: "highest monthly footfall" });
+  const BK = FF.STG.indexOf("Booked");
+  const booked = rows.filter(r => r.stg === BK).length;
+  out.push({ k: "Booking outcome", v: `${fNum(booked)} booked · ${((booked / total) * 100).toFixed(1)}%`, hint: "share of visits now at Booked stage" });
+  const tcp = top(r => (r.src === 1 ? r.cp : -1), FF.CPN);
+  if (tcp) out.push({ k: "Top channel partner", v: tcp.name, hint: `${fNum(tcp.n)} visits brought` });
+  return out;
 }
 
 /** Group-count on any numeric field. */
