@@ -205,7 +205,7 @@ export function FootfallSection() {
           </div>
         )}
       </div>
-      {/* Row 2: locality (scrolls) + age group */}
+      {/* Row 2: locality (scrolls, full width) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("loc") && (
           <div style={CARD}>
@@ -214,21 +214,9 @@ export function FootfallSection() {
             <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} maxHeight={230} />
           </div>
         )}
-        {!has("age") && (
-          <div style={CARD}>
-            <h3 style={H3}>Age group</h3>
-            <div style={CAP}>
-              {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
-            </div>
-            <Donut
-              segs={listFrom(ffCount(rows, r => r.age), FF.AGE, 12).map((s, i) => ({ ...s, color: PAL[i % PAL.length] }))}
-              onPick={(k, l) => openDrill("age")(k, l)}
-            />
-          </div>
-        )}
       </div>
-      {/* Row 3: source + stage donuts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
+      {/* Row 3: the three donuts on a single line */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("src") && (
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
@@ -240,6 +228,18 @@ export function FootfallSection() {
                 { key: 2, label: "Direct Loyalty", value: rows.filter(r => r.src === 2).length, color: GOLD },
               ].filter(s => s.value > 0)}
               onPick={(k, l) => openDrill("src")(k, l)}
+            />
+          </div>
+        )}
+        {!has("age") && (
+          <div style={CARD}>
+            <h3 style={H3}>Age group</h3>
+            <div style={CAP}>
+              {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
+            </div>
+            <Donut
+              segs={listFrom(ffCount(rows, r => r.age), FF.AGE, 12).map((s, i) => ({ ...s, color: PAL[i % PAL.length] }))}
+              onPick={(k, l) => openDrill("age")(k, l)}
             />
           </div>
         )}
