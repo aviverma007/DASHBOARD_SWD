@@ -47,7 +47,7 @@ export const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Active filter: one per dimension max, like the reference suite. */
 export interface FfFilter { dim: FfDim; val: number | string; label: string }
-export type FfDim = "g" | "p" | "src" | "loc" | "age" | "mon" | "dow" | "stg" | "cat";
+export type FfDim = "g" | "p" | "src" | "loc" | "age" | "mon" | "dow" | "stg" | "cat" | "cp";
 
 export function ffScope(filters: FfFilter[]): FfRecord[] {
   return FF_RECORDS.filter(r =>
@@ -60,6 +60,7 @@ export function ffScope(filters: FfFilter[]): FfRecord[] {
         case "age": return r.age === f.val;
         case "stg": return r.stg === f.val;
         case "cat": return r.cat === f.val;
+        case "cp":  return r.cp === f.val;
         case "mon": return r.day >= 0 && dayToYm(r.day) === f.val;
         case "dow": return r.day >= 0 && dayToDate(r.day).getDay() === f.val;
         default:    return true;
@@ -127,6 +128,48 @@ export function ffFunnel(records: FfRecord[]) {
   }));
 
   return { steps, lost, blank };
+}
+
+/** Quarter key for a day offset, e.g. "2026-Q3". */
+export function dayToQuarter(day: number): string {
+  const d = dayToDate(day);
+  return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+}
+export function quarterLabel(q: string): string {
+  const [y, qq] = q.split("-");
+  return `${qq} '${y.slice(2)}`;
+}
+export function dayToYear(day: number): string {
+  return String(dayToDate(day).getFullYear());
+}
+
+/** Distinct quarters / years present in the data, ascending. */
+export function periodKeys(records: FfRecord[], mode: "quarter" | "year"): string[] {
+  const s = new Set<string>();
+  records.forEach(r => { if (r.day >= 0) s.add(mode === "quarter" ? dayToQuarter(r.day) : dayToYear(r.day)); });
+  return [...s].sort();
+}
+
+export function inPeriod(r: FfRecord, mode: "quarter" | "year", key: string): boolean {
+  if (r.day < 0) return false;
+  return (mode === "quarter" ? dayToQuarter(r.day) : dayToYear(r.day)) === key;
+}
+
+/** Global period presets (day-offset bounds, inclusive). */
+export interface PeriodPreset { key: string; label: string; from: number; to: number }
+export function periodPresets(): PeriodPreset[] {
+  const today = Math.floor((Date.now() - new Date(FF.epoch + "T00:00:00").getTime()) / 86400000);
+  const dayOf = (iso: string) => Math.floor((new Date(iso + "T00:00:00").getTime() - new Date(FF.epoch + "T00:00:00").getTime()) / 86400000);
+  return [
+    { key: "all", label: "All time", from: -1, to: 1e9 },
+    { key: "30d", label: "Last 30 days", from: today - 29, to: today },
+    { key: "90d", label: "Last 90 days", from: today - 89, to: today },
+    { key: "12m", label: "Last 12 months", from: today - 364, to: today },
+    { key: "cy26", label: "CY 2026", from: dayOf("2026-01-01"), to: dayOf("2026-12-31") },
+    { key: "cy25", label: "CY 2025", from: dayOf("2025-01-01"), to: dayOf("2025-12-31") },
+    { key: "fy26", label: "FY 25-26", from: dayOf("2025-04-01"), to: dayOf("2026-03-31") },
+    { key: "fy27", label: "FY 26-27", from: dayOf("2026-04-01"), to: dayOf("2027-03-31") },
+  ];
 }
 
 export function fNum(n: number): string {
