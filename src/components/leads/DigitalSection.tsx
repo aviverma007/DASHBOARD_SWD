@@ -180,6 +180,19 @@ export function DigitalSection() {
             <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} />
           </div>
         )}
+        {!has("stg") && (
+          <div style={MCARD}>
+            <h3 style={H3}>Opportunity stage</h3>
+            <div style={CAP}>{fNum(opp)} enquiries became opportunities · click a stage</div>
+            <Donut
+              segs={listFrom(r => r.stg, DG.STG, 8).map((s, i) => ({
+                ...s,
+                color: s.label === "Booked" ? GREEN : s.label === "Closed Lost" ? RED : s.label === "In Progress" ? GOLD : PAL[i % PAL.length],
+              }))}
+              onPick={openDrill("stg")}
+            />
+          </div>
+        )}
         {!has("ag") && (
           <div style={MCARD}>
             <h3 style={H3}>Agency source</h3>
@@ -194,19 +207,7 @@ export function DigitalSection() {
             <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} />
           </div>
         )}
-        {!has("stg") && (
-          <div style={MCARD}>
-            <h3 style={H3}>Opportunity stage</h3>
-            <div style={CAP}>{fNum(opp)} enquiries became opportunities · click a stage</div>
-            <Donut
-              segs={listFrom(r => r.stg, DG.STG, 8).map((s, i) => ({
-                ...s,
-                color: s.label === "Booked" ? GREEN : s.label === "Closed Lost" ? RED : s.label === "In Progress" ? GOLD : PAL[i % PAL.length],
-              }))}
-              onPick={openDrill("stg")}
-            />
-          </div>
-        )}
+
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>

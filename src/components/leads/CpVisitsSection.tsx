@@ -5,7 +5,7 @@ import {
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark, MomentumCard, CpBoard,
-  CARD, MCARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
+  CARD, MCARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD,
 } from "./footfallCharts";
 import { FootfallDrillDrawer, type DrillSeed } from "./FootfallDrillDrawer";
 
@@ -88,21 +88,6 @@ export function CpVisitsSection() {
   const firstTimers = total - revisits;
   const monthly = useMemo(() => ffMonthly(rows), [rows]);
   const weekday = useMemo(() => ffWeekday(rows), [rows]);
-
-  // Visits-per-partner distribution buckets
-  const dist = useMemo(() => {
-    const per_ = new Map<number, number>();
-    rows.forEach(r => { if (r.cp >= 0) per_.set(r.cp, (per_.get(r.cp) ?? 0) + 1); });
-    const b = { "1 visit": 0, "2–5": 0, "6–20": 0, "21–100": 0, "100+": 0 } as Record<string, number>;
-    per_.forEach(v => {
-      if (v === 1) b["1 visit"]++;
-      else if (v <= 5) b["2–5"]++;
-      else if (v <= 20) b["6–20"]++;
-      else if (v <= 100) b["21–100"]++;
-      else b["100+"]++;
-    });
-    return Object.entries(b).map(([label, value], i) => ({ key: i, label, value }));
-  }, [rows]);
 
   // Active partners per month
   const activeMonthly = useMemo(() => {
@@ -212,11 +197,6 @@ export function CpVisitsSection() {
               { key: 1, label: "First visit", value: firstTimers, color: GOLD },
             ].filter(s => s.value > 0)}
           />
-        </div>
-        <div style={MCARD}>
-          <h3 style={H3}>Visits per partner</h3>
-          <div style={CAP}>how many partners fall in each activity band</div>
-          <HBarList items={dist} total={uniq.size} color={GREEN} />
         </div>
         <div style={MCARD}>
           <h3 style={H3}>CP visits by project</h3>
