@@ -183,7 +183,7 @@ export function CpVisitsSection() {
       </div>
 
       {/* Momentum */}
-      <MomentumCard records={dimRows} />
+      <MomentumCard records={dimRows} showBooked={false} />
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 4 }}>

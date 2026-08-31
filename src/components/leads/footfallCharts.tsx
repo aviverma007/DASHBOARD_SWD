@@ -225,7 +225,7 @@ const SEL: React.CSSProperties = { fontFamily: "inherit", fontSize: 13, padding:
 const SELLBL: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 5 };
 
 /** Momentum & comparison — two periods side by side, Quarter/Year switch. */
-function MomentumCard({ records }: { records: FfRecord[] }) {
+function MomentumCard({ records, showBooked = true }: { records: FfRecord[]; showBooked?: boolean }) {
   const [mode, setMode] = useState<"quarter" | "year">("quarter");
   const keys = useMemo(() => periodKeys(records, mode), [records, mode]);
   const [a, setA] = useState<string | null>(null);
@@ -242,7 +242,7 @@ function MomentumCard({ records }: { records: FfRecord[] }) {
     { name: "Site visits", fn: rs => rs.length },
     { name: "Direct visits", fn: rs => rs.filter(r => r.src === 0 || r.src === 2).length },
     { name: "With channel partner", fn: rs => rs.filter(r => r.src === 1).length },
-    { name: "Booked", fn: rs => rs.filter(r => r.stg === BOOKED).length },
+    ...(showBooked ? [{ name: "Booked", fn: (rs: FfRecord[]) => rs.filter(r => r.stg === BOOKED).length }] : []),
   ];
   const isLatestPartial = kb === keys[keys.length - 1];
 
