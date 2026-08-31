@@ -188,28 +188,8 @@ export function FootfallSection() {
         <FunnelChart records={rows} />
       </div>
 
-      {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, alignItems: "start" }}>
-        {/* Balanced column stacks: tall list + short card per column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-        {!has("p") && (
-          <div style={CARD}>
-            <h3 style={H3}>Footfall by project</h3>
-            <div style={CAP}>top 10 · click → project</div>
-            <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} />
-          </div>
-        )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-        {!has("loc") && (
-          <div style={CARD}>
-            <h3 style={H3}>Customer locality</h3>
-            <div style={CAP}>top 10 · click → locality</div>
-            <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} />
-          </div>
-        )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+      {/* Row 1: gallery + project — same size, project scrolls */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("g") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall by gallery</h3>
@@ -217,6 +197,38 @@ export function FootfallSection() {
             <HBarList items={listFrom(ffCount(rows, r => r.g), FF.G)} total={total} color={BLUE} onPick={(k, l) => openDrill("g")(k, l)} />
           </div>
         )}
+        {!has("p") && (
+          <div style={CARD}>
+            <h3 style={H3}>Footfall by project</h3>
+            <div style={CAP}>top 10 · click → project</div>
+            <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} maxHeight={196} />
+          </div>
+        )}
+      </div>
+      {/* Row 2: locality (scrolls) + age group */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+        {!has("loc") && (
+          <div style={CARD}>
+            <h3 style={H3}>Customer locality</h3>
+            <div style={CAP}>top 10 · click → locality</div>
+            <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} maxHeight={230} />
+          </div>
+        )}
+        {!has("age") && (
+          <div style={CARD}>
+            <h3 style={H3}>Age group</h3>
+            <div style={CAP}>
+              {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
+            </div>
+            <Donut
+              segs={listFrom(ffCount(rows, r => r.age), FF.AGE, 12).map((s, i) => ({ ...s, color: PAL[i % PAL.length] }))}
+              onPick={(k, l) => openDrill("age")(k, l)}
+            />
+          </div>
+        )}
+      </div>
+      {/* Row 3: source + stage donuts */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("src") && (
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
@@ -228,20 +240,6 @@ export function FootfallSection() {
                 { key: 2, label: "Direct Loyalty", value: rows.filter(r => r.src === 2).length, color: GOLD },
               ].filter(s => s.value > 0)}
               onPick={(k, l) => openDrill("src")(k, l)}
-            />
-          </div>
-        )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-        {!has("age") && (
-          <div style={CARD}>
-            <h3 style={H3}>Age group</h3>
-            <div style={CAP}>
-              {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
-            </div>
-            <Donut
-              segs={listFrom(ffCount(rows, r => r.age), FF.AGE, 12).map((s, i) => ({ ...s, color: PAL[i % PAL.length] }))}
-              onPick={(k, l) => openDrill("age")(k, l)}
             />
           </div>
         )}
@@ -258,11 +256,9 @@ export function FootfallSection() {
             />
           </div>
         )}
-        </div>
       </div>
-
-      {/* Trend + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
+      {/* Row 4: trend + weekday */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("mon") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall trend</h3>
@@ -278,6 +274,8 @@ export function FootfallSection() {
           </div>
         )}
       </div>
+
+
 
       {/* Channel-partner performance board */}
       {!has("cp") && (

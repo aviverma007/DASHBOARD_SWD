@@ -19,13 +19,16 @@ const CAP: React.CSSProperties = { fontSize: 11.5, color: "#c07a1a", marginTop: 
 
 // ── Small chart primitives (SVG, matching the reference look) ──────────
 
-function HBarList({ items, total, color, onPick }: {
+function HBarList({ items, total, color, onPick, maxHeight }: {
   items: { key: number; label: string; value: number }[];
   total: number; color: string; onPick?: (key: number, label: string) => void;
+  /** Cap the list area; longer lists scroll inside so paired cards
+   * stay the same size. */
+  maxHeight?: number;
 }) {
   const max = Math.max(...items.map(i => i.value), 1);
   return (
-    <div>
+    <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
       {items.map(it => (
         <div key={it.key} onClick={() => onPick?.(it.key, it.label)} style={{ padding: "4px 0", cursor: onPick ? "pointer" : "default" }} className="barrow">
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>

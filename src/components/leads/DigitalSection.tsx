@@ -151,16 +151,42 @@ export function DigitalSection() {
 
       <DigitalFunnelCard rows={rows} />
 
-      {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+      {/* Row 1: sub-source + project — same size, both scroll */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("sub") && (
           <div style={CARD}>
             <h3 style={H3}>By sub-source</h3>
             <div style={CAP}>where enquiries come from · click → channel</div>
-            <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={openDrill("sub")} />
+            <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={openDrill("sub")} maxHeight={300} />
           </div>
         )}
+        {!has("p") && (
+          <div style={CARD}>
+            <h3 style={H3}>By project / campaign</h3>
+            <div style={CAP}>click → project</div>
+            <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} maxHeight={300} />
+          </div>
+        )}
+      </div>
+      {/* Row 2: agency + owner — same size, both scroll */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+        {!has("ag") && (
+          <div style={CARD}>
+            <h3 style={H3}>Agency source</h3>
+            <div style={CAP}>top 10 agencies · click → agency</div>
+            <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={openDrill("ag")} maxHeight={300} />
+          </div>
+        )}
+        {!has("ow") && (
+          <div style={CARD}>
+            <h3 style={H3}>Presales owner</h3>
+            <div style={CAP}>enquiries handled · click → owner</div>
+            <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} maxHeight={300} />
+          </div>
+        )}
+      </div>
+      {/* Row 3: the two donuts */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("sta") && (
           <div style={CARD}>
             <h3 style={H3}>Presales status</h3>
@@ -172,15 +198,6 @@ export function DigitalSection() {
               }))}
               onPick={openDrill("sta")}
             />
-          </div>
-        )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-        {!has("p") && (
-          <div style={CARD}>
-            <h3 style={H3}>By project / campaign</h3>
-            <div style={CAP}>click → project</div>
-            <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} />
           </div>
         )}
         {!has("stg") && (
@@ -196,27 +213,9 @@ export function DigitalSection() {
             />
           </div>
         )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-        {!has("ag") && (
-          <div style={CARD}>
-            <h3 style={H3}>Agency source</h3>
-            <div style={CAP}>top 10 agencies · click → agency</div>
-            <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={openDrill("ag")} />
-          </div>
-        )}
-        {!has("ow") && (
-          <div style={CARD}>
-            <h3 style={H3}>Presales owner</h3>
-            <div style={CAP}>enquiries handled · click → owner</div>
-            <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} />
-          </div>
-        )}
-        </div>
-
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
+      {/* Row 4: trend + weekday */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("mon") && (
           <div style={CARD}>
             <h3 style={H3}>Enquiry trend</h3>
@@ -232,6 +231,8 @@ export function DigitalSection() {
           </div>
         )}
       </div>
+
+
 
       {/* Records */}
       <div><Banner title="ENQUIRY RECORDS" sub={`${fNum(total)} in scope · PII excluded`} /></div>

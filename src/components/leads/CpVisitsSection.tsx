@@ -181,14 +181,21 @@ export function CpVisitsSection() {
 
       <div><Banner title="CHANNEL PARTNER ENGAGEMENT" sub={`${fNum(total)} gallery visits · ${per.label} · CP data only`} /></div>
 
-      {/* Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+      {/* Row 1: gallery + project — same size, project scrolls */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         <div style={CARD}>
           <h3 style={H3}>CP visits by gallery</h3>
           <div style={CAP}>click → gallery breakdown</div>
           <HBarList items={listFrom(ffCount(rows, r => r.g), FF.G)} total={total} color={BLUE} onPick={(k, l) => openDrill("g")(k, l)} />
         </div>
+        <div style={CARD}>
+          <h3 style={H3}>CP visits by project</h3>
+          <div style={CAP}>top 10 · click → project breakdown</div>
+          <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} maxHeight={196} />
+        </div>
+      </div>
+      {/* Row 2: visit-vs-revisit + weekday */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         <div style={CARD}>
           <h3 style={H3}>Visit vs revisit</h3>
           <div style={CAP}>revisit = the partner had visited before that day</div>
@@ -199,17 +206,14 @@ export function CpVisitsSection() {
             ].filter(s => s.value > 0)}
           />
         </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
         <div style={CARD}>
-          <h3 style={H3}>CP visits by project</h3>
-          <div style={CAP}>top 10 · click → project breakdown</div>
-          <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} />
-        </div>
+          <h3 style={H3}>Weekday pattern</h3>
+          <div style={CAP}>visits by day of week · click a day</div>
+          <WeekdayChart items={weekday} onPick={(k, l) => openDrill("dow")(k, l)} />
         </div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
+      {/* Row 3: the two trends */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         <div style={CARD}>
           <h3 style={H3}>CP visits trend</h3>
           <div style={CAP}>monthly gallery visits · click a month</div>
@@ -219,11 +223,6 @@ export function CpVisitsSection() {
           <h3 style={H3}>Active partners / month</h3>
           <div style={CAP}>distinct partners who visited that month</div>
           <TrendChart items={activeMonthly} />
-        </div>
-        <div style={CARD}>
-          <h3 style={H3}>Weekday pattern</h3>
-          <div style={CAP}>visits by day of week · click a day</div>
-          <WeekdayChart items={weekday} onPick={(k, l) => openDrill("dow")(k, l)} />
         </div>
       </div>
 
