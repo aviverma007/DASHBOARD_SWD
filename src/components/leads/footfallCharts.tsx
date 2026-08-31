@@ -134,42 +134,65 @@ function WeekdayChart({ items, onPick }: {
   );
 }
 
-/** Conversion funnel — trapezoid bands narrowing by population, with
- * step-to-step and of-total percentages, plus the closed-lost leak. */
+/** Conversion funnel — table-format breakdown (step · volume bar ·
+ * share of footfall · step conversion · drop-off). Compact rows with
+ * inline bars instead of trapezoids: text never overflows however
+ * small a band gets, and degenerate cases (a stage filter making
+ * every step equal, or zero) still render cleanly. */
 function FunnelChart({ records }: { records: FfRecord[] }) {
   const { steps, lost, blank } = ffFunnel(records);
-  const w = 560, bandH = 54, gapH = 26, padX = 10;
-  const h = steps.length * bandH + (steps.length - 1) * gapH + 8;
   const max = Math.max(steps[0].value, 1);
   const COLORS = [BLUE, TEAL, GOLD, GREEN];
-  const widthFor = (v: number) => Math.max((v / max) * (w - padX * 2), 60);
+  const cell: React.CSSProperties = { padding: "9px 10px", fontSize: 12.5, verticalAlign: "middle" };
+  const th: React.CSSProperties = { ...cell, padding: "5px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", textAlign: "left" };
   return (
     <div>
-      <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
-        {steps.map((s, i) => {
-          const topW = widthFor(s.value);
-          const nextW = i < steps.length - 1 ? widthFor(steps[i + 1].value) : topW;
-          const y = i * (bandH + gapH);
-          const x0 = (w - topW) / 2, x1 = (w - nextW) / 2;
-          return (
-            <g key={s.key}>
-              <rect x={x0} y={y} width={topW} height={bandH} rx="9" fill={COLORS[i]} />
-              {i < steps.length - 1 && (
-                <path d={`M${x1} ${y + bandH + gapH} L${x0 + topW / 2 - 12} ${y + bandH} L${x0 + topW / 2 + 12} ${y + bandH} L${w - x1} ${y + bandH + gapH} Z`}
-                  fill={COLORS[i + 1]} opacity="0.18" />
-              )}
-              <text x={w / 2} y={y + 22} textAnchor="middle" fontSize="13" fontWeight="700" fill="#fff">{s.label} — {fNum(s.value)}</text>
-              <text x={w / 2} y={y + 40} textAnchor="middle" fontSize="10.5" fill="rgba(255,255,255,.85)">
-                {s.pctOfTotal.toFixed(1)}% of footfall{i > 0 ? ` · ${s.pctOfPrev.toFixed(1)}% of previous` : ""}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid var(--line)" }}>
+              <th style={{ ...th, width: 118 }}>Step</th>
+              <th style={th}>Volume</th>
+              <th style={{ ...th, width: 92, textAlign: "right" }}>Of footfall</th>
+              <th style={{ ...th, width: 110, textAlign: "right" }}>Step conv.</th>
+              <th style={{ ...th, width: 110, textAlign: "right" }}>Drop-off</th>
+            </tr>
+          </thead>
+          <tbody>
+            {steps.map((s, i) => {
+              const prev = i === 0 ? s.value : steps[i - 1].value;
+              const drop = i === 0 ? 0 : prev - s.value;
+              return (
+                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}>
+                  <td style={{ ...cell, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
+                    {s.label}
+                    <div style={{ fontSize: 10, fontWeight: 400, color: "var(--mut)" }}>{s.hint}</div>
+                  </td>
+                  <td style={{ ...cell, minWidth: 160 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ flex: 1, height: 18, background: "#f0ede5", borderRadius: 6, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(s.value / max) * 100}%`, background: COLORS[i], borderRadius: 6, transition: "width 0.4s cubic-bezier(0.22,1,0.36,1)" }} />
+                      </div>
+                      <b style={{ fontFamily: "Georgia,serif", fontSize: 13.5, color: "var(--ink)", whiteSpace: "nowrap" }}>{fNum(s.value)}</b>
+                    </div>
+                  </td>
+                  <td style={{ ...cell, textAlign: "right", color: "var(--mut)", whiteSpace: "nowrap" }}>{s.pctOfTotal.toFixed(1)}%</td>
+                  <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: i === 0 ? "var(--mut)" : s.pctOfPrev >= 50 ? "#1a7a4a" : "#c07a1a" }}>
+                    {i === 0 ? "—" : `${s.pctOfPrev.toFixed(1)}%`}
+                  </td>
+                  <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", color: drop > 0 ? "#c0392b" : "var(--mut)" }}>
+                    {i === 0 ? "—" : drop > 0 ? `−${fNum(drop)}` : "0"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 8 }}>
         Leakage: <b style={{ color: RED }}>{fNum(lost)}</b> closed lost ({((lost / Math.max(records.length, 1)) * 100).toFixed(1)}%)
         {blank > 0 && <> · {fNum(blank)} without a stage</>}
-        {" "}· stages are current statuses, so each band is the population now at-or-beyond that step
+        {" "}· stages are current statuses, so each step is the population now at-or-beyond it
       </div>
     </div>
   );
