@@ -70,18 +70,23 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
             <title>Overall Average: ₹{Math.round(avg).toLocaleString("en-IN")}/sqft</title>
           </line>
           <path d={line} fill="none" stroke="#0e7490" strokeWidth="2.4" />
-          {data.map((d, i) => (
-            <g key={d.key}
-              onMouseEnter={e => pointTooltip(d, e)}
-              onMouseMove={moveTooltip}
-              onMouseLeave={hideTooltip}
-              onClick={() => onPointClick?.(d.key)}
-              style={{ cursor: onPointClick ? "pointer" : "default" }}
-            >
-              <circle cx={x(i)} cy={y(d.rate)} r="11" fill="transparent" />
-              <circle cx={x(i)} cy={y(d.rate)} r="5" fill="#0e7490" stroke="#fff" strokeWidth="1.5" style={{ pointerEvents: "none" }} />
-            </g>
-          ))}
+          {data.map((d, i) => {
+            const colW = data.length > 1 ? innerW / (data.length - 1) : innerW;
+            return (
+              <g key={d.key}
+                onMouseEnter={e => pointTooltip(d, e)}
+                onMouseMove={e => { pointTooltip(d, e); moveTooltip(e); }}
+                onMouseLeave={hideTooltip}
+                onClick={() => onPointClick?.(d.key)}
+                style={{ cursor: onPointClick ? "pointer" : "default" }}
+              >
+                {/* full-height hover column: values appear anywhere over
+                    the month, not only when pin-pointing the dot */}
+                <rect x={x(i) - colW / 2} y={PAD.t} width={colW} height={innerH} fill="transparent" />
+                <circle cx={x(i)} cy={y(d.rate)} r="5" fill="#0e7490" stroke="#fff" strokeWidth="1.5" style={{ pointerEvents: "none" }} />
+              </g>
+            );
+          })}
           {data.filter((_, i) => i % tickEvery === 0).map(d => {
             const i = data.indexOf(d);
             return <text key={d.key} x={x(i)} y={H - 10} fontSize="12.5" fontWeight="600" fill="#1f2937" textAnchor="middle">{d.key}</text>;

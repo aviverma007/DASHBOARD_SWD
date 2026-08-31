@@ -9,12 +9,20 @@ export interface TooltipState {
 /** Renders a floating tooltip positioned near the cursor, above all chart content. */
 export function ChartTooltip({ tooltip }: { tooltip: TooltipState | null }) {
   if (!tooltip) return null;
+  // Hug the cursor: sit just above-right of it, flipping side near the
+  // viewport edges so the card never detaches or clips off-screen.
+  const nearRight = tooltip.x > window.innerWidth - 270;
+  const nearTop = tooltip.y < 130;
+  const left = nearRight ? tooltip.x - 14 : tooltip.x + 14;
+  const top = nearTop ? tooltip.y + 18 : tooltip.y - 12;
+  const transform = `${nearRight ? "translateX(-100%)" : ""} ${nearTop ? "" : "translateY(-100%)"}`.trim();
   return (
     <div
       style={{
         position: "fixed",
-        left: tooltip.x + 14,
-        top: tooltip.y + 14,
+        left,
+        top,
+        transform: transform || undefined,
         zIndex: 500,
         background: "#14213d",
         color: "#fff",
