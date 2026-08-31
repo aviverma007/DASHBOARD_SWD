@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FootfallTabContent } from "../../components/leads/FootfallTabContent";
+import { FootfallSection } from "../../components/leads/FootfallSection";
 import { CpVisitsTabContent } from "../../components/leads/CpVisitsTabContent";
 import { DigitalLeadsTabContent } from "../../components/leads/DigitalLeadsTabContent";
 import "../../components/inventory/smartworldInventory.css";
@@ -51,7 +51,7 @@ export function LeadConversionPage() {
       </div>
 
       <div className="wrap">
-        {tab === "footfall" && <FootfallTabContent />}
+        {tab === "footfall" && <FootfallSection />}
         {tab === "cpvisits" && <CpVisitsTabContent />}
         {tab === "digital" && <DigitalLeadsTabContent />}
       </div>
