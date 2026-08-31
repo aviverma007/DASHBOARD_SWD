@@ -52,7 +52,7 @@ function Donut({ segs, onPick }: {
   const r = 54, cx = 66, cy = 66, sw = 20, C = 2 * Math.PI * r;
   let off = 0;
   return (
-    <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
       <svg viewBox="0 0 132 132" width="132" height="132">
         {segs.map(s => {
           const len = (s.value / total) * C;
@@ -70,13 +70,16 @@ function Donut({ segs, onPick }: {
         <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="Georgia,serif" fontSize="17" fontWeight="700" fill="var(--ink)">{fNum(total)}</text>
         <text x={cx} y={cy + 13} textAnchor="middle" fontSize="8.5" letterSpacing="1" fill="var(--mut)">TOTAL</text>
       </svg>
-      <div style={{ flex: 1, minWidth: 150 }}>
+      {/* Legend: fixed value/percent columns beside the label so the
+          numbers sit close and aligned — never flung to the card's far
+          edge by the container width. */}
+      <div style={{ flex: 1, minWidth: 210, maxWidth: 360 }}>
         {segs.map(s => (
           <div key={s.key} onClick={() => onPick?.(s.key, s.label)} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, padding: "3px 0", cursor: onPick ? "pointer" : "default" }}>
             <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-            <span style={{ color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
-            <b style={{ marginLeft: "auto", color: "var(--ink)" }}>{fNum(s.value)}</b>
-            <span style={{ color: "var(--mut)", width: 44, textAlign: "right" }}>{((s.value / total) * 100).toFixed(1)}%</span>
+            <span style={{ flex: 1, minWidth: 0, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+            <b style={{ width: 62, textAlign: "right", color: "var(--ink)", flexShrink: 0 }}>{fNum(s.value)}</b>
+            <span style={{ color: "var(--mut)", width: 48, textAlign: "right", flexShrink: 0 }}>{((s.value / total) * 100).toFixed(1)}%</span>
           </div>
         ))}
       </div>

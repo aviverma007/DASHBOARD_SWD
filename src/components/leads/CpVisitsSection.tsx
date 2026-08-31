@@ -182,7 +182,7 @@ export function CpVisitsSection() {
       <div><Banner title="CHANNEL PARTNER ENGAGEMENT" sub={`${fNum(total)} gallery visits · ${per.label} · CP data only`} /></div>
 
       {/* Row 1: gallery + project — same size, project scrolls */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         <div style={CARD}>
           <h3 style={H3}>CP visits by gallery</h3>
           <div style={CAP}>click → gallery breakdown</div>
@@ -195,7 +195,7 @@ export function CpVisitsSection() {
         </div>
       </div>
       {/* Row 2: visit-vs-revisit + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         <div style={CARD}>
           <h3 style={H3}>Visit vs revisit</h3>
           <div style={CAP}>revisit = the partner had visited before that day</div>
@@ -213,7 +213,7 @@ export function CpVisitsSection() {
         </div>
       </div>
       {/* Row 3: the two trends */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         <div style={CARD}>
           <h3 style={H3}>CP visits trend</h3>
           <div style={CAP}>monthly gallery visits · click a month</div>

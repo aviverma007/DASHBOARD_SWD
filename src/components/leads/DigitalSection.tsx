@@ -152,7 +152,7 @@ export function DigitalSection() {
       <DigitalFunnelCard rows={rows} />
 
       {/* Row 1: sub-source + project — same size, both scroll */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("sub") && (
           <div style={CARD}>
             <h3 style={H3}>By sub-source</h3>
@@ -169,7 +169,7 @@ export function DigitalSection() {
         )}
       </div>
       {/* Row 2: agency + owner — same size, both scroll */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("ag") && (
           <div style={CARD}>
             <h3 style={H3}>Agency source</h3>
@@ -186,7 +186,7 @@ export function DigitalSection() {
         )}
       </div>
       {/* Row 3: the two donuts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("sta") && (
           <div style={CARD}>
             <h3 style={H3}>Presales status</h3>
@@ -215,7 +215,7 @@ export function DigitalSection() {
         )}
       </div>
       {/* Row 4: trend + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("mon") && (
           <div style={CARD}>
             <h3 style={H3}>Enquiry trend</h3>

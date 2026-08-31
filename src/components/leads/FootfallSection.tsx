@@ -189,7 +189,7 @@ export function FootfallSection() {
       </div>
 
       {/* Row 1: gallery + project — same size, project scrolls */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("g") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall by gallery</h3>
@@ -206,7 +206,7 @@ export function FootfallSection() {
         )}
       </div>
       {/* Row 2: locality (scrolls) + age group */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("loc") && (
           <div style={CARD}>
             <h3 style={H3}>Customer locality</h3>
@@ -228,7 +228,7 @@ export function FootfallSection() {
         )}
       </div>
       {/* Row 3: source + stage donuts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("src") && (
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
@@ -258,7 +258,7 @@ export function FootfallSection() {
         )}
       </div>
       {/* Row 4: trend + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
         {!has("mon") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall trend</h3>
