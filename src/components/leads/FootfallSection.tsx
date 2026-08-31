@@ -215,13 +215,15 @@ export function FootfallSection() {
           </div>
         )}
       </div>
-      {/* Row 3: the three donuts on a single line */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
+      {/* Row 3: the three donuts on a single line — equal heights,
+          content centred so no card has a blank belly */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("src") && (
-          <div style={CARD}>
+          <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Direct vs channel-partner</h3>
             <div style={CAP}>walk-in source · click a slice</div>
-            <Donut
+            <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
               segs={[
                 { key: 1, label: "With CP", value: withCp, color: TEAL },
                 { key: 0, label: "Direct", value: rows.filter(r => r.src === 0).length, color: BLUE },
@@ -229,31 +231,36 @@ export function FootfallSection() {
               ].filter(s => s.value > 0)}
               onPick={(k, l) => openDrill("src")(k, l)}
             />
+            </div>
           </div>
         )}
         {!has("age") && (
-          <div style={CARD}>
+          <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Age group</h3>
             <div style={CAP}>
               {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
             </div>
-            <Donut
+            <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
               segs={listFrom(ffCount(rows, r => r.age), FF.AGE, 12).map((s, i) => ({ ...s, color: PAL[i % PAL.length] }))}
               onPick={(k, l) => openDrill("age")(k, l)}
             />
+            </div>
           </div>
         )}
         {!has("stg") && (
-          <div style={CARD}>
+          <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Opportunity stage</h3>
             <div style={CAP}>current status mix · click a stage</div>
-            <Donut
+            <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
               segs={listFrom(ffCount(rows, r => r.stg), FF.STG, 8).map(s => ({
                 ...s,
                 color: s.label === "Booked" ? GREEN : s.label === "Closed Lost" ? RED : s.label === "In Progress" ? GOLD : s.label === "Site Visit" ? TEAL : BLUE,
               }))}
               onPick={(k, l) => openDrill("stg")(k, l)}
             />
+            </div>
           </div>
         )}
       </div>
