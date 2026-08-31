@@ -908,6 +908,27 @@ export function TargetActualPage() {
             <strong>{selectionLabel}</strong> · {periodLabel}
           </div>
 
+        </div>
+
+        {!target && !actual && (
+          <div className="card"><p style={{ color: "var(--mut)" }}>No target or actual data for this project.</p></div>
+        )}
+
+        {/* AOP + current month summary — fixed scope, above all charts */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+          className="resp-grid2"
+          style={{ gap: 14, marginBottom: 14 }}
+        >
+          <TvaSummaryCard title={`AOP TARGET VALUES ${aopFy.label.replace("FY ", "")}`} rows={summaryRows.aop} />
+          <TvaSummaryCard title={`CURRENT MONTH${todayIdx >= 0 ? ` — ${TIMELINE[todayIdx].label}` : ""}`} rows={summaryRows.month} />
+        </motion.div>
+
+        {/* Chart controls — sit under the two summary tables, right
+            above the charts they drive */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
           {/* Bar/Line style toggle — flips the three Target vs Achieved charts together */}
           <div style={{
             display: "inline-flex", background: "#fff", borderRadius: 999, padding: 4,
@@ -965,22 +986,6 @@ export function TargetActualPage() {
             ))}
           </div>
         </div>
-
-        {!target && !actual && (
-          <div className="card"><p style={{ color: "var(--mut)" }}>No target or actual data for this project.</p></div>
-        )}
-
-        {/* AOP + current month summary — fixed scope, above all charts */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-          className="resp-grid2"
-          style={{ gap: 14, marginBottom: 14 }}
-        >
-          <TvaSummaryCard title={`AOP TARGET VALUES ${aopFy.label.replace("FY ", "")}`} rows={summaryRows.aop} />
-          <TvaSummaryCard title={`CURRENT MONTH${todayIdx >= 0 ? ` — ${TIMELINE[todayIdx].label}` : ""}`} rows={summaryRows.month} />
-        </motion.div>
 
         {/* Cards 1-2: Units, TSV */}
         <motion.div
