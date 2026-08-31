@@ -186,31 +186,35 @@ export function DigitalSection() {
         )}
       </div>
       {/* Row 3: the two donuts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("sta") && (
-          <div style={CARD}>
+          <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Presales status</h3>
             <div style={CAP}>qualification outcome · click a slice</div>
-            <Donut
+            <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
               segs={listFrom(r => r.sta, DG.STA, 6).map(s => ({
                 ...s,
                 color: s.label === "Qualified" ? GREEN : s.label === "Not Qualified" ? RED : s.label === "In Progress" ? GOLD : TEAL,
               }))}
               onPick={openDrill("sta")}
             />
+            </div>
           </div>
         )}
         {!has("stg") && (
-          <div style={CARD}>
+          <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Opportunity stage</h3>
             <div style={CAP}>{fNum(opp)} enquiries became opportunities · click a stage</div>
-            <Donut
+            <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
               segs={listFrom(r => r.stg, DG.STG, 8).map((s, i) => ({
                 ...s,
                 color: s.label === "Booked" ? GREEN : s.label === "Closed Lost" ? RED : s.label === "In Progress" ? GOLD : PAL[i % PAL.length],
               }))}
               onPick={openDrill("stg")}
             />
+            </div>
           </div>
         )}
       </div>

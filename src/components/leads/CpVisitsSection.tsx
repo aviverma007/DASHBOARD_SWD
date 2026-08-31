@@ -195,18 +195,20 @@ export function CpVisitsSection() {
         </div>
       </div>
       {/* Row 2: visit-vs-revisit + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" }}>
-        <div style={CARD}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+        <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
           <h3 style={H3}>Visit vs revisit</h3>
           <div style={CAP}>revisit = the partner had visited before that day</div>
-          <Donut
+          <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+<Donut
             segs={[
               { key: 0, label: "Revisit", value: revisits, color: TEAL },
               { key: 1, label: "First visit", value: firstTimers, color: GOLD },
             ].filter(s => s.value > 0)}
           />
+            </div>
         </div>
-        <div style={CARD}>
+        <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
           <h3 style={H3}>Weekday pattern</h3>
           <div style={CAP}>visits by day of week · click a day</div>
           <WeekdayChart items={weekday} onPick={(k, l) => openDrill("dow")(k, l)} />

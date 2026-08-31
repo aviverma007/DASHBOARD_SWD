@@ -49,11 +49,11 @@ function Donut({ segs, onPick }: {
   onPick?: (key: number, label: string) => void;
 }) {
   const total = segs.reduce((a, s) => a + s.value, 0) || 1;
-  const r = 54, cx = 66, cy = 66, sw = 20, C = 2 * Math.PI * r;
+  const r = 62, cx = 76, cy = 76, sw = 23, C = 2 * Math.PI * r;
   let off = 0;
   return (
-    <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-      <svg viewBox="0 0 132 132" width="132" height="132">
+    <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap", width: "100%" }}>
+      <svg viewBox="0 0 152 152" width="152" height="152">
         {segs.map(s => {
           const len = (s.value / total) * C;
           const el = (
@@ -67,19 +67,19 @@ function Donut({ segs, onPick }: {
           off += len;
           return el;
         })}
-        <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="Georgia,serif" fontSize="17" fontWeight="700" fill="var(--ink)">{fNum(total)}</text>
-        <text x={cx} y={cy + 13} textAnchor="middle" fontSize="8.5" letterSpacing="1" fill="var(--mut)">TOTAL</text>
+        <text x={cx} y={cy - 2} textAnchor="middle" fontFamily="Georgia,serif" fontSize="19" fontWeight="700" fill="var(--ink)">{fNum(total)}</text>
+        <text x={cx} y={cy + 14} textAnchor="middle" fontSize="9" letterSpacing="1" fill="var(--mut)">TOTAL</text>
       </svg>
       {/* Legend: fixed value/percent columns beside the label so the
           numbers sit close and aligned — never flung to the card's far
           edge by the container width. */}
-      <div style={{ flex: 1, minWidth: 210, maxWidth: 360 }}>
+      <div style={{ flex: 1, minWidth: 220, maxWidth: 430 }}>
         {segs.map(s => (
-          <div key={s.key} onClick={() => onPick?.(s.key, s.label)} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, padding: "3px 0", cursor: onPick ? "pointer" : "default" }}>
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+          <div key={s.key} onClick={() => onPick?.(s.key, s.label)} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, padding: "5px 0", cursor: onPick ? "pointer" : "default" }}>
+            <span style={{ width: 11, height: 11, borderRadius: 3, background: s.color, flexShrink: 0 }} />
             <span style={{ flex: 1, minWidth: 0, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
-            <b style={{ width: 62, textAlign: "right", color: "var(--ink)", flexShrink: 0 }}>{fNum(s.value)}</b>
-            <span style={{ color: "var(--mut)", width: 48, textAlign: "right", flexShrink: 0 }}>{((s.value / total) * 100).toFixed(1)}%</span>
+            <b style={{ width: 72, textAlign: "right", color: "var(--ink)", flexShrink: 0 }}>{fNum(s.value)}</b>
+            <span style={{ color: "var(--mut)", width: 54, textAlign: "right", flexShrink: 0 }}>{((s.value / total) * 100).toFixed(1)}%</span>
           </div>
         ))}
       </div>
