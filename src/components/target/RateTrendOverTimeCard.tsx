@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
 import { useContainerWidth } from "./useContainerWidth";
 
@@ -11,6 +12,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendPoint[]; onPointClick?: (key: string) => void }) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
   const { ref: boxRef, width } = useContainerWidth<HTMLDivElement>();
 
   if (data.length === 0) {
@@ -74,16 +76,16 @@ export function RateTrendOverTimeCard({ data, onPointClick }: { data: RateTrendP
             const colW = data.length > 1 ? innerW / (data.length - 1) : innerW;
             return (
               <g key={d.key}
-                onMouseEnter={e => pointTooltip(d, e)}
-                onMouseMove={e => { pointTooltip(d, e); moveTooltip(e); }}
-                onMouseLeave={hideTooltip}
+                onMouseEnter={e => { setHoverKey(d.key); pointTooltip(d, e); }}
+                onMouseMove={e => { setHoverKey(d.key); pointTooltip(d, e); moveTooltip(e); }}
+                onMouseLeave={() => { setHoverKey(null); hideTooltip(); }}
                 onClick={() => onPointClick?.(d.key)}
                 style={{ cursor: onPointClick ? "pointer" : "default" }}
               >
                 {/* full-height hover column: values appear anywhere over
                     the month, not only when pin-pointing the dot */}
                 <rect x={x(i) - colW / 2} y={PAD.t} width={colW} height={innerH} fill="transparent" />
-                <circle cx={x(i)} cy={y(d.rate)} r="5" fill="#0e7490" stroke="#fff" strokeWidth="1.5" style={{ pointerEvents: "none" }} />
+                <circle cx={x(i)} cy={y(d.rate)} r={hoverKey === d.key ? 8 : 5} fill={hoverKey === d.key ? "#f97316" : "#0e7490"} stroke="#fff" strokeWidth={hoverKey === d.key ? 2.5 : 1.5} style={{ pointerEvents: "none", transition: "r 0.12s, fill 0.12s" }} />
               </g>
             );
           })}

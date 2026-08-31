@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface TooltipState {
   x: number;
@@ -16,7 +17,11 @@ export function ChartTooltip({ tooltip }: { tooltip: TooltipState | null }) {
   const left = nearRight ? tooltip.x - 14 : tooltip.x + 14;
   const top = nearTop ? tooltip.y + 18 : tooltip.y - 12;
   const transform = `${nearRight ? "translateX(-100%)" : ""} ${nearTop ? "" : "translateY(-100%)"}`.trim();
-  return (
+  // Portaled to <body>: pages that zoom their content (e.g. Target's
+  // 0.9 wrapper) make Chromium interpret a nested fixed element's
+  // coordinates in zoomed units, landing the card ~10% away from the
+  // cursor. Outside the wrapper, clientX/Y map 1:1 to the viewport.
+  return createPortal(
     <div
       style={{
         position: "fixed",
@@ -37,7 +42,8 @@ export function ChartTooltip({ tooltip }: { tooltip: TooltipState | null }) {
       }}
     >
       {tooltip.content}
-    </div>
+    </div>,
+    document.body
   );
 }
 
