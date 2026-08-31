@@ -2,6 +2,7 @@
  * Footfall tab section and the drill-down drawer. All pure SVG/HTML,
  * styled to match the reference suite. */
 import { useMemo, useState } from "react";
+import { showTip, hideTip } from "../common/hoverTip";
 import {
   FF, fNum, dayToDate, periodKeys, inPeriod, quarterLabel, ffFunnel,
   type FfRecord,
@@ -30,7 +31,11 @@ function HBarList({ items, total, color, onPick, maxHeight }: {
   return (
     <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
       {items.map(it => (
-        <div key={it.key} onClick={() => onPick?.(it.key, it.label)} style={{ padding: "4px 0", cursor: onPick ? "pointer" : "default" }} className="barrow">
+        <div key={it.key} onClick={() => onPick?.(it.key, it.label)} className="barrow"
+          onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}% of ${fNum(total)}`)}
+          onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}% of ${fNum(total)}`)}
+          onMouseLeave={hideTip}
+          style={{ padding: "4px 0", cursor: onPick ? "pointer" : "default" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
             <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{it.label}</span>
             <span style={{ color: "var(--mut)" }}>{fNum(it.value)} · {((it.value / Math.max(total, 1)) * 100).toFixed(1)}%</span>
@@ -62,6 +67,9 @@ function Donut({ segs, onPick }: {
               transform={`rotate(-90 ${cx} ${cy})`}
               style={{ cursor: onPick ? "pointer" : "default" }}
               onClick={() => onPick?.(s.key, s.label)}
+              onMouseEnter={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${((s.value / total) * 100).toFixed(1)}%`)}
+              onMouseMove={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${((s.value / total) * 100).toFixed(1)}%`)}
+              onMouseLeave={hideTip}
             />
           );
           off += len;
@@ -75,7 +83,11 @@ function Donut({ segs, onPick }: {
           edge by the container width. */}
       <div style={{ flex: 1, minWidth: 220, maxWidth: 430 }}>
         {segs.map(s => (
-          <div key={s.key} onClick={() => onPick?.(s.key, s.label)} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, padding: "5px 0", cursor: onPick ? "pointer" : "default" }}>
+          <div key={s.key} onClick={() => onPick?.(s.key, s.label)}
+            onMouseEnter={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} of ${fNum(total)} · ${((s.value / total) * 100).toFixed(1)}%`)}
+            onMouseMove={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} of ${fNum(total)} · ${((s.value / total) * 100).toFixed(1)}%`)}
+            onMouseLeave={hideTip}
+            style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, padding: "5px 0", cursor: onPick ? "pointer" : "default" }}>
             <span style={{ width: 11, height: 11, borderRadius: 3, background: s.color, flexShrink: 0 }} />
             <span style={{ flex: 1, minWidth: 0, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
             <b style={{ width: 72, textAlign: "right", color: "var(--ink)", flexShrink: 0 }}>{fNum(s.value)}</b>
@@ -100,10 +112,17 @@ function TrendChart({ items, onPick }: {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
       {items.map((it, i) => (
-        <rect key={it.key} x={i * (bw + gap)} y={cy(it.value)} width={bw} height={h - padB - cy(it.value)} rx="2" fill="#D7E2F0"
-          style={{ cursor: onPick ? "pointer" : "default" }} onClick={() => onPick?.(it.key, it.label)}>
-          <title>{it.label}: {fNum(it.value)}</title>
-        </rect>
+        <g key={it.key}>
+          <rect x={i * (bw + gap)} y={cy(it.value)} width={bw} height={h - padB - cy(it.value)} rx="2" fill="#D7E2F0" />
+          {/* full-height invisible hover/click target — thin bars and
+              line dots become easy to hit */}
+          <rect x={i * (bw + gap) - gap / 2} y={0} width={bw + gap} height={h - padB} fill="transparent"
+            style={{ cursor: onPick ? "pointer" : "default" }} onClick={() => onPick?.(it.key, it.label)}
+            onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)}`)}
+            onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)}`)}
+            onMouseLeave={hideTip}
+          />
+        </g>
       ))}
       <polyline points={pts} fill="none" stroke={GOLD} strokeWidth="2" />
       {items.map((it, i) => (
@@ -130,10 +149,12 @@ function WeekdayChart({ items, onPick }: {
       {items.map((it, i) => {
         const bh = (it.value / max) * (h - padB - padT);
         return (
-          <g key={it.key} style={{ cursor: onPick ? "pointer" : "default" }} onClick={() => onPick?.(it.key, it.label)}>
-            <rect x={i * (bw + gap)} y={h - padB - bh} width={bw} height={bh} rx="4" fill={TEAL} opacity={0.85}>
-              <title>{it.label}: {fNum(it.value)}</title>
-            </rect>
+          <g key={it.key} style={{ cursor: onPick ? "pointer" : "default" }} onClick={() => onPick?.(it.key, it.label)}
+            onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} visits`)}
+            onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} visits`)}
+            onMouseLeave={hideTip}>
+            <rect x={i * (bw + gap)} y={0} width={bw} height={h - padB} fill="transparent" />
+            <rect x={i * (bw + gap)} y={h - padB - bh} width={bw} height={bh} rx="4" fill={TEAL} opacity={0.85} />
             <text x={i * (bw + gap) + bw / 2} y={h - padB - bh - 5} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#0e7490">{fNum(it.value)}</text>
             <text x={i * (bw + gap) + bw / 2} y={h - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill="#1f2937">{it.label}</text>
           </g>
@@ -172,7 +193,10 @@ function FunnelChart({ records }: { records: FfRecord[] }) {
               const prev = i === 0 ? s.value : steps[i - 1].value;
               const drop = i === 0 ? 0 : prev - s.value;
               return (
-                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}>
+                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}
+                  onMouseEnter={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${s.pctOfTotal.toFixed(1)}% of total${i > 0 ? `<br/>step conv ${s.pctOfPrev.toFixed(1)}% · drop −${fNum(prev - s.value)}` : ""}`)}
+                  onMouseMove={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${s.pctOfTotal.toFixed(1)}% of total${i > 0 ? `<br/>step conv ${s.pctOfPrev.toFixed(1)}% · drop −${fNum(prev - s.value)}` : ""}`)}
+                  onMouseLeave={hideTip}>
                   <td style={{ ...cell, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
                     {s.label}
                     <div style={{ fontSize: 10, fontWeight: 400, color: "var(--mut)" }}>{s.hint}</div>
@@ -301,7 +325,10 @@ function MomentumCard({ records, showBooked = true }: { records: FfRecord[]; sho
             const va = m.fn(ra), vb = m.fn(rb);
             const d = va ? ((vb - va) / va) * 100 : vb ? 100 : 0;
             return (
-              <tr key={m.name} style={{ borderBottom: "1px solid var(--line)" }}>
+              <tr key={m.name} style={{ borderBottom: "1px solid var(--line)" }}
+                onMouseEnter={e => showTip(e, `<b>${m.name}</b><br/>${lab(ka)}: ${fNum(va)} → ${lab(kb)}: ${fNum(vb)}<br/>Δ ${d >= 0 ? "+" : ""}${d.toFixed(1)}%`)}
+                onMouseMove={e => showTip(e, `<b>${m.name}</b><br/>${lab(ka)}: ${fNum(va)} → ${lab(kb)}: ${fNum(vb)}<br/>Δ ${d >= 0 ? "+" : ""}${d.toFixed(1)}%`)}
+                onMouseLeave={hideTip}>
                 <td style={{ padding: "8px 8px 8px 0", color: "var(--ink)" }}>{m.name}</td>
                 <td style={{ padding: "8px 8px", textAlign: "right", fontFamily: "Georgia,serif", fontWeight: 700 }}>{fNum(va)}</td>
                 <td style={{ padding: "8px 8px", textAlign: "right", fontFamily: "Georgia,serif", fontWeight: 700 }}>{fNum(vb)}</td>
@@ -423,6 +450,9 @@ function CpBoard({ rows, onDrill, showBooked = true, visitsLabel = "Customer vis
             {shown.map(p => (
               <tr key={p.cp}
                 onClick={() => compareMode ? toggleSel(p.cp) : onDrill(p.cp, p.name)}
+                onMouseEnter={e => showTip(e, `<b>${p.name}</b><br/>${fNum(p.visits)} visits · ${((p.visits / Math.max(cpTotal, 1)) * 100).toFixed(1)}% share<br/>${p.projects.size} projects · ${p.galleries.size} galleries · last ${fdate(p.last)}`)}
+                onMouseMove={e => showTip(e, `<b>${p.name}</b><br/>${fNum(p.visits)} visits · ${((p.visits / Math.max(cpTotal, 1)) * 100).toFixed(1)}% share<br/>${p.projects.size} projects · ${p.galleries.size} galleries · last ${fdate(p.last)}`)}
+                onMouseLeave={hideTip}
                 style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}>
                 {compareMode && (
                   <td style={{ padding: "7px 4px" }}>

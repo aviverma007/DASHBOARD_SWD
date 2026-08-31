@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { showTip, hideTip } from "../common/hoverTip";
 import {
   FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
   periodPresets, type PeriodPreset,
@@ -83,7 +84,10 @@ export function FootfallSection() {
   const shown = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const KPI = ({ l, v, s }: { l: string; v: string; s?: string }) => (
-    <div className="card" style={{ ...CARD, padding: "13px 16px" }}>
+    <div className="card" style={{ ...CARD, padding: "13px 16px" }}
+      onMouseEnter={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseMove={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseLeave={hideTip}>
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{l}</div>
       <div style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
       {s && <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 1 }}>{s}</div>}

@@ -1,6 +1,7 @@
 /** Table-format funnel card for digital enquiries (enquiry →
  * qualified → opportunity → site-visit+ → booked). */
 import { fNum } from "../../utils/footfallLogic";
+import { showTip, hideTip } from "../common/hoverTip";
 import { CARD, H3, CAP, BLUE, TEAL, GOLD, GREEN, RED } from "./footfallCharts";
 import { digitalFunnel, type DigRec } from "./digitalShared";
 
@@ -30,7 +31,10 @@ export function DigitalFunnelCard({ rows }: { rows: DigRec[] }) {
               const prev = i === 0 ? s.value : steps[i - 1].value;
               const drop = i === 0 ? 0 : prev - s.value;
               return (
-                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}>
+                <tr key={s.key} style={{ borderBottom: "1px solid var(--line)" }}
+                  onMouseEnter={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${s.pctOfTotal.toFixed(1)}% of enquiries${i > 0 ? `<br/>step conv ${s.pctOfPrev.toFixed(1)}% · drop −${fNum(prev - s.value)}` : ""}`)}
+                  onMouseMove={e => showTip(e, `<b>${s.label}</b><br/>${fNum(s.value)} · ${s.pctOfTotal.toFixed(1)}% of enquiries${i > 0 ? `<br/>step conv ${s.pctOfPrev.toFixed(1)}% · drop −${fNum(prev - s.value)}` : ""}`)}
+                  onMouseLeave={hideTip}>
                   <td style={{ ...cell, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
                     {s.label}
                     <div style={{ fontSize: 10, fontWeight: 400, color: "var(--mut)" }}>{s.hint}</div>

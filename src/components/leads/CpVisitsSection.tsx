@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { showTip, hideTip } from "../common/hoverTip";
 import {
   FF, FF_RECORDS, ffApply, ffCount, ffMonthly, ffWeekday, fNum, dayToYm, ymLabel, isoToDay,
   periodPresets, type PeriodPreset, type FfFilter, type FfDim,
@@ -107,7 +108,10 @@ export function CpVisitsSection() {
       .sort((a, b) => b.value - a.value).slice(0, top);
 
   const KPI = ({ l, v, s, spark }: { l: string; v: string; s?: string; spark?: boolean }) => (
-    <div className="card" style={{ ...CARD, padding: "13px 16px" }}>
+    <div className="card" style={{ ...CARD, padding: "13px 16px" }}
+      onMouseEnter={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseMove={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseLeave={hideTip}>
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{l}</div>
       <div style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
       {s && <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 1 }}>{s}</div>}

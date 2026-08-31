@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { showTip, hideTip } from "../common/hoverTip";
 import { AnimatePresence, motion } from "framer-motion";
 import { dayToDate, fNum } from "../../utils/footfallLogic";
 import {
@@ -69,7 +70,10 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
   const shown = sorted.slice((page - 1) * PER, page * PER);
 
   const KPI = ({ l, v, s, spark }: { l: string; v: string; s?: string; spark?: boolean }) => (
-    <div style={{ ...CARD, padding: "12px 15px" }}>
+    <div style={{ ...CARD, padding: "12px 15px" }}
+      onMouseEnter={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseMove={e => showTip(e, `<b>${l}</b><br/>${v}${s ? ` · ${s}` : ""}`)}
+      onMouseLeave={hideTip}>
       <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{l}</div>
       <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
       {s && <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 1 }}>{s}</div>}
