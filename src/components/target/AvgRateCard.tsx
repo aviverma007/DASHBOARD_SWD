@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useState } from "react";
 import { ChartTooltip, useChartTooltip, tRow } from "./ChartTooltip";
 
 export interface RatePoint {
@@ -58,6 +59,7 @@ function Slider({ offset, maxOffset, total, windowSize, onOffset }: { offset: nu
 
 export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, onPointClick, offset, windowSize, onOffsetChange }: AvgRateCardProps) {
   const { tooltip, showTooltip, moveTooltip, hideTooltip } = useChartTooltip();
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const maxOffset = Math.max(0, data.length - windowSize);
   const clampedOffset = Math.min(offset, maxOffset);
   const visible = data.slice(clampedOffset, clampedOffset + windowSize);
@@ -119,22 +121,27 @@ export function AvgRateCard({ data, avgAchievedRate, targetRate, requiredRate, o
             <path d={pathFor("targetRate")} fill="none" stroke={tgtColor} strokeWidth="2.2" />
             <path d={pathFor("adjustedRate")} fill="none" stroke={adjColor} strokeWidth="2.2" strokeDasharray="6,3" />
             <path d={pathFor("achievedRate")} fill="none" stroke={achColor} strokeWidth="2.4" />
-            {visible.map((d, i) => (
-              <g key={`hit${i}`}
-                onMouseEnter={e => pointTooltip(d, e)}
-                onMouseMove={moveTooltip}
-                onMouseLeave={hideTooltip}
-                onClick={() => (d.achievedRate != null || d.targetRate != null) && onPointClick?.(d)}
-                style={{ cursor: onPointClick ? "pointer" : "default" }}
-              >
-                <circle cx={x(i)} cy={y(d.achievedRate ?? d.targetRate ?? min)} r="12" fill="transparent" />
-              </g>
-            ))}
+            {visible.map((d, i) => {
+              const colW = visible.length > 1 ? innerW / (visible.length - 1) : innerW;
+              return (
+                <g key={`hit${i}`}
+                  onMouseEnter={e => { setHoverIdx(i); pointTooltip(d, e); }}
+                  onMouseMove={e => { setHoverIdx(i); pointTooltip(d, e); moveTooltip(e); }}
+                  onMouseLeave={() => { setHoverIdx(null); hideTooltip(); }}
+                  onClick={() => (d.achievedRate != null || d.targetRate != null) && onPointClick?.(d)}
+                  style={{ cursor: onPointClick ? "pointer" : "default" }}
+                >
+                  {/* full-height month column: hover anywhere over the
+                      month, not only on the 12px dot halo */}
+                  <rect x={x(i) - colW / 2} y={PAD.t} width={colW} height={innerH} fill="transparent" />
+                </g>
+              );
+            })}
             {visible.map((d, i) => d.achievedRate != null && (
-              <circle key={`a${i}`} cx={x(i)} cy={y(d.achievedRate)} r="5" fill={achColor} stroke="#fff" strokeWidth="1.5" style={{ pointerEvents: "none" }} />
+              <circle key={`a${i}`} cx={x(i)} cy={y(d.achievedRate)} r={hoverIdx === i ? 8 : 5} fill={achColor} stroke="#fff" strokeWidth={hoverIdx === i ? 2.5 : 1.5} style={{ pointerEvents: "none", transition: "r 0.12s" }} />
             ))}
-            {visible.map((d, i) => d.targetRate != null && <circle key={`t${i}`} cx={x(i)} cy={y(d.targetRate)} r="4" fill={tgtColor} style={{ pointerEvents: "none" }} />)}
-            {visible.map((d, i) => d.adjustedRate != null && <circle key={`j${i}`} cx={x(i)} cy={y(d.adjustedRate)} r="4.5" fill={adjColor} style={{ pointerEvents: "none" }} />)}
+            {visible.map((d, i) => d.targetRate != null && <circle key={`t${i}`} cx={x(i)} cy={y(d.targetRate)} r={hoverIdx === i ? 7 : 4} fill={tgtColor} stroke={hoverIdx === i ? "#fff" : "none"} strokeWidth={hoverIdx === i ? 2 : 0} style={{ pointerEvents: "none", transition: "r 0.12s" }} />)}
+            {visible.map((d, i) => d.adjustedRate != null && <circle key={`j${i}`} cx={x(i)} cy={y(d.adjustedRate)} r={hoverIdx === i ? 7.5 : 4.5} fill={adjColor} stroke={hoverIdx === i ? "#fff" : "none"} strokeWidth={hoverIdx === i ? 2 : 0} style={{ pointerEvents: "none", transition: "r 0.12s" }} />)}
             {visible.map((d, i) => <text key={`m${i}`} x={x(i)} y={H - 8} fontSize="13.5" fontWeight={700} fill="#1f2937" textAnchor="middle">{d.month}</text>)}
           </svg>
         </div>
