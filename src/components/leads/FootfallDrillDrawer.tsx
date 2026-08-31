@@ -6,7 +6,7 @@ import {
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark,
-  CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  CARD, MCARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 
 export interface DrillSeed { dim: FfDim; val: number | string; label: string }
@@ -172,23 +172,23 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
               )}
 
               {/* Breakdown cards (hidden for filtered dims) */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+              <div style={{ columnWidth: 310, columnGap: 12 }}>
                 {!has("g") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>By gallery</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(ffCount(rows, r => r.g), FF.G)} total={total} color={BLUE} onPick={(k, l) => addChip("g", k, l)} />
                   </div>
                 )}
                 {!has("p") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>By project</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => addChip("p", k, l)} />
                   </div>
                 )}
                 {!has("src") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Direct vs channel-partner</h3>
                     <div style={CAP}>walk-in source</div>
                     <Donut
@@ -202,14 +202,14 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                   </div>
                 )}
                 {!has("loc") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Customer locality</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => addChip("loc", k, l)} />
                   </div>
                 )}
                 {!has("age") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Age group</h3>
                     <div style={CAP}>{fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured</div>
                     <Donut
@@ -219,7 +219,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                   </div>
                 )}
                 {showBooking && !has("stg") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Opportunity stage</h3>
                     <div style={CAP}>current status mix</div>
                     <Donut
@@ -232,7 +232,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                   </div>
                 )}
                 {!has("cp") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Top channel partners</h3>
                     <div style={CAP}>CP-sourced visits · click → partner</div>
                     <HBarList
@@ -244,7 +244,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12, marginTop: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12, marginTop: 0, alignItems: "start" }}>
                 {!has("mon") && (
                   <div style={CARD}>
                     <h3 style={H3}>Footfall trend</h3>

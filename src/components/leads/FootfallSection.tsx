@@ -6,7 +6,7 @@ import {
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark,
-  MomentumCard, CpBoard, CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  MomentumCard, CpBoard, CARD, MCARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import { FootfallDrillDrawer, type DrillSeed } from "./FootfallDrillDrawer";
 
@@ -189,16 +189,16 @@ export function FootfallSection() {
       </div>
 
       {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 14 }}>
+      <div style={{ columnWidth: 340, columnGap: 14 }}>
         {!has("g") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Footfall by gallery</h3>
             <div style={CAP}>click → gallery</div>
             <HBarList items={listFrom(ffCount(rows, r => r.g), FF.G)} total={total} color={BLUE} onPick={(k, l) => openDrill("g")(k, l)} />
           </div>
         )}
         {!has("src") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
             <div style={CAP}>walk-in source · click a slice</div>
             <Donut
@@ -212,21 +212,21 @@ export function FootfallSection() {
           </div>
         )}
         {!has("p") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Footfall by project</h3>
             <div style={CAP}>top 10 · click → project</div>
             <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} />
           </div>
         )}
         {!has("loc") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Customer locality</h3>
             <div style={CAP}>top 10 · click → locality</div>
             <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} />
           </div>
         )}
         {!has("age") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Age group</h3>
             <div style={CAP}>
               {fNum(rows.filter(r => r.age >= 0).length)} of {fNum(total)} captured · click a band
@@ -238,7 +238,7 @@ export function FootfallSection() {
           </div>
         )}
         {!has("stg") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Opportunity stage</h3>
             <div style={CAP}>current status mix · click a stage</div>
             <Donut
@@ -253,7 +253,7 @@ export function FootfallSection() {
       </div>
 
       {/* Trend + weekday */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
         {!has("mon") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall trend</h3>

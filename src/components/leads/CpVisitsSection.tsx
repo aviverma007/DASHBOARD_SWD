@@ -5,7 +5,7 @@ import {
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark, MomentumCard, CpBoard,
-  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
+  CARD, MCARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
 } from "./footfallCharts";
 import { FootfallDrillDrawer, type DrillSeed } from "./FootfallDrillDrawer";
 
@@ -197,13 +197,13 @@ export function CpVisitsSection() {
       <div><Banner title="CHANNEL PARTNER ENGAGEMENT" sub={`${fNum(total)} gallery visits · ${per.label} · CP data only`} /></div>
 
       {/* Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 14 }}>
-        <div style={CARD}>
+      <div style={{ columnWidth: 340, columnGap: 14 }}>
+        <div style={MCARD}>
           <h3 style={H3}>CP visits by gallery</h3>
           <div style={CAP}>click → gallery breakdown</div>
           <HBarList items={listFrom(ffCount(rows, r => r.g), FF.G)} total={total} color={BLUE} onPick={(k, l) => openDrill("g")(k, l)} />
         </div>
-        <div style={CARD}>
+        <div style={MCARD}>
           <h3 style={H3}>Visit vs revisit</h3>
           <div style={CAP}>revisit = the partner had visited before that day</div>
           <Donut
@@ -213,20 +213,20 @@ export function CpVisitsSection() {
             ].filter(s => s.value > 0)}
           />
         </div>
-        <div style={CARD}>
+        <div style={MCARD}>
           <h3 style={H3}>Visits per partner</h3>
           <div style={CAP}>how many partners fall in each activity band</div>
           <HBarList items={dist} total={uniq.size} color={GREEN} />
         </div>
-        <div style={CARD}>
+        <div style={MCARD}>
           <h3 style={H3}>CP visits by project</h3>
           <div style={CAP}>top 10 · click → project breakdown</div>
           <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} />
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 14 }}>
-        <div style={CARD}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
+        <div style={MCARD}>
           <h3 style={H3}>CP visits trend</h3>
           <div style={CAP}>monthly gallery visits · click a month</div>
           <TrendChart items={monthly} onPick={(k, l) => openDrill("mon")(k, l)} />

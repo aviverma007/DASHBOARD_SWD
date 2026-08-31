@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  CARD, MCARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
   DG, RECORDS, applyChips, digMonthly, digWeekday,
@@ -152,16 +152,16 @@ export function DigitalSection() {
       <DigitalFunnelCard rows={rows} />
 
       {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 14 }}>
+      <div style={{ columnWidth: 340, columnGap: 14 }}>
         {!has("sub") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>By sub-source</h3>
             <div style={CAP}>where enquiries come from · click → channel</div>
             <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={openDrill("sub")} />
           </div>
         )}
         {!has("sta") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Presales status</h3>
             <div style={CAP}>qualification outcome · click a slice</div>
             <Donut
@@ -174,28 +174,28 @@ export function DigitalSection() {
           </div>
         )}
         {!has("p") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>By project / campaign</h3>
             <div style={CAP}>click → project</div>
             <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} />
           </div>
         )}
         {!has("ag") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Agency source</h3>
             <div style={CAP}>top 10 agencies · click → agency</div>
             <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={openDrill("ag")} />
           </div>
         )}
         {!has("ow") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Presales owner</h3>
             <div style={CAP}>enquiries handled · click → owner</div>
             <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} />
           </div>
         )}
         {!has("stg") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Opportunity stage</h3>
             <div style={CAP}>{fNum(opp)} enquiries became opportunities · click a stage</div>
             <Donut
@@ -209,9 +209,9 @@ export function DigitalSection() {
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginTop: 0, alignItems: "start" }}>
         {!has("mon") && (
-          <div style={CARD}>
+          <div style={MCARD}>
             <h3 style={H3}>Enquiry trend</h3>
             <div style={CAP}>monthly volume · click a month</div>
             <TrendChart items={monthly} onPick={openDrill("mon")} />

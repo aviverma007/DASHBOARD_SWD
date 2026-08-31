@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { dayToDate, fNum } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  CARD, MCARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
   DG, applyChips, digMonthly, digWeekday, digInsights,
@@ -153,16 +153,16 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
               <DigitalFunnelCard rows={rows} />
 
               {/* Breakdown cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+              <div style={{ columnWidth: 310, columnGap: 12 }}>
                 {!has("sub") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>By sub-source</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={addChip("sub")} />
                   </div>
                 )}
                 {!has("sta") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Presales status</h3>
                     <div style={CAP}>qualification outcome</div>
                     <Donut
@@ -175,28 +175,28 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                   </div>
                 )}
                 {!has("p") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>By project / campaign</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={addChip("p")} />
                   </div>
                 )}
                 {!has("ag") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Agency source</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={addChip("ag")} />
                   </div>
                 )}
                 {!has("ow") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Presales owner</h3>
                     <div style={CAP}>click → narrow further</div>
                     <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={addChip("ow")} />
                   </div>
                 )}
                 {!has("stg") && (
-                  <div style={CARD}>
+                  <div style={MCARD}>
                     <h3 style={H3}>Opportunity stage</h3>
                     <div style={CAP}>{fNum(opp)} became opportunities</div>
                     <Donut
@@ -210,7 +210,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12, marginTop: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 12, marginTop: 0, alignItems: "start" }}>
                 {!has("mon") && (
                   <div style={CARD}>
                     <h3 style={H3}>Enquiry trend</h3>

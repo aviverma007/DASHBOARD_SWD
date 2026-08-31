@@ -11,6 +11,9 @@ const BLUE = "#1E3163", TEAL = "#0e7490", GOLD = "#B8893C", GREEN = "#1a7a4a", R
 const PAL = ["#1E3163", "#0e7490", "#B8893C", "#1a7a4a", "#7b5cb8", "#c0392b", "#5a8a9c", "#a8821b", "#446688", "#888066"];
 
 const CARD: React.CSSProperties = { background: "#fff", borderRadius: 12, border: "1px solid #e4e0d6", boxShadow: "0 1px 4px rgba(20,33,61,.06)", padding: "16px 18px" };
+/** Card inside a masonry (CSS columns) area: keeps natural height and
+ * never splits across columns — fixes stretched-whitespace grids. */
+const MCARD: React.CSSProperties = { ...CARD, breakInside: "avoid", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: 0 };
 const CAP: React.CSSProperties = { fontSize: 11.5, color: "#c07a1a", marginTop: 2, marginBottom: 10 };
 
@@ -441,4 +444,4 @@ function CpBoard({ rows, onDrill, showBooked = true }: { rows: FfRecord[]; onDri
 }
 
 
-export { HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark, MomentumCard, CpBoard, CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED };
+export { HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark, MomentumCard, CpBoard, CARD, MCARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED };
