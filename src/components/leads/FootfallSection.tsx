@@ -3,13 +3,14 @@ import { showTip, hideTip } from "../common/hoverTip";
 import {
   FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
   periodPresets, type PeriodPreset,
-  type FfFilter, type FfDim,
+  type FfFilter, type FfDim, type FfRecord,
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark,
   MomentumCard, CpBoard, CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import { FootfallDrillDrawer, type DrillSeed } from "./FootfallDrillDrawer";
+import { VisitRecordPanel } from "./VisitRecordPanel";
 
 /** Customer-footfall analysis, modelled on the reference suite's
  * footfall tab and rebuilt over the 21-Aug export (54,222 visits):
@@ -97,10 +98,12 @@ export function FootfallSection() {
   );
 
   const [drill, setDrill] = useState<DrillSeed | null>(null);
+  const [recDetail, setRecDetail] = useState<FfRecord | null>(null);
   const openDrill = (dim: FfDim) => (val: number | string, label: string) => setDrill({ dim, val, label });
 
   return (
     <div>
+      <VisitRecordPanel rec={recDetail} onClose={() => setRecDetail(null)} />
       <FootfallDrillDrawer
         seed={drill}
         baseRows={rows}
@@ -331,7 +334,7 @@ export function FootfallSection() {
             </thead>
             <tbody>
               {shown.map((r, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                <tr key={i} onClick={() => setRecDetail(r)} style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}>
                   <td style={{ padding: "7px 8px 7px 0", whiteSpace: "nowrap" }}>
                     {r.day >= 0 ? dayToDate(r.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
                   </td>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { showTip, hideTip } from "../common/hoverTip";
+import { VisitRecordPanel } from "./VisitRecordPanel";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FF, ffApply, ffCount, ffMonthly, ffWeekday, ffInsights, fNum, dayToDate,
@@ -37,6 +38,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
 }) {
   const [chips, setChips] = useState<FfFilter[]>([]);
   const [showLogic, setShowLogic] = useState(false);
+  const [recDetail, setRecDetail] = useState<FfRecord | null>(null);
   const [page, setPage] = useState(1);
 
   // Re-seed whenever a new drill is opened
@@ -94,6 +96,8 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
   const title = chips.map(c => `${DIM_NAMES[c.dim]}: ${c.label}`).join(" · ");
 
   return (
+    <>
+    <VisitRecordPanel rec={recDetail} onClose={() => setRecDetail(null)} />
     <AnimatePresence>
       {seed && (
         <>
@@ -267,7 +271,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
               </div>
 
               {/* Records */}
-              <div><Banner title="SITE-VISIT RECORDS" sub={`${fNum(total)} in selection`} /></div>
+              <div><Banner title="SITE-VISIT RECORDS" sub={`${fNum(total)} in selection · click a row for full detail`} /></div>
               <div style={{ ...CARD, paddingBottom: 6 }}>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -280,7 +284,10 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                     </thead>
                     <tbody>
                       {shown.map((r, i) => (
-                        <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                        <tr key={i} onClick={() => setRecDetail(r)}
+                          style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                           <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{r.day >= 0 ? dayToDate(r.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}</td>
                           <td style={{ padding: "6px 8px" }}>{r.g >= 0 ? FF.G[r.g] : "—"}</td>
                           <td style={{ padding: "6px 8px" }}>{r.p >= 0 ? FF.P[r.p] : "—"}</td>
@@ -323,5 +330,6 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
         </>
       )}
     </AnimatePresence>
+    </>
   );
 }
