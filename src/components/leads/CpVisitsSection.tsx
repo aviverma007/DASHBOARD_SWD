@@ -262,8 +262,8 @@ export function CpVisitsSection() {
         </div>
       </div>
 
-      {/* Row 4: trends */}
-      <div style={ROW}>
+      {/* Row 4: the three time charts on one line */}
+      <div style={{ ...ROW, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))" }}>
         <div style={CARD}>
           <h3 style={H3}>CP visits trend</h3>
           <div style={CAP}>monthly gallery visits · click a month</div>
@@ -274,8 +274,6 @@ export function CpVisitsSection() {
           <div style={CAP}>distinct partners who visited that month</div>
           <TrendChart items={activeMonthly} />
         </div>
-      </div>
-      <div style={ROW}>
         <div style={CARD}>
           <h3 style={H3}>Weekday pattern</h3>
           <div style={CAP}>visits by day of week · click a day</div>
