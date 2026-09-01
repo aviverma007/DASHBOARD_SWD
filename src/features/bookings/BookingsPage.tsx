@@ -1,0 +1,444 @@
+import { useMemo, useState } from "react";
+import { PDRN } from "../../utils/pdrnLogic";
+import { showTip, hideTip } from "../../components/common/hoverTip";
+import { Zoomable } from "../../components/common/Zoomable";
+import {
+  HBarListRaw as HBarList, Banner,
+  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
+} from "../../components/leads/footfallCharts";
+import { AnimatePresence, motion } from "framer-motion";
+import "../../components/inventory/smartworldInventory.css";
+
+/** BOOKINGS — modelled on the reference suite's Bookings tab, driven
+ * by the PDRN export we already ship (active bookings). The HTML's
+ * collection / cancellation / broker / geography KPIs need columns
+ * the PDRN export doesn't carry — those KPI slots are kept but
+ * marked, and every computable metric is exact. */
+
+interface Bk {
+  p: number; tw: number; cfg: number; area: number; tsv: number;
+  y: number; m: number; unit: string; name: string; plan: string;
+}
+const ROWS: Bk[] = PDRN.R.map(r => ({
+  p: r.projIdx, tw: r.towerIdx, cfg: r.cfgIdx, area: r.area, tsv: r.tsv,
+  y: r.year, m: r.month, unit: r.unitNo, name: r.customerName, plan: r.paymentPlan,
+}));
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fN = (n: number) => n.toLocaleString("en-IN");
+const CRf = (v: number) => `₹${(v / 1e7) >= 100 ? Math.round(v / 1e7).toLocaleString("en-IN") : (v / 1e7).toFixed(v / 1e7 >= 10 ? 1 : 2)} Cr`;
+const ymKey = (b: Bk) => `${b.y}-${String(b.m).padStart(2, "0")}`;
+const qKey = (b: Bk) => `${b.y}-Q${Math.ceil(b.m / 3)}`;
+const ymLbl = (k: string) => { const [y, m] = k.split("-"); return `${MON[Number(m) - 1]}'${y.slice(2)}`; };
+const PSHORT = PDRN.P.map(p => p.replace(/^SMARTWORLD\s+/i, "").replace(/\b\w+/g, s => s[0] + s.slice(1).toLowerCase()));
+
+/** Ticket-size bands, as in the reference. */
+const BANDS: { label: string; lo: number; hi: number }[] = [
+  { label: "Under ₹1 Cr", lo: 0, hi: 1e7 },
+  { label: "₹1–2 Cr", lo: 1e7, hi: 2e7 },
+  { label: "₹2–3 Cr", lo: 2e7, hi: 3e7 },
+  { label: "₹3–5 Cr", lo: 3e7, hi: 5e7 },
+  { label: "₹5 Cr +", lo: 5e7, hi: Infinity },
+];
+const bandOf = (b: Bk) => BANDS.findIndex(x => b.tsv >= x.lo && b.tsv < x.hi);
+
+type Dim = "p" | "cfg" | "tw" | "band" | "mon";
+interface Chip { dim: Dim; val: number | string; label: string }
+const DIMN: Record<Dim, string> = { p: "Project", cfg: "Config", tw: "Tower", band: "Ticket band", mon: "Month" };
+
+export function BookingsPage() {
+  const [chips, setChips] = useState<Chip[]>([]);
+  const [fy, setFy] = useState("all");
+  const [gran, setGran] = useState<"m" | "q" | "y">("m");
+  const [mgran, setMgran] = useState<"q" | "y">("q");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [detail, setDetail] = useState<Bk | null>(null);
+  const [mA, setMA] = useState<string | null>(null);
+  const [mB, setMB] = useState<string | null>(null);
+
+  const rows = useMemo(() => ROWS.filter(b =>
+    (fy === "all" || String(b.y) === fy) &&
+    chips.every(c => {
+      switch (c.dim) {
+        case "p": return b.p === c.val;
+        case "cfg": return b.cfg === c.val;
+        case "tw": return b.tw === c.val;
+        case "band": return bandOf(b) === c.val;
+        case "mon": return ymKey(b) === c.val;
+        default: return true;
+      }
+    })
+  ), [chips, fy]);
+
+  const total = rows.length;
+  const tcv = rows.reduce((s, b) => s + b.tsv, 0);
+  const areaL = rows.reduce((s, b) => s + b.area, 0) / 1e5;
+  const avgTicket = total ? tcv / total : 0;
+  const avgRate = rows.reduce((s, b) => s + b.area, 0) ? tcv / rows.reduce((s, b) => s + b.area, 0) : 0;
+
+  function addChip(dim: Dim) {
+    return (val: number | string, label: string) => { setChips(prev => [...prev.filter(c => c.dim !== dim), { dim, val, label }]); setPage(1); };
+  }
+  const removeChip = (dim: Dim) => { setChips(prev => prev.filter(c => c.dim !== dim)); setPage(1); };
+
+  const listFrom = (get: (b: Bk) => number, names: string[]) => {
+    const m = new Map<number, number>();
+    rows.forEach(b => { const k = get(b); if (k >= 0) m.set(k, (m.get(k) ?? 0) + 1); });
+    return [...m.entries()].map(([key, value]) => ({ key, label: names[key], value })).sort((a, b) => b.value - a.value);
+  };
+
+  // ── trend: value bars + count line, M/Q/Y ──
+  const trend = useMemo(() => {
+    const key = gran === "m" ? ymKey : gran === "q" ? qKey : (b: Bk) => String(b.y);
+    const lbl = gran === "m" ? ymLbl : (k: string) => (gran === "q" ? `Q${k.split("-Q")[1]} '${k.slice(2, 4)}` : `FY${k}`);
+    const m = new Map<string, { n: number; v: number }>();
+    rows.forEach(b => { const k = key(b); if (!m.has(k)) m.set(k, { n: 0, v: 0 }); const e = m.get(k)!; e.n++; e.v += b.tsv; });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, e]) => ({ key: k, label: lbl(k), n: e.n, v: e.v }));
+  }, [rows, gran]);
+
+  // ── momentum periods ──
+  const mkeys = useMemo(() => {
+    const key = mgran === "q" ? qKey : (b: Bk) => String(b.y);
+    return [...new Set(ROWS.map(key))].sort();
+  }, [mgran]);
+  const A = mA && mkeys.includes(mA) ? mA : mkeys[mkeys.length - 2] ?? mkeys[0];
+  const Bp = mB && mkeys.includes(mB) ? mB : mkeys[mkeys.length - 1];
+  const perStat = (k: string) => {
+    const key = mgran === "q" ? qKey : (b: Bk) => String(b.y);
+    const a = rows.filter(b => key(b) === k);
+    const v = a.reduce((s, b) => s + b.tsv, 0);
+    return { n: a.length, v, avg: a.length ? v / a.length : 0 };
+  };
+  const sA = perStat(A), sB = perStat(Bp);
+  const delta = (a: number, b: number) => !a ? "—" : `${b >= a ? "▲ +" : "▼ "}${Math.abs(Math.round(((b - a) / a) * 100))}%`;
+  const dColor = (a: number, b: number) => !a ? "var(--mut)" : b >= a ? "#1a7a4a" : "#c0392b";
+  const perLbl = (k: string) => mgran === "q" ? `Q${k.split("-Q")[1]} '${k.slice(2, 4)}` : `FY ${k}`;
+
+  // ── records ──
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const arr = [...rows].sort((a, b) => (b.y - a.y) || (b.m - a.m) || (b.tsv - a.tsv));
+    if (!s) return arr;
+    return arr.filter(b => PSHORT[b.p].toLowerCase().includes(s) || PDRN.CFG[b.cfg].toLowerCase().includes(s) || b.unit.toLowerCase().includes(s) || b.name.toLowerCase().includes(s) || PDRN.TW[b.tw]?.toLowerCase().includes(s));
+  }, [rows, q]);
+  const PER = 10;
+  const pages = Math.max(1, Math.ceil(filtered.length / PER));
+  const shown = filtered.slice((page - 1) * PER, page * PER);
+
+  const KPI = ({ k, v, s, dim }: { k: string; v: string; s: string; dim?: boolean }) => (
+    <div style={{ ...CARD, padding: "13px 16px", opacity: dim ? 0.6 : 1 }}
+      onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
+      onMouseMove={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
+      onMouseLeave={hideTip}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
+      <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 1 }}>{s}</div>
+    </div>
+  );
+
+  const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" };
+  const seg = (on: boolean): React.CSSProperties => ({ border: "none", background: on ? "#B8893C" : "transparent", color: on ? "#fff" : "var(--mut)", fontWeight: 700, fontSize: 12, padding: "5px 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" });
+
+  // trend svg geometry
+  const TW_ = Math.max(trend.length * 46, 320), TH = 190, padB = 26, padT = 26;
+  const vmax = Math.max(...trend.map(t => t.v), 1), nmax = Math.max(...trend.map(t => t.n), 1);
+
+  return (
+    <div className="sw-inv" style={{ minHeight: "100vh" }}>
+      {/* Header */}
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "18px 24px 16px", borderBottom: "3px solid var(--gold)" }}>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Bookings</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 3 }}>
+          {fN(ROWS.length)} active bookings · {PDRN.meta.source}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 24px 40px", maxWidth: 1500, margin: "0 auto" }}>
+        {/* Filters + chips */}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
+          <div>
+            <div style={SELLBL}>Financial year</div>
+            <select style={SEL} value={fy} onChange={e => { setFy(e.target.value); setPage(1); }}>
+              <option value="all">All years</option>
+              {PDRN.meta.years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+            </select>
+          </div>
+          {chips.map(c => (
+            <button key={c.dim} onClick={() => removeChip(c.dim)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "#1E3163", color: "#fff", border: "none", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "1px", opacity: 0.7 }}>{DIMN[c.dim].toUpperCase()}</span>
+              {c.label} <span style={{ opacity: 0.7 }}>✕</span>
+            </button>
+          ))}
+          {chips.length > 0 && (
+            <button onClick={() => setChips([])} style={{ background: "none", border: "none", color: "#c07a1a", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit", paddingBottom: 8 }}>Clear all</button>
+          )}
+        </div>
+
+        {/* KPI strip — the reference's six, honestly marked */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 6 }}>
+          <KPI k="Bookings" v={fN(total)} s="active (PDRN)" />
+          <KPI k="Agreement value" v={CRf(tcv)} s="Σ basic selling price" />
+          <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
+          <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
+          <KPI k="Collected" v="—" s="not in PDRN export" dim />
+          <KPI k="Outstanding / Cancelled" v="—" s="not in PDRN export" dim />
+        </div>
+
+        <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${fy === "all" ? "all years" : fy}`} /></div>
+
+        {/* Momentum & comparison */}
+        <Zoomable title="Momentum & comparison">
+        <div style={{ ...CARD, background: "linear-gradient(180deg,#FBF7EE,#fff)", borderColor: "#ECD9B0", marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <h3 style={H3}>Momentum &amp; comparison</h3>
+            <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3 }}>
+              <button style={seg(mgran === "q")} onClick={() => setMgran("q")}>Quarter</button>
+              <button style={seg(mgran === "y")} onClick={() => setMgran("y")}>Year</button>
+            </div>
+          </div>
+          <div style={CAP}>compare any two periods · respects the filters above</div>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-end", margin: "10px 0 12px", flexWrap: "wrap" }}>
+            <div><div style={SELLBL}>Compare</div>
+              <select style={SEL} value={A} onChange={e => setMA(e.target.value)}>{mkeys.map(k => <option key={k} value={k}>{perLbl(k)}</option>)}</select></div>
+            <div style={{ alignSelf: "center", color: "var(--mut)", paddingBottom: 8 }}>vs</div>
+            <div><div style={SELLBL}>With</div>
+              <select style={SEL} value={Bp} onChange={e => setMB(e.target.value)}>{mkeys.map(k => <option key={k} value={k}>{perLbl(k)}</option>)}</select></div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: "2px solid var(--line)" }}>
+                {["Metric", perLbl(A), perLbl(Bp), "Change"].map((h, i) => (
+                  <th key={h} style={{ textAlign: i === 0 ? "left" : "right", padding: "6px 8px", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {([["Bookings", fN(sA.n), fN(sB.n), delta(sA.n, sB.n), dColor(sA.n, sB.n)],
+                   ["Booking value", CRf(sA.v), CRf(sB.v), delta(sA.v, sB.v), dColor(sA.v, sB.v)],
+                   ["Avg ticket", CRf(sA.avg), CRf(sB.avg), delta(sA.avg, sB.avg), dColor(sA.avg, sB.avg)]] as const).map(r => (
+                  <tr key={r[0]} style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td style={{ padding: "8px 8px 8px 0" }}>{r[0]}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "Georgia,serif", fontWeight: 700 }}>{r[1]}</td>
+                    <td style={{ padding: "8px", textAlign: "right", fontFamily: "Georgia,serif", fontWeight: 700 }}>{r[2]}</td>
+                    <td style={{ padding: "8px 0 8px 8px", textAlign: "right", fontWeight: 700, color: r[4] }}>{r[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 8 }}>
+            {Bp === mkeys[mkeys.length - 1] ? `Note: ${perLbl(Bp)} may be a partial (in-progress) period. ` : ""}Collected/receivable rows need collection data the PDRN export doesn't carry.
+          </div>
+        </div>
+        </Zoomable>
+
+        {/* Booking trend — value bars + count line */}
+        <Zoomable title="Booking trend">
+        <div style={{ ...CARD, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <h3 style={H3}>Booking trend</h3>
+            <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3 }}>
+              <button style={seg(gran === "m")} onClick={() => setGran("m")}>Monthly</button>
+              <button style={seg(gran === "q")} onClick={() => setGran("q")}>Quarterly</button>
+              <button style={seg(gran === "y")} onClick={() => setGran("y")}>Yearly</button>
+            </div>
+          </div>
+          <div style={CAP}>bars = booking value (₹ Cr) · gold line = booking count · click to filter</div>
+          <div style={{ overflowX: "auto" }}>
+            <svg viewBox={`0 0 ${TW_} ${TH}`} width={TW_} height={TH} style={{ display: "block" }}>
+              {trend.map((t, i) => {
+                const bw = 30, gap = 16, x = i * (bw + gap) + 6;
+                const bh = (t.v / vmax) * (TH - padB - padT);
+                return (
+                  <g key={t.key} style={{ cursor: "pointer" }}
+                    onClick={() => gran === "m" && addChip("mon")(t.key, t.label)}
+                    onMouseEnter={e => showTip(e, `<b>${t.label}</b><br/>${CRf(t.v)} · ${fN(t.n)} bookings`)}
+                    onMouseMove={e => showTip(e, `<b>${t.label}</b><br/>${CRf(t.v)} · ${fN(t.n)} bookings`)}
+                    onMouseLeave={hideTip}>
+                    <rect x={x} y={0} width={bw + gap - 4} height={TH - padB} fill="transparent" />
+                    <rect x={x} y={TH - padB - bh} width={bw} height={bh} rx="3" fill="#D7E2F0" />
+                    <text x={x + bw / 2} y={TH - padB - bh - 5} textAnchor="middle" fontSize="8.5" fill="#3d4a63">{(t.v / 1e7).toFixed(0)}</text>
+                    <text x={x + bw / 2} y={TH - 8} textAnchor="middle" fontSize="8.5" fill="#8a94a6">{t.label}</text>
+                  </g>
+                );
+              })}
+              <polyline
+                fill="none" stroke="#B8893C" strokeWidth="2"
+                points={trend.map((t, i) => `${i * 46 + 6 + 15},${TH - padB - (t.n / nmax) * (TH - padB - padT)}`).join(" ")} />
+              {trend.map((t, i) => (
+                <circle key={t.key} cx={i * 46 + 6 + 15} cy={TH - padB - (t.n / nmax) * (TH - padB - padT)} r="3" fill="#B8893C" style={{ pointerEvents: "none" }} />
+              ))}
+            </svg>
+          </div>
+        </div>
+        </Zoomable>
+
+        {/* by project | by configuration */}
+        <div style={ROW}>
+          <Zoomable title="Bookings by project">
+          <div style={CARD}>
+            <h3 style={H3}>Bookings by project</h3>
+            <div style={CAP}>click a project</div>
+            <HBarList items={listFrom(b => b.p, PSHORT)} total={total} color={BLUE} onPick={addChip("p")} sortable />
+          </div>
+          </Zoomable>
+          <Zoomable title="Bookings by configuration">
+          <div style={CARD}>
+            <h3 style={H3}>Bookings by configuration</h3>
+            <div style={CAP}>unit mix by BHK · click a config</div>
+            <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={addChip("cfg")} sortable />
+          </div>
+          </Zoomable>
+        </div>
+
+        {/* ticket-size mix | by tower */}
+        <div style={ROW}>
+          <Zoomable title="Ticket-size mix">
+          <div style={CARD}>
+            <h3 style={H3}>Ticket-size mix</h3>
+            <div style={CAP}>how bookings split across price bands · click a band</div>
+            {(() => {
+              const g = BANDS.map(() => ({ n: 0, v: 0 }));
+              rows.forEach(b => { const i = bandOf(b); if (i >= 0) { g[i].n++; g[i].v += b.tsv; } });
+              const mx = Math.max(...g.map(x => x.n), 1);
+              return BANDS.map((band, i) => (
+                <div key={band.label} className="barrow" onClick={() => addChip("band")(i, band.label)}
+                  onMouseEnter={e => showTip(e, `<b>${band.label}</b><br/>${fN(g[i].n)} bookings · ${((g[i].n / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${CRf(g[i].v)}${g[i].n ? ` · avg ${CRf(g[i].v / g[i].n)}` : ""}`)}
+                  onMouseMove={e => showTip(e, `<b>${band.label}</b><br/>${fN(g[i].n)} bookings · ${((g[i].n / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${CRf(g[i].v)}${g[i].n ? ` · avg ${CRf(g[i].v / g[i].n)}` : ""}`)}
+                  onMouseLeave={hideTip}
+                  style={{ padding: "5px 0", cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                    <span style={{ color: "var(--ink)", fontWeight: 600 }}>{band.label}</span>
+                    <span style={{ color: "var(--mut)" }}>{fN(g[i].n)} · {CRf(g[i].v)}{g[i].n ? ` · avg ${CRf(g[i].v / g[i].n)}` : ""}</span>
+                  </div>
+                  <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                    <div className="hb" style={{ height: "100%", width: `${(g[i].n / mx) * 100}%`, background: TEAL, borderRadius: 5 }} />
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+          </Zoomable>
+          <Zoomable title="Bookings by tower">
+          <div style={CARD}>
+            <h3 style={H3}>Bookings by tower</h3>
+            <div style={CAP}>all towers · click a tower</div>
+            <HBarList items={listFrom(b => b.tw, PDRN.TW)} total={total} color={GREEN} onPick={addChip("tw")} maxHeight={260} sortable />
+          </div>
+          </Zoomable>
+        </div>
+
+        {/* Value by project (₹ Cr) — the reference's value bars */}
+        <Zoomable title="Booking value by project">
+        <div style={{ ...CARD, marginBottom: 14 }}>
+          <h3 style={H3}>Booking value by project</h3>
+          <div style={CAP}>Σ agreement value (₹ Cr) · click a project</div>
+          {(() => {
+            const g = new Map<number, number>();
+            rows.forEach(b => g.set(b.p, (g.get(b.p) ?? 0) + b.tsv));
+            const items = [...g.entries()].sort((a, b) => b[1] - a[1]);
+            const mx = Math.max(...items.map(([, v]) => v), 1);
+            return items.map(([p, v]) => (
+              <div key={p} className="barrow" onClick={() => addChip("p")(p, PSHORT[p])}
+                onMouseEnter={e => showTip(e, `<b>${PSHORT[p]}</b><br/>${CRf(v)} · ${((v / Math.max(tcv, 1)) * 100).toFixed(1)}% of value`)}
+                onMouseMove={e => showTip(e, `<b>${PSHORT[p]}</b><br/>${CRf(v)} · ${((v / Math.max(tcv, 1)) * 100).toFixed(1)}% of value`)}
+                onMouseLeave={hideTip}
+                style={{ padding: "5px 0", cursor: "pointer" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                  <span style={{ color: "var(--ink)", fontWeight: 600 }}>{PSHORT[p]}</span>
+                  <span style={{ color: "var(--mut)" }}>{CRf(v)} · {((v / Math.max(tcv, 1)) * 100).toFixed(1)}%</span>
+                </div>
+                <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                  <div className="hb" style={{ height: "100%", width: `${(v / mx) * 100}%`, background: "#7b5cb8", borderRadius: 5 }} />
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+        </Zoomable>
+
+        {/* Records */}
+        <div><Banner title="BOOKING RECORDS" sub={`${fN(filtered.length)} bookings · newest first · click a row for full detail`} /></div>
+        <div style={{ ...CARD, paddingBottom: 6 }}>
+          <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }}
+            placeholder="Search project, unit, customer, config, tower…"
+            style={{ width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: 13.5, padding: "10px 14px", borderRadius: 10, border: "1.5px solid #cfd6e2", marginBottom: 10 }} />
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead><tr style={{ borderBottom: "2px solid var(--line)" }}>
+                {["Booked", "Project", "Tower · Unit", "Config", "Area", "Value"].map((h, i) => (
+                  <th key={h} style={{ textAlign: i >= 4 ? "right" : "left", padding: "7px 8px", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {shown.map((b, i) => (
+                  <tr key={i} onClick={() => setDetail(b)}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}
+                    style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}>
+                    <td style={{ padding: "7px 8px", whiteSpace: "nowrap" }}>{MON[b.m - 1]}'{String(b.y).slice(2)}</td>
+                    <td style={{ padding: "7px 8px" }}>{PSHORT[b.p]}</td>
+                    <td style={{ padding: "7px 8px", whiteSpace: "nowrap" }}>{PDRN.TW[b.tw] ?? "—"} · {b.unit}</td>
+                    <td style={{ padding: "7px 8px" }}>{PDRN.CFG[b.cfg]}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{fN(Math.round(b.area))} sqft</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "Georgia,serif", fontWeight: 700, whiteSpace: "nowrap" }}>{CRf(b.tsv)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0 6px", fontSize: 12.5, color: "var(--mut)" }}>
+            <span>Page {page} of {fN(pages)}</span>
+            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ marginLeft: "auto", border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "5px 12px", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.45 : 1, fontFamily: "inherit" }}>‹ Prev</button>
+            <button disabled={page >= pages} onClick={() => setPage(p => p + 1)} style={{ border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "5px 12px", cursor: page >= pages ? "default" : "pointer", opacity: page >= pages ? 0.45 : 1, fontFamily: "inherit" }}>Next ›</button>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
+          Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). The reference suite's Collected, Outstanding,
+          Collection-rate, Cancelled, broker-leaderboard and customer-geography views need columns (collections, status,
+          broker, postal code) that this PDRN export doesn't carry — share an export with those and they slot straight in.
+        </div>
+      </div>
+
+      {/* Record detail slide-over */}
+      <AnimatePresence>
+        {detail && (
+          <>
+            <motion.div key="bkov" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+              onClick={() => setDetail(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,28,54,.35)", zIndex: 80 }} />
+            <motion.div key="bkdw" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              style={{ position: "fixed", top: 0, right: 0, height: "100%", width: "min(430px, 92vw)", zIndex: 81, background: "#f6f4ef", boxShadow: "-14px 0 46px rgba(20,33,61,.35)", display: "flex", flexDirection: "column" }}>
+              <div style={{ background: "#0f2233", padding: "16px 20px", borderBottom: "3px solid #0e7490", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#7fb8d4" }}>BOOKING RECORD</div>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", marginTop: 2 }}>{detail.unit}</div>
+                </div>
+                <button onClick={() => setDetail(null)} aria-label="Close"
+                  style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, fontSize: 15, cursor: "pointer" }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px 26px" }}>
+                {([["Booked", `${MON[detail.m - 1]} ${detail.y}`],
+                   ["Project", PDRN.P[detail.p]],
+                   ["Tower", PDRN.TW[detail.tw] ?? "—"],
+                   ["Unit", detail.unit],
+                   ["Configuration", PDRN.CFG[detail.cfg]],
+                   ["Super area", `${fN(Math.round(detail.area))} sqft`],
+                   ["Agreement value", CRf(detail.tsv)],
+                   ["Rate", `₹${Math.round(detail.tsv / Math.max(detail.area, 1)).toLocaleString("en-IN")}/sqft`],
+                   ["Customer", detail.name],
+                   ["Payment plan", detail.plan]] as const).map(([k, v]) => (
+                  <div key={k} style={{ padding: "10px 0", borderBottom: "1px solid #eae6da" }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginTop: 3, wordBreak: "break-word" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

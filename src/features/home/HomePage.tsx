@@ -16,6 +16,7 @@ const MODULES: { icon: keyof typeof Icons; label: string; desc: string; path: st
   { icon: "LayoutDashboard", label: "Overview",        desc: "Sold vs available, TSV, rates and drill-downs per project", path: "/overview" },
   { icon: "Target",          label: "Target vs Actual", desc: "AOP plan vs achieved — units, TSV, area and rate pace",  path: "/target" },
   { icon: "Handshake",       label: "Channel Partners", desc: "CP rankings, rate ranges, trends and cancellations",     path: "/channel-partners" },
+  { icon: "ReceiptText",     label: "Bookings",         desc: "Booking value, trend, ticket mix and records",           path: "/bookings" },
   { icon: "Filter",          label: "Gallery Footfall", desc: "Customer footfall and CP gallery visits",                path: "/gallery-footfall" },
   { icon: "Zap",             label: "Digital Leads",    desc: "Digital enquiries, channels and funnels",                path: "/digital-leads" },
   { icon: "Building2",       label: "Inventory",        desc: "Stock by project, tower, floor and unit status",         path: "/inventory" },

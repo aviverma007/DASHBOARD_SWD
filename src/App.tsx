@@ -8,6 +8,7 @@ import { ReportsPage } from "./features/reports/ReportsPage";
 import { TargetActualPage } from "./features/target/TargetActualPage";
 import { ChannelPartnerPage } from "./features/channelpartner/ChannelPartnerPage";
 import { LeadConversionPage } from "./features/leads/LeadConversionPage";
+import { BookingsPage } from "./features/bookings/BookingsPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
 import { HomePage } from "./features/home/HomePage";
@@ -24,6 +25,7 @@ function App() {
           <Route path="/inventory" element={<SmartworldInventoryPage />} />
           <Route path="/target" element={<TargetActualPage />} />
           <Route path="/channel-partners" element={<ChannelPartnerPage />} />
+          <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/gallery-footfall" element={<LeadConversionPage mode="footfall" />} />
           <Route path="/digital-leads" element={<LeadConversionPage mode="digital" />} />
           <Route path="/lead-conversion" element={<LeadConversionPage mode="footfall" />} />
