@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
+import { FF, FF_RECORDS } from "../../utils/footfallLogic";
 import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
-  HBarListRaw as HBarList, Banner,
+  HBarListRaw as HBarList, Donut, Banner,
   CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
 } from "../../components/leads/footfallCharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -136,6 +137,25 @@ export function BookingsPage() {
   const PER = 10;
   const pages = Math.max(1, Math.ceil(filtered.length / PER));
   const shown = filtered.slice((page - 1) * PER, page * PER);
+
+  // ── Channel view — PDRN has no source column, but the footfall
+  // export's Booked-stage rows (with Walk-in Source + Channel
+  // Partner) give a genuine bookings-by-channel picture. Separate
+  // universe (walk-in bookings only), so it's labelled with its own
+  // count and source.
+  const BOOKED_I = FF.STG.indexOf("Booked");
+  const bookedFf = useMemo(() => FF_RECORDS.filter(r => r.stg === BOOKED_I), [BOOKED_I]);
+  const bkSrc = [
+    { key: 1, label: "Channel Partner", value: bookedFf.filter(r => r.src === 1).length, color: TEAL },
+    { key: 0, label: "Direct", value: bookedFf.filter(r => r.src === 0).length, color: BLUE },
+    { key: 2, label: "Direct Loyalty", value: bookedFf.filter(r => r.src === 2).length, color: GOLD },
+    { key: 3, label: "Digital", value: bookedFf.filter(r => r.src === 3).length, color: "#7b5cb8" },
+  ].filter(s => s.value > 0);
+  const cpBooked = useMemo(() => {
+    const m = new Map<number, number>();
+    bookedFf.forEach(r => { if (r.src === 1 && r.cp >= 0) m.set(r.cp, (m.get(r.cp) ?? 0) + 1); });
+    return [...m.entries()].map(([key, value]) => ({ key, label: FF.CPN[key], value })).sort((a, b) => b.value - a.value);
+  }, [bookedFf]);
 
   const KPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
     <div style={{ ...CARD, padding: "13px 16px" }}
@@ -297,6 +317,24 @@ export function BookingsPage() {
             <h3 style={H3}>Bookings by configuration</h3>
             <div style={CAP}>unit mix by BHK · click a config</div>
             <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={addChip("cfg")} sortable />
+          </div>
+          </Zoomable>
+        </div>
+
+        {/* Direct vs channel-partner — from booked walk-ins */}
+        <div style={ROW}>
+          <Zoomable title="Bookings by source">
+          <div style={CARD}>
+            <h3 style={H3}>Direct vs channel-partner</h3>
+            <div style={CAP}>{fN(bookedFf.length)} booked walk-ins (footfall export, {FF.meta.asOn}) · PDRN carries no channel column</div>
+            <Donut segs={bkSrc} />
+          </div>
+          </Zoomable>
+          <Zoomable title="Channel-partner leaderboard">
+          <div style={CARD}>
+            <h3 style={H3}>Channel-partner leaderboard</h3>
+            <div style={CAP}>bookings brought · {fN(cpBooked.length)} partners with a booking · same walk-in universe</div>
+            <HBarList items={cpBooked} total={bookedFf.filter(r => r.src === 1).length} color={TEAL} maxHeight={260} sortable />
           </div>
           </Zoomable>
         </div>
