@@ -552,7 +552,7 @@ function StackedHBarList({ items, total, color, hlColor, hlLabel, onPick, maxHei
    inside every drill drawer get it automatically. ── */
 function zoomed<P extends object>(Inner: (p: P) => React.ReactNode, title: string) {
   return function Zoomed(props: P) {
-    return <Zoomable title={title}>{Inner(props)}</Zoomable>;
+    return <Zoomable title={title} btnTop={-46} btnRight={-4}>{Inner(props)}</Zoomable>;
   };
 }
 const HBarListZ = zoomed(HBarList, "Bar breakdown");

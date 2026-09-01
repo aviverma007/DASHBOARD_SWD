@@ -7,7 +7,14 @@ import { createPortal } from "react-dom";
  * closes it. Content renders twice (inline + enlarged) so charts stay
  * live and interactive in both. Portaled to <body> so page zoom
  * wrappers can't misplace it. */
-export function Zoomable({ children, title }: { children: ReactNode; title?: string }) {
+export function Zoomable({ children, title, btnTop = 10, btnRight = 10 }: {
+  children: ReactNode; title?: string;
+  /** Button position relative to the wrapper — chart-level wrappers
+   * pass negative top so the button floats up into the CARD's
+   * top-right corner (above the h3/caption) instead of covering the
+   * first bar's value. */
+  btnTop?: number; btnRight?: number;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -25,7 +32,7 @@ export function Zoomable({ children, title }: { children: ReactNode; title?: str
         aria-label="Maximize"
         title="Maximize"
         style={{
-          position: "absolute", top: 10, right: 10, zIndex: 5,
+          position: "absolute", top: btnTop, right: btnRight, zIndex: 5,
           width: 26, height: 26, borderRadius: 7, border: "1px solid #e4e0d6",
           background: "rgba(255,255,255,.92)", color: "#8a94a6", fontSize: 13,
           cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
