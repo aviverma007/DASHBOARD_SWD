@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import { FF, FF_RECORDS } from "../../utils/footfallLogic";
-import raw from "../../data/cpAnalytics.json";
+import {
+  type Bk, type Dim, CPD, BROKERS, ROWS, CANCELLED,
+  MON, fN, CRf, ymKey, qKey, fyKey, ymLbl, PSHORT, BANDS, bandOf,
+} from "../../components/bookings/bookingsShared";
+import { BookingsDrillDrawer, type BkDrillSeed } from "../../components/bookings/BookingsDrillDrawer";
+
 import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
@@ -18,51 +23,8 @@ import "../../components/inventory/smartworldInventory.css";
  * the PDRN export doesn't carry — those KPI slots are kept but
  * marked, and every computable metric is exact. */
 
-interface Bk {
-  p: number; tw: number; cfg: number; area: number; tsv: number;
-  y: number; m: number; unit: string; name: string; plan: string;
-  broker: number;
-}
-interface CpRawFile { P: string[]; TW: string[]; FL: string[]; CFG: string[]; CP: string[]; R: (number | string)[][] }
-const CPD = raw as unknown as CpRawFile;
-const BROKERS = CPD.CP;
-/** Active bookings straight from the single source, WITH broker. */
-const ROWS: Bk[] = CPD.R.filter(r => r[13] === 0).map(r => ({
-  p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,
-  y: r[7] as number, m: r[8] as number, unit: String(r[9]), name: String(r[10]), plan: String(r[11]),
-  broker: r[12] as number,
-}));
-const CANCELLED: Bk[] = CPD.R.filter(r => r[13] === 1).map(r => ({
-  p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,
-  y: r[7] as number, m: r[8] as number, unit: String(r[9]), name: String(r[10]), plan: String(r[11]),
-  broker: r[12] as number,
-}));
-const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const fN = (n: number) => n.toLocaleString("en-IN");
-const CRf = (v: number) => `₹${(v / 1e7) >= 100 ? Math.round(v / 1e7).toLocaleString("en-IN") : (v / 1e7).toFixed(v / 1e7 >= 10 ? 1 : 2)} Cr`;
-const ymKey = (b: Bk) => `${b.y}-${String(b.m).padStart(2, "0")}`;
-/** Indian FY quarter (Q1 Apr–Jun … Q4 Jan–Mar), keyed by FY end-year. */
-const qKey = (b: Bk) => { const fy = b.m >= 4 ? b.y + 1 : b.y; const q = b.m >= 4 ? Math.ceil((b.m - 3) / 3) : 4; return `${fy}-Q${q}`; };
-const fyKey = (b: Bk) => String(b.m >= 4 ? b.y + 1 : b.y);
-const ymLbl = (k: string) => { const [y, m] = k.split("-"); return `${MON[Number(m) - 1]}'${y.slice(2)}`; };
-const PSHORT = PDRN.P.map(p => p.replace(/^SMARTWORLD\s+/i, "").replace(/\b\w+/g, s => s[0] + s.slice(1).toLowerCase()));
-
-/** Ticket-size bands, as in the reference. */
-const BANDS: { label: string; lo: number; hi: number }[] = [
-  { label: "Under ₹1 Cr", lo: 0, hi: 1e7 },
-  { label: "₹1–2 Cr", lo: 1e7, hi: 2e7 },
-  { label: "₹2–3 Cr", lo: 2e7, hi: 3e7 },
-  { label: "₹3–5 Cr", lo: 3e7, hi: 5e7 },
-  { label: "₹5 Cr +", lo: 5e7, hi: Infinity },
-];
-const bandOf = (b: Bk) => BANDS.findIndex(x => b.tsv >= x.lo && b.tsv < x.hi);
-
-type Dim = "p" | "cfg" | "tw" | "band" | "mon";
-interface Chip { dim: Dim; val: number | string; label: string }
-const DIMN: Record<Dim, string> = { p: "Project", cfg: "Config", tw: "Tower", band: "Ticket band", mon: "Month" };
-
 export function BookingsPage() {
-  const [chips, setChips] = useState<Chip[]>([]);
+  const [drill, setDrill] = useState<BkDrillSeed | null>(null);
   const [fy, setFy] = useState("all");
   const [gran, setGran] = useState<"m" | "q" | "y">("m");
   const [mgran, setMgran] = useState<"q" | "y">("q");
@@ -81,43 +43,20 @@ export function BookingsPage() {
   const [mA, setMA] = useState<string | null>(null);
   const [mB, setMB] = useState<string | null>(null);
 
-  const rows = useMemo(() => ROWS.filter(b =>
-    (fy === "all" || String(b.y) === fy) &&
-    chips.every(c => {
-      switch (c.dim) {
-        case "p": return b.p === c.val;
-        case "cfg": return b.cfg === c.val;
-        case "tw": return b.tw === c.val;
-        case "band": return bandOf(b) === c.val;
-        case "mon": return ymKey(b) === c.val;
-        default: return true;
-      }
-    })
-  ), [chips, fy]);
+  const rows = useMemo(() => ROWS.filter(b => fy === "all" || String(b.y) === fy), [fy]);
 
   const total = rows.length;
   const tcv = rows.reduce((s, b) => s + b.tsv, 0);
   const areaL = rows.reduce((s, b) => s + b.area, 0) / 1e5;
   const avgTicket = total ? tcv / total : 0;
   const avgRate = rows.reduce((s, b) => s + b.area, 0) ? tcv / rows.reduce((s, b) => s + b.area, 0) : 0;
-  const cancelled = useMemo(() => CANCELLED.filter(b =>
-    (fy === "all" || String(b.y) === fy) &&
-    chips.every(c => {
-      switch (c.dim) {
-        case "p": return b.p === c.val;
-        case "cfg": return b.cfg === c.val;
-        case "tw": return b.tw === c.val;
-        case "band": return bandOf(b) === c.val;
-        case "mon": return ymKey(b) === c.val;
-        default: return true;
-      }
-    })
-  ), [chips, fy]);
+  const cancelled = useMemo(() => CANCELLED.filter(b => fy === "all" || String(b.y) === fy), [fy]);
 
-  function addChip(dim: Dim) {
-    return (val: number | string, label: string) => { setChips(prev => [...prev.filter(c => c.dim !== dim), { dim, val, label }]); setPage(1); };
+  /** Every card click opens the side drill drawer (like the other
+   * tabs) instead of adding an inline chip. */
+  function openDrill(dim: Dim) {
+    return (val: number | string, label: string) => setDrill({ dim, val, label });
   }
-  const removeChip = (dim: Dim) => { setChips(prev => prev.filter(c => c.dim !== dim)); setPage(1); };
 
   const listFrom = (get: (b: Bk) => number, names: string[]) => {
     const m = new Map<number, number>();
@@ -215,16 +154,6 @@ export function BookingsPage() {
               {PDRN.meta.years.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
           </div>
-          {chips.map(c => (
-            <button key={c.dim} onClick={() => removeChip(c.dim)}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "#1E3163", color: "#fff", border: "none", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}>
-              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "1px", opacity: 0.7 }}>{DIMN[c.dim].toUpperCase()}</span>
-              {c.label} <span style={{ opacity: 0.7 }}>✕</span>
-            </button>
-          ))}
-          {chips.length > 0 && (
-            <button onClick={() => setChips([])} style={{ background: "none", border: "none", color: "#c07a1a", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit", paddingBottom: 8 }}>Clear all</button>
-          )}
         </div>
 
         {/* KPI strip — the reference's six, honestly marked */}
@@ -294,7 +223,7 @@ export function BookingsPage() {
               <button style={seg(gran === "y")} onClick={() => setGran("y")}>Yearly</button>
             </div>
           </div>
-          <div style={CAP}>bars = booking value (₹ Cr) · gold line = booking count · click to filter</div>
+          <div style={CAP}>bars = booking value (₹ Cr) · gold line = booking count · click a month → drill drawer</div>
           <div style={{ overflowX: "auto" }}>
             <svg viewBox={`0 0 ${TW_} ${TH}`} width={TW_} height={TH} style={{ display: "block" }}>
               {trend.map((t, i) => {
@@ -302,7 +231,7 @@ export function BookingsPage() {
                 const bh = (t.v / vmax) * (TH - padB - padT);
                 return (
                   <g key={t.key} style={{ cursor: "pointer" }}
-                    onClick={() => gran === "m" && addChip("mon")(t.key, t.label)}
+                    onClick={() => gran === "m" && openDrill("mon")(t.key, t.label)}
                     onMouseEnter={e => showTip(e, `<b>${t.label}</b><br/>${CRf(t.v)} · ${fN(t.n)} bookings`)}
                     onMouseMove={e => showTip(e, `<b>${t.label}</b><br/>${CRf(t.v)} · ${fN(t.n)} bookings`)}
                     onMouseLeave={hideTip}>
@@ -336,8 +265,8 @@ export function BookingsPage() {
           <Zoomable title="Bookings by configuration">
           <div style={CARD}>
             <h3 style={H3}>Bookings by configuration</h3>
-            <div style={CAP}>unit mix by BHK · click a config</div>
-            <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={addChip("cfg")} sortable />
+            <div style={CAP}>unit mix by BHK · click a config → drill drawer</div>
+            <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={openDrill("cfg")} sortable />
           </div>
           </Zoomable>
         </div>
@@ -389,13 +318,13 @@ export function BookingsPage() {
           <Zoomable title="Ticket-size mix">
           <div style={CARD}>
             <h3 style={H3}>Ticket-size mix</h3>
-            <div style={CAP}>how bookings split across price bands · click a band</div>
+            <div style={CAP}>how bookings split across price bands · click a band → drill drawer</div>
             {(() => {
               const g = BANDS.map(() => ({ n: 0, v: 0 }));
               rows.forEach(b => { const i = bandOf(b); if (i >= 0) { g[i].n++; g[i].v += b.tsv; } });
               const mx = Math.max(...g.map(x => x.n), 1);
               return BANDS.map((band, i) => (
-                <div key={band.label} className="barrow" onClick={() => addChip("band")(i, band.label)}
+                <div key={band.label} className="barrow" onClick={() => openDrill("band")(i, band.label)}
                   onMouseEnter={e => showTip(e, `<b>${band.label}</b><br/>${fN(g[i].n)} bookings · ${((g[i].n / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${CRf(g[i].v)}${g[i].n ? ` · avg ${CRf(g[i].v / g[i].n)}` : ""}`)}
                   onMouseMove={e => showTip(e, `<b>${band.label}</b><br/>${fN(g[i].n)} bookings · ${((g[i].n / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${CRf(g[i].v)}${g[i].n ? ` · avg ${CRf(g[i].v / g[i].n)}` : ""}`)}
                   onMouseLeave={hideTip}
@@ -415,8 +344,8 @@ export function BookingsPage() {
           <Zoomable title="Bookings by tower">
           <div style={CARD}>
             <h3 style={H3}>Bookings by tower</h3>
-            <div style={CAP}>all towers · click a tower</div>
-            <HBarList items={listFrom(b => b.tw, PDRN.TW)} total={total} color={GREEN} onPick={addChip("tw")} maxHeight={260} sortable />
+            <div style={CAP}>all towers · click a tower → drill drawer</div>
+            <HBarList items={listFrom(b => b.tw, PDRN.TW)} total={total} color={GREEN} onPick={openDrill("tw")} maxHeight={260} sortable />
           </div>
           </Zoomable>
         </div>
@@ -491,6 +420,15 @@ export function BookingsPage() {
           Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). Single source: cpAnalytics.json (full PDRN export — actives with broker, plus cancellations). Collected/Outstanding and customer geography still need collection and postal columns.
         </div>
       </div>
+
+      <BookingsDrillDrawer
+        seed={drill}
+        baseRows={rows}
+        cancelledBase={cancelled}
+        baseLabel={fy === "all" ? "all years" : `FY ${fy}`}
+        onClose={() => setDrill(null)}
+        onRecord={b => setDetail(b)}
+      />
 
       {projDrawer && (
         <PdrnDrawer
