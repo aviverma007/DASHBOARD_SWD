@@ -8,7 +8,7 @@ import raw from "../data/footfallVisits.json";
 export interface FfRecord {
   g: number;    // gallery idx
   p: number;    // project idx
-  src: number;  // 0 Direct · 1 Channel Partner · 2 Direct Loyalty · -1 blank
+  src: number;  // 0 Direct · 1 Channel Partner · 2 Direct Loyalty · 3 Digital · -1 blank
   cp: number;   // channel partner idx (-1 none)
   stg: number;  // stage idx (-1 blank)
   loc: number;  // locality idx
@@ -89,7 +89,13 @@ export function ffInsights(rows: FfRecord[]): FfInsight[] {
   const tp = top(r => r.p, FF.P);
   if (tp) out.push({ k: "Top project/campaign", v: `${tp.name} · ${Math.round((tp.n / total) * 100)}%`, hint: `${fNum(tp.n)} of ${fNum(total)} visits` });
   const direct = rows.filter(r => r.src === 0 || r.src === 2).length;
-  out.push({ k: "Walk-in source", v: `Direct ${Math.round((direct / total) * 100)}% · CP ${Math.round(((total - direct) / total) * 100)}%`, hint: `${fNum(direct)} direct · ${fNum(total - direct)} via partners` });
+  const viaCp = rows.filter(r => r.src === 1).length;
+  const digital = rows.filter(r => r.src === 3).length;
+  out.push({
+    k: "Walk-in source",
+    v: `Direct ${Math.round((direct / total) * 100)}% · CP ${Math.round((viaCp / total) * 100)}%${digital ? ` · Digital ${Math.round((digital / total) * 100)}%` : ""}`,
+    hint: `${fNum(direct)} direct · ${fNum(viaCp)} via partners${digital ? ` · ${fNum(digital)} digital` : ""}`,
+  });
   const tl = top(r => r.loc, FF.LOC);
   if (tl) out.push({ k: "Top locality", v: `${tl.name} · ${Math.round((tl.n / total) * 100)}%`, hint: `${fNum(tl.n)} visitors` });
   const ta = top(r => r.age, FF.AGE);

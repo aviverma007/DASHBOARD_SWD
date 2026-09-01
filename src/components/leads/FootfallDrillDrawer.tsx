@@ -200,6 +200,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                         { key: 1, label: "With CP", value: withCp, color: TEAL },
                         { key: 0, label: "Direct", value: rows.filter(r => r.src === 0).length, color: BLUE },
                         { key: 2, label: "Direct Loyalty", value: rows.filter(r => r.src === 2).length, color: GOLD },
+                        { key: 3, label: "Digital", value: rows.filter(r => r.src === 3).length, color: "#7b5cb8" },
                       ].filter(s => s.value > 0)}
                       onPick={(k, l) => addChip("src", k, l)}
                     />
