@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { PDRN } from "../../utils/pdrnLogic";
+import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
+import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
@@ -53,6 +54,15 @@ export function BookingsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<Bk | null>(null);
+  const [projDrawer, setProjDrawer] = useState<ProjectStats | null>(null);
+  /** Same rich project drill as the Overview page: full PDRN drawer
+   * with rate extremes, tower/floor/unit levels. */
+  function openProject(pdrnIdx: number) {
+    const name = PDRN.P[pdrnIdx];
+    const inv = ALL_INVR_PROJECTS.find(p => p.name === name);
+    if (!inv) return;
+    setProjDrawer(calcProjectStats(inv.idx, { type: "all" }, name));
+  }
   const [mA, setMA] = useState<string | null>(null);
   const [mB, setMB] = useState<string | null>(null);
 
@@ -276,8 +286,8 @@ export function BookingsPage() {
           <Zoomable title="Bookings by project">
           <div style={CARD}>
             <h3 style={H3}>Bookings by project</h3>
-            <div style={CAP}>click a project</div>
-            <HBarList items={listFrom(b => b.p, PSHORT)} total={total} color={BLUE} onPick={addChip("p")} sortable />
+            <div style={CAP}>click a project → full drill (rate extremes, towers, units)</div>
+            <HBarList items={listFrom(b => b.p, PSHORT)} total={total} color={BLUE} onPick={(k) => openProject(k)} sortable />
           </div>
           </Zoomable>
           <Zoomable title="Bookings by configuration">
@@ -330,14 +340,14 @@ export function BookingsPage() {
         <Zoomable title="Booking value by project">
         <div style={{ ...CARD, marginBottom: 14 }}>
           <h3 style={H3}>Booking value by project</h3>
-          <div style={CAP}>Σ agreement value (₹ Cr) · click a project</div>
+          <div style={CAP}>Σ agreement value (₹ Cr) · click a project → full drill</div>
           {(() => {
             const g = new Map<number, number>();
             rows.forEach(b => g.set(b.p, (g.get(b.p) ?? 0) + b.tsv));
             const items = [...g.entries()].sort((a, b) => b[1] - a[1]);
             const mx = Math.max(...items.map(([, v]) => v), 1);
             return items.map(([p, v]) => (
-              <div key={p} className="barrow" onClick={() => addChip("p")(p, PSHORT[p])}
+              <div key={p} className="barrow" onClick={() => openProject(p)}
                 onMouseEnter={e => showTip(e, `<b>${PSHORT[p]}</b><br/>${CRf(v)} · ${((v / Math.max(tcv, 1)) * 100).toFixed(1)}% of value`)}
                 onMouseMove={e => showTip(e, `<b>${PSHORT[p]}</b><br/>${CRf(v)} · ${((v / Math.max(tcv, 1)) * 100).toFixed(1)}% of value`)}
                 onMouseLeave={hideTip}
@@ -398,6 +408,19 @@ export function BookingsPage() {
           broker, postal code) that this PDRN export doesn't carry — share an export with those and they slot straight in.
         </div>
       </div>
+
+      {projDrawer && (
+        <PdrnDrawer
+          invProjIdx={projDrawer.invProjIdx}
+          projectName={projDrawer.projectName}
+          period={{ type: "all" }}
+          onClose={() => setProjDrawer(null)}
+          unsoldUnits={projDrawer.unsold.units}
+          unsoldArea={projDrawer.unsold.area}
+          totalUnits={projDrawer.total.units}
+          totalArea={projDrawer.total.area}
+        />
+      )}
 
       {/* Record detail slide-over */}
       <AnimatePresence>
