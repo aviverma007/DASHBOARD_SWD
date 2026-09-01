@@ -125,8 +125,8 @@ export function BookingsPage() {
   const pages = Math.max(1, Math.ceil(filtered.length / PER));
   const shown = filtered.slice((page - 1) * PER, page * PER);
 
-  const KPI = ({ k, v, s, dim }: { k: string; v: string; s: string; dim?: boolean }) => (
-    <div style={{ ...CARD, padding: "13px 16px", opacity: dim ? 0.6 : 1 }}
+  const KPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
+    <div style={{ ...CARD, padding: "13px 16px" }}
       onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
       onMouseMove={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
       onMouseLeave={hideTip}>
@@ -181,8 +181,6 @@ export function BookingsPage() {
           <KPI k="Agreement value" v={CRf(tcv)} s="Σ basic selling price" />
           <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
           <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
-          <KPI k="Collected" v="—" s="not in PDRN export" dim />
-          <KPI k="Outstanding / Cancelled" v="—" s="not in PDRN export" dim />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${fy === "all" ? "all years" : fy}`} /></div>
@@ -227,7 +225,7 @@ export function BookingsPage() {
             </table>
           </div>
           <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 8 }}>
-            {Bp === mkeys[mkeys.length - 1] ? `Note: ${perLbl(Bp)} may be a partial (in-progress) period. ` : ""}Collected/receivable rows need collection data the PDRN export doesn't carry.
+            {Bp === mkeys[mkeys.length - 1] ? `Note: ${perLbl(Bp)} may be a partial (in-progress) period. ` : ""}
           </div>
         </div>
         </Zoomable>
