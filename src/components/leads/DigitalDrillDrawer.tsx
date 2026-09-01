@@ -148,7 +148,6 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 4 }}>
                 <KPI l="Enquiries" v={fNum(total)} s="in this selection" spark />
                 <KPI l="Qualified" v={fNum(qualified)} s={`${((qualified / Math.max(total, 1)) * 100).toFixed(1)}%`} />
-                <KPI l="Opportunities" v={fNum(opp)} s={`${((opp / Math.max(total, 1)) * 100).toFixed(1)}% converted`} />
                 <KPI l="Avg / active day" v={activeDays ? (total / activeDays).toFixed(0) : "0"} s={`${fNum(activeDays)} active days`} />
               </div>
 

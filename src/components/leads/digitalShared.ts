@@ -47,14 +47,12 @@ export function digitalFunnel(rows: DigRec[]) {
   const svSet = new Set(["Site Visit", "In Progress", "Inventory", "Booked"].map(s => DG.STG.indexOf(s)).filter(i => i >= 0));
   const BK = DG.STG.indexOf("Booked");
   const qualified = rows.filter(r => r.sta === QUAL || r.stg >= 0).length; // qualified status OR already an opportunity
-  const opp = rows.filter(r => r.stg >= 0).length;
   const sv = rows.filter(r => svSet.has(r.stg)).length;
   const booked = rows.filter(r => r.stg === BK).length;
   const lost = rows.filter(r => DG.STG[r.stg] === "Closed Lost").length;
   const steps = [
     { key: "enq", label: "Enquiries", value: total, hint: "every digital enquiry in scope" },
     { key: "qual", label: "Qualified", value: qualified, hint: "presales-qualified or already an opportunity" },
-    { key: "opp", label: "Opportunity", value: opp, hint: "opportunity created in CRM" },
     { key: "sv", label: "Site visit+", value: sv, hint: "reached site visit / in-progress / inventory / booked" },
     { key: "bk", label: "Booked", value: booked, hint: "converted to a booking" },
   ].map((s, i, arr) => ({
@@ -97,8 +95,6 @@ export function digInsights(rows: DigRec[]): DigInsight[] {
   const QUAL = DG.STA.indexOf("Qualified");
   const q = rows.filter(r => r.sta === QUAL).length;
   out.push({ k: "Qualification rate", v: `${((q / total) * 100).toFixed(1)}%`, hint: `${fNum(q)} presales-qualified` });
-  const opp = rows.filter(r => r.stg >= 0).length;
-  out.push({ k: "Opportunity conversion", v: `${((opp / total) * 100).toFixed(1)}%`, hint: `${fNum(opp)} opportunities created` });
   const ta = top(r => r.ag, DG.AGN);
   if (ta) out.push({ k: "Top agency", v: ta.name, hint: `${fNum(ta.n)} enquiries` });
   const to_ = top(r => r.ow, DG.OWN);

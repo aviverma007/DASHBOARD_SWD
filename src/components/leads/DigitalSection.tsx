@@ -146,7 +146,6 @@ export function DigitalSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 4 }}>
         <KPI l="Digital enquiries" v={fNum(total)} s={`${per.label} · till ${DG.meta.asOn}`} spark />
         <KPI l="Qualified" v={fNum(qualified)} s={`${((qualified / Math.max(total, 1)) * 100).toFixed(1)}% of enquiries`} />
-        <KPI l="Opportunities" v={fNum(opp)} s={`${((opp / Math.max(total, 1)) * 100).toFixed(1)}% converted`} />
         <KPI l="Avg / active day" v={activeDays ? (total / activeDays).toFixed(0) : "0"} s={`${fNum(activeDays)} active days`} />
         <KPI l="Channels" v={fNum(new Set(rows.map(r => r.sub).filter(s => s >= 0)).size)} s="sub-sources in scope" />
       </div>
