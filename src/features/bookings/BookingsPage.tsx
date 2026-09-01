@@ -28,7 +28,9 @@ const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","
 const fN = (n: number) => n.toLocaleString("en-IN");
 const CRf = (v: number) => `₹${(v / 1e7) >= 100 ? Math.round(v / 1e7).toLocaleString("en-IN") : (v / 1e7).toFixed(v / 1e7 >= 10 ? 1 : 2)} Cr`;
 const ymKey = (b: Bk) => `${b.y}-${String(b.m).padStart(2, "0")}`;
-const qKey = (b: Bk) => `${b.y}-Q${Math.ceil(b.m / 3)}`;
+/** Indian FY quarter (Q1 Apr–Jun … Q4 Jan–Mar), keyed by FY end-year. */
+const qKey = (b: Bk) => { const fy = b.m >= 4 ? b.y + 1 : b.y; const q = b.m >= 4 ? Math.ceil((b.m - 3) / 3) : 4; return `${fy}-Q${q}`; };
+const fyKey = (b: Bk) => String(b.m >= 4 ? b.y + 1 : b.y);
 const ymLbl = (k: string) => { const [y, m] = k.split("-"); return `${MON[Number(m) - 1]}'${y.slice(2)}`; };
 const PSHORT = PDRN.P.map(p => p.replace(/^SMARTWORLD\s+/i, "").replace(/\b\w+/g, s => s[0] + s.slice(1).toLowerCase()));
 
@@ -99,8 +101,8 @@ export function BookingsPage() {
 
   // ── trend: value bars + count line, M/Q/Y ──
   const trend = useMemo(() => {
-    const key = gran === "m" ? ymKey : gran === "q" ? qKey : (b: Bk) => String(b.y);
-    const lbl = gran === "m" ? ymLbl : (k: string) => (gran === "q" ? `Q${k.split("-Q")[1]} '${k.slice(2, 4)}` : `FY${k}`);
+    const key = gran === "m" ? ymKey : gran === "q" ? qKey : fyKey;
+    const lbl = gran === "m" ? ymLbl : (k: string) => (gran === "q" ? `Q${k.split("-Q")[1]} FY${k.slice(2, 4)}` : `FY${k.slice(2)}`);
     const m = new Map<string, { n: number; v: number }>();
     rows.forEach(b => { const k = key(b); if (!m.has(k)) m.set(k, { n: 0, v: 0 }); const e = m.get(k)!; e.n++; e.v += b.tsv; });
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, e]) => ({ key: k, label: lbl(k), n: e.n, v: e.v }));
@@ -108,13 +110,13 @@ export function BookingsPage() {
 
   // ── momentum periods ──
   const mkeys = useMemo(() => {
-    const key = mgran === "q" ? qKey : (b: Bk) => String(b.y);
+    const key = mgran === "q" ? qKey : fyKey;
     return [...new Set(ROWS.map(key))].sort();
   }, [mgran]);
   const A = mA && mkeys.includes(mA) ? mA : mkeys[mkeys.length - 2] ?? mkeys[0];
   const Bp = mB && mkeys.includes(mB) ? mB : mkeys[mkeys.length - 1];
   const perStat = (k: string) => {
-    const key = mgran === "q" ? qKey : (b: Bk) => String(b.y);
+    const key = mgran === "q" ? qKey : fyKey;
     const a = rows.filter(b => key(b) === k);
     const v = a.reduce((s, b) => s + b.tsv, 0);
     return { n: a.length, v, avg: a.length ? v / a.length : 0 };
@@ -122,7 +124,7 @@ export function BookingsPage() {
   const sA = perStat(A), sB = perStat(Bp);
   const delta = (a: number, b: number) => !a ? "—" : `${b >= a ? "▲ +" : "▼ "}${Math.abs(Math.round(((b - a) / a) * 100))}%`;
   const dColor = (a: number, b: number) => !a ? "var(--mut)" : b >= a ? "#1a7a4a" : "#c0392b";
-  const perLbl = (k: string) => mgran === "q" ? `Q${k.split("-Q")[1]} '${k.slice(2, 4)}` : `FY ${k}`;
+  const perLbl = (k: string) => mgran === "q" ? `Q${k.split("-Q")[1]} FY${k.slice(2, 4)}` : `FY ${k.slice(2)}`;
 
   // ── records ──
   const filtered = useMemo(() => {

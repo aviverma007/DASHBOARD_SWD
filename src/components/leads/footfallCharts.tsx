@@ -282,7 +282,7 @@ function MomentumCard({ records, showBooked = true }: { records: FfRecord[]; sho
   const kb = b && keys.includes(b) ? b : keys[keys.length - 1];
   if (!keys.length) return null;
 
-  const lab = (k: string) => (mode === "quarter" ? quarterLabel(k) : k);
+  const lab = (k: string) => (mode === "quarter" ? quarterLabel(k) : `FY ${k.slice(2)}`);
   const scope = (k: string) => records.filter(r => inPeriod(r, mode, k));
   const ra = scope(ka), rb = scope(kb);
   const BOOKED = FF.STG.indexOf("Booked");

@@ -176,16 +176,24 @@ export function ffFunnel(records: FfRecord[]) {
 }
 
 /** Quarter key for a day offset, e.g. "2026-Q3". */
+/** Indian financial-year quarters: Q1 Apr–Jun · Q2 Jul–Sep ·
+ * Q3 Oct–Dec · Q4 Jan–Mar. Keyed by FY end-year so keys sort
+ * chronologically (e.g. 2027-Q2 = Jul–Sep 2026 = "Q2 FY27"). */
 export function dayToQuarter(day: number): string {
   const d = dayToDate(day);
-  return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+  const m = d.getMonth() + 1; // 1-12
+  const fyEnd = m >= 4 ? d.getFullYear() + 1 : d.getFullYear();
+  const q = m >= 4 ? Math.ceil((m - 3) / 3) : 4;
+  return `${fyEnd}-Q${q}`;
 }
 export function quarterLabel(q: string): string {
   const [y, qq] = q.split("-");
-  return `${qq} '${y.slice(2)}`;
+  return `${qq} FY${y.slice(2)}`;
 }
+/** Indian financial year (Apr–Mar), keyed/labelled by end year. */
 export function dayToYear(day: number): string {
-  return String(dayToDate(day).getFullYear());
+  const d = dayToDate(day);
+  return String(d.getMonth() + 1 >= 4 ? d.getFullYear() + 1 : d.getFullYear());
 }
 
 /** Distinct quarters / years present in the data, ascending. */
