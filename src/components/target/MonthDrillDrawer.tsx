@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import rawSales from "../../data/salesPDRN.json";
+import { PDRN_ACTIVE as rawSales } from "../../data/pdrnActive";
 
 interface PdrnRaw { P: string[]; TW: string[]; FL: string[]; CFG: string[]; R: number[][]; }
 const PD = rawSales as unknown as PdrnRaw;

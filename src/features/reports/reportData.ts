@@ -4,7 +4,7 @@
  * (render as a table) and Excel export (via SheetJS).
  */
 import rawInv from "../../data/smartworldInventory.json";
-import rawSales from "../../data/salesPDRN.json";
+import { PDRN_ACTIVE as rawSales } from "../../data/pdrnActive";
 import type { RawInventoryDataset } from "../../types/smartworldRaw";
 
 const INV = rawInv as unknown as RawInventoryDataset;

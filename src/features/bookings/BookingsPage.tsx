@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import { FF, FF_RECORDS } from "../../utils/footfallLogic";
+import raw from "../../data/cpAnalytics.json";
 import { PdrnDrawer } from "../../components/overview/PdrnDrawer";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
@@ -20,10 +21,21 @@ import "../../components/inventory/smartworldInventory.css";
 interface Bk {
   p: number; tw: number; cfg: number; area: number; tsv: number;
   y: number; m: number; unit: string; name: string; plan: string;
+  broker: number;
 }
-const ROWS: Bk[] = PDRN.R.map(r => ({
-  p: r.projIdx, tw: r.towerIdx, cfg: r.cfgIdx, area: r.area, tsv: r.tsv,
-  y: r.year, m: r.month, unit: r.unitNo, name: r.customerName, plan: r.paymentPlan,
+interface CpRawFile { P: string[]; TW: string[]; FL: string[]; CFG: string[]; CP: string[]; R: (number | string)[][] }
+const CPD = raw as unknown as CpRawFile;
+const BROKERS = CPD.CP;
+/** Active bookings straight from the single source, WITH broker. */
+const ROWS: Bk[] = CPD.R.filter(r => r[13] === 0).map(r => ({
+  p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,
+  y: r[7] as number, m: r[8] as number, unit: String(r[9]), name: String(r[10]), plan: String(r[11]),
+  broker: r[12] as number,
+}));
+const CANCELLED: Bk[] = CPD.R.filter(r => r[13] === 1).map(r => ({
+  p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,
+  y: r[7] as number, m: r[8] as number, unit: String(r[9]), name: String(r[10]), plan: String(r[11]),
+  broker: r[12] as number,
 }));
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fN = (n: number) => n.toLocaleString("en-IN");
@@ -88,6 +100,19 @@ export function BookingsPage() {
   const areaL = rows.reduce((s, b) => s + b.area, 0) / 1e5;
   const avgTicket = total ? tcv / total : 0;
   const avgRate = rows.reduce((s, b) => s + b.area, 0) ? tcv / rows.reduce((s, b) => s + b.area, 0) : 0;
+  const cancelled = useMemo(() => CANCELLED.filter(b =>
+    (fy === "all" || String(b.y) === fy) &&
+    chips.every(c => {
+      switch (c.dim) {
+        case "p": return b.p === c.val;
+        case "cfg": return b.cfg === c.val;
+        case "tw": return b.tw === c.val;
+        case "band": return bandOf(b) === c.val;
+        case "mon": return ymKey(b) === c.val;
+        default: return true;
+      }
+    })
+  ), [chips, fy]);
 
   function addChip(dim: Dim) {
     return (val: number | string, label: string) => { setChips(prev => [...prev.filter(c => c.dim !== dim), { dim, val, label }]); setPage(1); };
@@ -151,11 +176,6 @@ export function BookingsPage() {
     { key: 2, label: "Direct Loyalty", value: bookedFf.filter(r => r.src === 2).length, color: GOLD },
     { key: 3, label: "Digital", value: bookedFf.filter(r => r.src === 3).length, color: "#7b5cb8" },
   ].filter(s => s.value > 0);
-  const cpBooked = useMemo(() => {
-    const m = new Map<number, number>();
-    bookedFf.forEach(r => { if (r.src === 1 && r.cp >= 0) m.set(r.cp, (m.get(r.cp) ?? 0) + 1); });
-    return [...m.entries()].map(([key, value]) => ({ key, label: FF.CPN[key], value })).sort((a, b) => b.value - a.value);
-  }, [bookedFf]);
 
   const KPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
     <div style={{ ...CARD, padding: "13px 16px" }}
@@ -213,6 +233,7 @@ export function BookingsPage() {
           <KPI k="Agreement value" v={CRf(tcv)} s="Σ basic selling price" />
           <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
           <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
+          <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => (CPD.R.find(r => String(r[9]) === b.unit && r[13] === 1)?.[14] ?? 0) === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${fy === "all" ? "all years" : fy}`} /></div>
@@ -326,15 +347,39 @@ export function BookingsPage() {
           <Zoomable title="Bookings by source">
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
-            <div style={CAP}>{fN(bookedFf.length)} booked walk-ins (footfall export, {FF.meta.asOn}) · PDRN carries no channel column</div>
+            <div style={CAP}>{fN(bookedFf.length)} booked walk-ins (footfall export, {FF.meta.asOn}) · in PDRN every booking is broker-attributed, so walk-ins give the only true source split</div>
             <Donut segs={bkSrc} />
           </div>
           </Zoomable>
           <Zoomable title="Channel-partner leaderboard">
           <div style={CARD}>
             <h3 style={H3}>Channel-partner leaderboard</h3>
-            <div style={CAP}>bookings brought · {fN(cpBooked.length)} partners with a booking · same walk-in universe</div>
-            <HBarList items={cpBooked} total={bookedFf.filter(r => r.src === 1).length} color={TEAL} maxHeight={260} sortable />
+            <div style={CAP}>real per-booking brokers · bookings, value &amp; share · respects filters</div>
+            {(() => {
+              const g = new Map<number, { n: number; v: number }>();
+              rows.forEach(b => { if (b.broker >= 0) { if (!g.has(b.broker)) g.set(b.broker, { n: 0, v: 0 }); const e = g.get(b.broker)!; e.n++; e.v += b.tsv; } });
+              const items = [...g.entries()].map(([k, e]) => ({ k, ...e })).sort((a, b) => b.n - a.n);
+              const mx = Math.max(...items.map(i => i.n), 1);
+              return (
+                <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                  {items.map(it => (
+                    <div key={it.k} className="barrow"
+                      onMouseEnter={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${((it.n / Math.max(total, 1)) * 100).toFixed(1)}% share<br/>${CRf(it.v)} · avg ${CRf(it.v / it.n)}`)}
+                      onMouseMove={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${((it.n / Math.max(total, 1)) * 100).toFixed(1)}% share<br/>${CRf(it.v)} · avg ${CRf(it.v / it.n)}`)}
+                      onMouseLeave={hideTip}
+                      style={{ padding: "4px 0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3, gap: 8 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{BROKERS[it.k]}</span>
+                        <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fN(it.n)} · {CRf(it.v)}</span>
+                      </div>
+                      <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                        <div className="hb" style={{ height: "100%", width: `${(it.n / mx) * 100}%`, background: TEAL, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           </Zoomable>
         </div>
@@ -443,9 +488,7 @@ export function BookingsPage() {
         </div>
 
         <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
-          Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). The reference suite's Collected, Outstanding,
-          Collection-rate, Cancelled, broker-leaderboard and customer-geography views need columns (collections, status,
-          broker, postal code) that this PDRN export doesn't carry — share an export with those and they slot straight in.
+          Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). Single source: cpAnalytics.json (full PDRN export — actives with broker, plus cancellations). Collected/Outstanding and customer geography still need collection and postal columns.
         </div>
       </div>
 

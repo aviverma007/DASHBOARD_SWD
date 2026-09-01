@@ -13,7 +13,7 @@
  * where "unsold" means currently unsold regardless of when it was counted).
  */
 
-import salesRaw from "../data/salesPDRN.json";
+import { PDRN_ACTIVE as salesRaw } from "../data/pdrnActive";
 import invRaw from "../data/smartworldInventory.json";
 
 export interface SalesRecord {
