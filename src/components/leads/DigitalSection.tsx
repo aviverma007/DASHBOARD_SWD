@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { showTip, hideTip } from "../common/hoverTip";
 import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
-  HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
+  StackedHBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
   CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
@@ -65,11 +65,24 @@ export function DigitalSection() {
   const monthly = useMemo(() => digMonthly(rows), [rows]);
   const weekday = useMemo(() => digWeekday(rows), [rows]);
 
-  const listFrom = (get: (r: DigRec) => number, names: string[], top = 10) => {
+  const listFrom = (get: (r: DigRec) => number, names: string[], top = 99999) => {
     const m = new Map<number, number>();
     rows.forEach(r => { const k = get(r); if (k >= 0) m.set(k, (m.get(k) ?? 0) + 1); });
     return [...m.entries()].map(([key, value]) => ({ key, label: names[key], value }))
       .sort((a, b) => b.value - a.value).slice(0, top);
+  };
+  /** Stacked variant: total + qualified count per dimension value. */
+  const QUAL_I = DG.STA.indexOf("Qualified");
+  const stackedFrom = (get: (r: DigRec) => number, names: string[]) => {
+    const tot = new Map<number, number>(), ql = new Map<number, number>();
+    rows.forEach(r => {
+      const k = get(r);
+      if (k < 0) return;
+      tot.set(k, (tot.get(k) ?? 0) + 1);
+      if (r.sta === QUAL_I) ql.set(k, (ql.get(k) ?? 0) + 1);
+    });
+    return [...tot.entries()].map(([key, value]) => ({ key, label: names[key], value, hl: ql.get(key) ?? 0 }))
+      .sort((a, b) => b.value - a.value);
   };
 
   const PER = 10;
@@ -159,15 +172,15 @@ export function DigitalSection() {
         {!has("sub") && (
           <div style={CARD}>
             <h3 style={H3}>By sub-source</h3>
-            <div style={CAP}>where enquiries come from · click → channel</div>
-            <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={openDrill("sub")} maxHeight={300} />
+            <div style={CAP}>all channels · qualified overlay · click → channel</div>
+            <StackedHBarList items={stackedFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} hlColor={GREEN} hlLabel="Qualified" onPick={openDrill("sub")} maxHeight={300} sortable />
           </div>
         )}
         {!has("p") && (
           <div style={CARD}>
             <h3 style={H3}>By project / campaign</h3>
-            <div style={CAP}>click → project</div>
-            <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={openDrill("p")} maxHeight={300} />
+            <div style={CAP}>all projects · qualified overlay · click → project</div>
+            <StackedHBarList items={stackedFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} hlColor={GREEN} hlLabel="Qualified" onPick={openDrill("p")} maxHeight={300} sortable />
           </div>
         )}
       </div>
@@ -176,15 +189,15 @@ export function DigitalSection() {
         {!has("ag") && (
           <div style={CARD}>
             <h3 style={H3}>Agency source</h3>
-            <div style={CAP}>top 10 agencies · click → agency</div>
-            <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={openDrill("ag")} maxHeight={300} />
+            <div style={CAP}>all agencies · qualified overlay · click → agency</div>
+            <StackedHBarList items={stackedFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} hlColor={GREEN} hlLabel="Qualified" onPick={openDrill("ag")} maxHeight={300} sortable />
           </div>
         )}
         {!has("ow") && (
           <div style={CARD}>
             <h3 style={H3}>Presales owner</h3>
-            <div style={CAP}>enquiries handled · click → owner</div>
-            <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={openDrill("ow")} maxHeight={300} />
+            <div style={CAP}>all owners · qualified overlay · click → owner</div>
+            <StackedHBarList items={stackedFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" hlColor={GREEN} hlLabel="Qualified" onPick={openDrill("ow")} maxHeight={300} sortable />
           </div>
         )}
       </div>

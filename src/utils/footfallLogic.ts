@@ -15,19 +15,21 @@ export interface FfRecord {
   age: number;  // age band idx
   cat: number;  // category idx
   day: number;  // days since 2022-01-01 (-1 unknown)
+  /** CRM opportunity number, e.g. SF-00077911 */
+  opp: string;
 }
 
 interface FfDataset {
   G: string[]; P: string[]; CPN: string[]; LOC: string[];
   AGE: string[]; STG: string[]; CAT: string[]; SRC: string[];
-  epoch: string; R: number[][];
+  epoch: string; R: (number | string)[][];
   meta: { rows: number; source: string; asOn: string };
 }
 
 export const FF = raw as unknown as FfDataset;
 
 export const FF_RECORDS: FfRecord[] = FF.R.map(r => ({
-  g: r[0], p: r[1], src: r[2], cp: r[3], stg: r[4], loc: r[5], age: r[6], cat: r[7], day: r[8],
+  g: r[0] as number, p: r[1] as number, src: r[2] as number, cp: r[3] as number, stg: r[4] as number, loc: r[5] as number, age: r[6] as number, cat: r[7] as number, day: r[8] as number, opp: (r[9] as string) ?? "",
 }));
 
 const EPOCH_MS = new Date(FF.epoch + "T00:00:00").getTime();
@@ -190,7 +192,11 @@ export function dayToYear(day: number): string {
 export function periodKeys(records: FfRecord[], mode: "quarter" | "year"): string[] {
   const s = new Set<string>();
   records.forEach(r => { if (r.day >= 0) s.add(mode === "quarter" ? dayToQuarter(r.day) : dayToYear(r.day)); });
-  return [...s].sort();
+  // Future-dated rows exist (scheduled site visits) but a period that
+  // hasn't begun yet is meaningless for momentum comparison — cap the
+  // options at today's quarter/year.
+  const cur = mode === "quarter" ? dayToQuarter(todayDay()) : dayToYear(todayDay());
+  return [...s].sort().filter(k => k <= cur);
 }
 
 export function inPeriod(r: FfRecord, mode: "quarter" | "year", key: string): boolean {
@@ -216,6 +222,12 @@ export function periodPresets(): PeriodPreset[] {
 }
 
 /** ISO date (yyyy-mm-dd) → day offset from the dataset epoch. */
+/** Day offset of "today" — used to hide not-yet-begun periods. */
+export function todayDay(): number {
+  const t = new Date();
+  return isoToDay(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`);
+}
+
 export function isoToDay(iso: string): number {
   return Math.floor((new Date(iso + "T00:00:00").getTime() - new Date(FF.epoch + "T00:00:00").getTime()) / 86400000);
 }

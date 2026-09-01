@@ -3,6 +3,7 @@
  * styled to match the reference suite. */
 import { useMemo, useState } from "react";
 import { showTip, hideTip } from "../common/hoverTip";
+import { Zoomable } from "../common/Zoomable";
 import {
   FF, fNum, dayToDate, periodKeys, inPeriod, quarterLabel, ffFunnel,
   type FfRecord,
@@ -20,17 +21,30 @@ const CAP: React.CSSProperties = { fontSize: 11.5, color: "#c07a1a", marginTop: 
 
 // ── Small chart primitives (SVG, matching the reference look) ──────────
 
-function HBarList({ items, total, color, onPick, maxHeight }: {
+function HBarList({ items, total, color, onPick, maxHeight, sortable }: {
   items: { key: number; label: string; value: number }[];
   total: number; color: string; onPick?: (key: number, label: string) => void;
   /** Cap the list area; longer lists scroll inside so paired cards
    * stay the same size. */
   maxHeight?: number;
+  /** Show an ascending/descending toggle (default sort: descending). */
+  sortable?: boolean;
 }) {
+  const [desc, setDesc] = useState(true);
+  const shown = sortable ? [...items].sort((a, b) => (desc ? b.value - a.value : a.value - b.value)) : items;
   const max = Math.max(...items.map(i => i.value), 1);
   return (
-    <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
-      {items.map(it => (
+    <div>
+      {sortable && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+          <button onClick={() => setDesc(v => !v)}
+            style={{ border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "2px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: "var(--mut)" }}>
+            {desc ? "↓ High → low" : "↑ Low → high"}
+          </button>
+        </div>
+      )}
+      <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
+      {shown.map(it => (
         <div key={it.key} onClick={() => onPick?.(it.key, it.label)} className="barrow"
           onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}% of ${fNum(total)}`)}
           onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}% of ${fNum(total)}`)}
@@ -45,6 +59,7 @@ function HBarList({ items, total, color, onPick, maxHeight }: {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -483,4 +498,68 @@ function CpBoard({ rows, onDrill, showBooked = true, visitsLabel = "Customer vis
 }
 
 
-export { HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark, MomentumCard, CpBoard, CARD, MCARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED };
+/** Stacked horizontal bars: each row shows the overall count with a
+ * darker "highlight" segment inside it (e.g. qualified enquiries
+ * within a channel's total). Sortable, scrollable, tooltipped. */
+function StackedHBarList({ items, total, color, hlColor, hlLabel, onPick, maxHeight, sortable }: {
+  items: { key: number; label: string; value: number; hl: number }[];
+  total: number; color: string; hlColor: string; hlLabel: string;
+  onPick?: (key: number, label: string) => void;
+  maxHeight?: number; sortable?: boolean;
+}) {
+  const [desc, setDesc] = useState(true);
+  const shown = sortable ? [...items].sort((a, b) => (desc ? b.value - a.value : a.value - b.value)) : items;
+  const max = Math.max(...items.map(i => i.value), 1);
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ display: "flex", gap: 12, fontSize: 10.5, color: "var(--mut)" }}>
+          <span><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: color, marginRight: 4 }} />Total</span>
+          <span><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: hlColor, marginRight: 4 }} />{hlLabel}</span>
+        </div>
+        {sortable && (
+          <button onClick={() => setDesc(v => !v)}
+            style={{ border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "2px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: "var(--mut)" }}>
+            {desc ? "↓ High → low" : "↑ Low → high"}
+          </button>
+        )}
+      </div>
+      <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
+        {shown.map(it => (
+          <div key={it.key} onClick={() => onPick?.(it.key, it.label)} className="barrow"
+            onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} total · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
+            onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} total · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
+            onMouseLeave={hideTip}
+            style={{ padding: "4px 0", cursor: onPick ? "pointer" : "default" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+              <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{it.label}</span>
+              <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fNum(it.value)} · <b style={{ color: hlColor }}>{fNum(it.hl)}</b> {hlLabel.toLowerCase()}</span>
+            </div>
+            <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden", position: "relative" }}>
+              <div className="hb" style={{ position: "absolute", inset: 0, width: `${(it.value / max) * 100}%`, background: color, borderRadius: 5, opacity: 0.45, transition: "opacity 0.15s" }} />
+              <div style={{ position: "absolute", inset: 0, width: `${(it.hl / max) * 100}%`, background: hlColor, borderRadius: 5 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Maximize/minimize: every chart ships with a ⛶ button that opens
+   it enlarged in a centred overlay (click outside / Esc / ✕ closes).
+   Implemented at primitive level so ALL cards on all lead pages and
+   inside every drill drawer get it automatically. ── */
+function zoomed<P extends object>(Inner: (p: P) => React.ReactNode, title: string) {
+  return function Zoomed(props: P) {
+    return <Zoomable title={title}>{Inner(props)}</Zoomable>;
+  };
+}
+const HBarListZ = zoomed(HBarList, "Bar breakdown");
+const StackedHBarListZ = zoomed(StackedHBarList, "Stacked breakdown");
+const DonutZ = zoomed(Donut, "Distribution");
+const TrendChartZ = zoomed(TrendChart, "Trend");
+const WeekdayChartZ = zoomed(WeekdayChart, "Weekday pattern");
+const FunnelChartZ = zoomed(FunnelChart, "Conversion funnel");
+
+export { HBarListZ as HBarList, StackedHBarListZ as StackedHBarList, DonutZ as Donut, TrendChartZ as TrendChart, WeekdayChartZ as WeekdayChart, FunnelChartZ as FunnelChart, HBarList as HBarListRaw, Banner, Spark, MomentumCard, CpBoard, CARD, MCARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED };

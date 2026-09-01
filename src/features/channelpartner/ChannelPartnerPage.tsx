@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Zoomable } from "../../components/common/Zoomable";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
@@ -294,11 +295,14 @@ export function ChannelPartnerPage() {
 
         {/* Monthly trend */}
         <div style={{ marginBottom: 16 }}>
+          <Zoomable title="CP monthly trend">
           <CpMonthlyTrendCard data={trend} onBarClick={p => setDrillMonth({ key: p.key, label: p.label })} />
+          </Zoomable>
         </div>
 
         {/* Top CP rankings */}
         <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
+          <Zoomable title="Top entities">
           <TopEntitiesBarChart
             title="TOP CHANNEL PARTNERS — UNITS SOLD"
             rows={topUnits}
@@ -307,6 +311,8 @@ export function ChannelPartnerPage() {
             barColor="#0e7490"
             onRowClick={setDrillCpIdx}
           />
+          </Zoomable>
+          <Zoomable title="Top entities">
           <TopEntitiesBarChart
             title="TOP CHANNEL PARTNERS — AREA SOLD (L SQFT)"
             rows={topArea}
@@ -315,9 +321,11 @@ export function ChannelPartnerPage() {
             barColor="#B8893C"
             onRowClick={setDrillCpIdx}
           />
+          </Zoomable>
         </div>
 
         <div className="resp-grid2" style={{ gap: 18, marginBottom: 18 }}>
+          <Zoomable title="Top entities">
           <TopEntitiesBarChart
             title="TOP CHANNEL PARTNERS — TSV (₹ CR)"
             rows={topTsv}
@@ -326,6 +334,8 @@ export function ChannelPartnerPage() {
             barColor="#7b1414"
             onRowClick={setDrillCpIdx}
           />
+          </Zoomable>
+          <Zoomable title="Cancelled & rebooking">
           <CancelledRebookingCard
             cancelled={cancelSummary.cancelled}
             rebooked={cancelSummary.rebooked}
@@ -334,6 +344,7 @@ export function ChannelPartnerPage() {
             topCancelled={topCancelled}
             onCpClick={setDrillCpIdx}
           />
+          </Zoomable>
         </div>
 
         {/* Per-CP rate range: EVERY channel partner in scope with their

@@ -24,7 +24,9 @@ function App() {
           <Route path="/inventory" element={<SmartworldInventoryPage />} />
           <Route path="/target" element={<TargetActualPage />} />
           <Route path="/channel-partners" element={<ChannelPartnerPage />} />
-          <Route path="/lead-conversion" element={<LeadConversionPage />} />
+          <Route path="/gallery-footfall" element={<LeadConversionPage mode="footfall" />} />
+          <Route path="/digital-leads" element={<LeadConversionPage mode="digital" />} />
+          <Route path="/lead-conversion" element={<LeadConversionPage mode="footfall" />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/notes" element={<NotesPage />} />

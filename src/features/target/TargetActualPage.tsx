@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Zoomable } from "../../components/common/Zoomable";
 import { LOCATIONS, projectLocation } from "../../utils/pdrnLogic";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import { motion } from "framer-motion";
@@ -995,10 +996,14 @@ export function TargetActualPage() {
           className="resp-grid2"
           style={{ gap: 14, marginBottom: 14 }}
         >
+          <Zoomable title="Target vs achieved">
           <UnitsTargetCard chartStyle={chartStyle} data={unitsData} title="UNITS — TARGET VS ACHIEVED" unit="Units" onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
+          </Zoomable>
+          <Zoomable title="Target vs achieved">
           <UnitsTargetCard chartStyle={chartStyle} data={tsvData} title="TSV — TARGET VS ACHIEVED (₹ Crs)" unit="Cr" formatVal={n => n.toFixed(1)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
+          </Zoomable>
         </motion.div>
 
         {/* Cards 3-4: Area, Avg Rate — same 2-column size as above, same shared offset */}
@@ -1009,8 +1014,11 @@ export function TargetActualPage() {
           className="resp-grid2"
           style={{ gap: 14, marginBottom: 14 }}
         >
+          <Zoomable title="Target vs achieved">
           <UnitsTargetCard chartStyle={chartStyle} data={areaData} title="AREA — TARGET VS ACHIEVED (Lakh sqft)" unit="L sqft" formatVal={n => n.toFixed(2)} onBarClick={setDrillMonth}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset} />
+          </Zoomable>
+          <Zoomable title="Avg rate — target vs achieved">
           <AvgRateCard
             data={rateDataWithAdjusted}
             avgAchievedRate={avgAchievedRate}
@@ -1019,6 +1027,7 @@ export function TargetActualPage() {
             onPointClick={handleRatePointClick}
             offset={sharedOffset} windowSize={WINDOW_SIZE} onOffsetChange={setSharedOffset}
           />
+          </Zoomable>
         </motion.div>
 
         {/* Cards 5-6: Tower charts */}
@@ -1028,16 +1037,24 @@ export function TargetActualPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.24, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+            <Zoomable title="Sold % — units & TSV">
             <TowerSoldPctCard title={activeNames.length > 1 ? "PROJECT WISE SOLD % — UNITS & TSV" : undefined} towers={actual.towers} projectTsv={actual.tsv} projectSold={actual.sold} onTowerClick={handleTowerDrill} />
+            </Zoomable>
+            <Zoomable title="Rate movement">
             <TowerRateMovementCard title={activeNames.length > 1 ? "PROJECT WISE RATE MOVEMENT" : undefined} towers={actual.towers} onTowerClick={handleTowerDrill} />
+            </Zoomable>
           </motion.div>
         )}
 
         {/* Cards 7-8: Rate trend + Type wise */}
         {actual && (
           <div className="tv-2x2-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18, marginBottom: 18 }}>
+            <Zoomable title="Rate trend over time">
             <RateTrendOverTimeCard data={actual.rate_trend} />
+            </Zoomable>
+            <Zoomable title="Type-wise sales">
             <TypeWiseSaleCard configs={actual.configs} onConfigClick={name => setDrillScope({ type: "config", label: name, projects: activeNames })} />
+            </Zoomable>
           </div>
         )}
       </div>

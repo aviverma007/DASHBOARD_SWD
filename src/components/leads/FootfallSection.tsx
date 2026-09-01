@@ -44,17 +44,19 @@ export function FootfallSection() {
   }, [perKey, customFrom, customTo, PRESETS]);
 
   // Dimension filters first, then the global period window
+  const [selProjects, setSelProjects] = useState<number[]>([]);
+  const [projOpen, setProjOpen] = useState(false);
   const dimRows = useMemo(() => ffScope(filters), [filters]);
-  const rows = useMemo(
-    () => (per.key === "all" ? dimRows : dimRows.filter(r => r.day >= per.from && r.day <= per.to)),
-    [dimRows, per]
-  );
+  const rows = useMemo(() => {
+    let out = per.key === "all" ? dimRows : dimRows.filter(r => r.day >= per.from && r.day <= per.to);
+    if (selProjects.length > 0) {
+      const set = new Set(selProjects);
+      out = out.filter(r => set.has(r.p));
+    }
+    return out;
+  }, [dimRows, per, selProjects]);
   const total = rows.length;
 
-  function addFilter(dim: FfDim, val: number | string, label: string) {
-    setFilters(prev => [...prev.filter(f => f.dim !== dim), { dim, val, label }]);
-    setPage(1);
-  }
   function removeFilter(dim: FfDim) {
     setFilters(prev => prev.filter(f => f.dim !== dim));
     setPage(1);
@@ -64,7 +66,7 @@ export function FootfallSection() {
   // KPI computations (mirroring the reference)
   const direct = rows.filter(r => r.src === 0 || r.src === 2).length;
   const withCp = rows.filter(r => r.src === 1).length;
-  const uProj = new Set(rows.map(r => r.p)).size;
+  const uProj = new Set(rows.filter(r => r.p >= 0).map(r => r.p)).size;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
   const perDay = activeDays ? total / activeDays : 0;
   const bookedPct = total ? (rows.filter(r => FF.STG[r.stg] === "Booked").length / total) * 100 : 0;
@@ -72,7 +74,7 @@ export function FootfallSection() {
   const monthly = useMemo(() => ffMonthly(rows), [rows]);
   const weekday = useMemo(() => ffWeekday(rows), [rows]);
 
-  const listFrom = (map: Map<number, number>, names: string[], top = 10) =>
+  const listFrom = (map: Map<number, number>, names: string[], top = 99999) =>
     [...map.entries()].filter(([k]) => k >= 0).map(([key, value]) => ({ key, label: names[key], value }))
       .sort((a, b) => b.value - a.value).slice(0, top);
 
@@ -94,7 +96,6 @@ export function FootfallSection() {
     </div>
   );
 
-  const projFilter = filters.find(f => f.dim === "p");
   const [drill, setDrill] = useState<DrillSeed | null>(null);
   const openDrill = (dim: FfDim) => (val: number | string, label: string) => setDrill({ dim, val, label });
 
@@ -103,25 +104,34 @@ export function FootfallSection() {
       <FootfallDrillDrawer
         seed={drill}
         baseRows={rows}
-        baseLabel={`${projFilter ? projFilter.label + " · " : ""}${per.label}`}
+        baseLabel={`${selProjects.length ? (selProjects.length === 1 ? FF.P[selProjects[0]] : selProjects.length + " projects") + " · " : ""}${per.label}`}
         onClose={() => setDrill(null)}
       />
       {/* Global filter bar — project + period, reference-style */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
-        <div>
-          <div style={SELLBL}>Project / campaign</div>
-          <select
-            style={SEL}
-            value={projFilter ? String(projFilter.val) : "all"}
-            onChange={e => {
-              const v = e.target.value;
-              if (v === "all") removeFilter("p");
-              else addFilter("p", Number(v), FF.P[Number(v)]);
-            }}
-          >
-            <option value="all">All projects</option>
-            {FF.P.map((p, i) => <option key={p} value={i}>{p}</option>)}
-          </select>
+        <div style={{ position: "relative" }}>
+          <div style={SELLBL}>Projects / campaigns</div>
+          <button onClick={() => setProjOpen(v => !v)}
+            style={{ ...SEL, minWidth: 220, textAlign: "left", cursor: "pointer" }}>
+            {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
+          </button>
+          {projOpen && (
+            <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 280 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer", fontWeight: 700 }}>
+                <input type="checkbox" checked={selProjects.length === 0}
+                  onChange={() => setSelProjects([])} style={{ accentColor: "#0e7490" }} />
+                All projects
+              </label>
+              {FF.P.map((p, i) => (
+                <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer" }}>
+                  <input type="checkbox" checked={selProjects.includes(i)}
+                    onChange={() => setSelProjects(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                    style={{ accentColor: "#0e7490" }} />
+                  {p}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <div style={SELLBL}>Period</div>
@@ -204,8 +214,8 @@ export function FootfallSection() {
         {!has("p") && (
           <div style={CARD}>
             <h3 style={H3}>Footfall by project</h3>
-            <div style={CAP}>top 10 · click → project</div>
-            <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} maxHeight={196} />
+            <div style={CAP}>all projects · click → project</div>
+            <HBarList items={listFrom(ffCount(rows, r => r.p), FF.P)} total={total} color={GOLD} onPick={(k, l) => openDrill("p")(k, l)} maxHeight={196} sortable />
           </div>
         )}
       </div>
@@ -214,8 +224,8 @@ export function FootfallSection() {
         {!has("loc") && (
           <div style={CARD}>
             <h3 style={H3}>Customer locality</h3>
-            <div style={CAP}>top 10 · click → locality</div>
-            <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} maxHeight={230} />
+            <div style={CAP}>all localities · click → locality</div>
+            <HBarList items={listFrom(ffCount(rows, r => r.loc), FF.LOC)} total={total} color={TEAL} onPick={(k, l) => openDrill("loc")(k, l)} maxHeight={230} sortable />
           </div>
         )}
       </div>
@@ -314,7 +324,7 @@ export function FootfallSection() {
                 <th onClick={() => setSortDir(d => (d === 1 ? -1 : 1))} style={{ textAlign: "left", padding: "7px 8px 7px 0", cursor: "pointer", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>
                   Date {sortDir === -1 ? "▼" : "▲"}
                 </th>
-                {["Gallery", "Project", "Source", "Channel partner", "Locality", "Stage"].map(h => (
+                {["Opp. No", "Gallery", "Project", "Source", "Channel partner", "Locality", "Stage"].map(h => (
                   <th key={h} style={{ textAlign: "left", padding: "7px 8px", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -325,6 +335,7 @@ export function FootfallSection() {
                   <td style={{ padding: "7px 8px 7px 0", whiteSpace: "nowrap" }}>
                     {r.day >= 0 ? dayToDate(r.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
                   </td>
+                  <td style={{ padding: "7px 8px", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 11.5 }}>{r.opp || "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.g >= 0 ? FF.G[r.g] : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.p >= 0 ? FF.P[r.p] : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.src === 1 ? "CP" : r.src === 0 ? "Direct" : r.src === 2 ? "Loyalty" : "—"}</td>

@@ -6,14 +6,16 @@ import "../../components/inventory/smartworldInventory.css";
 
 type Tab = "footfall" | "cpvisits" | "digital";
 
-const TABS: { key: Tab; label: string }[] = [
+const FOOTFALL_TABS: { key: Tab; label: string }[] = [
   { key: "footfall", label: "Footfall" },
   { key: "cpvisits", label: "CP Visits" },
-  { key: "digital", label: "Digital Leads" },
 ];
 
-export function LeadConversionPage() {
-  const [tab, setTab] = useState<Tab>("footfall");
+/** Gallery Footfall (footfall + CP visits tabs) and Digital Leads
+ * are now separate nav pages sharing this component via `mode`. */
+export function LeadConversionPage({ mode = "footfall" }: { mode?: "footfall" | "digital" }) {
+  const TABS = mode === "digital" ? [] : FOOTFALL_TABS;
+  const [tab, setTab] = useState<Tab>(mode === "digital" ? "digital" : "footfall");
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
@@ -23,9 +25,10 @@ export function LeadConversionPage() {
         padding: "18px 24px 16px",
         borderBottom: "3px solid var(--gold)",
       }}>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700, marginBottom: 12 }}>
-          Lead Conversion
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700, marginBottom: TABS.length ? 12 : 0 }}>
+          {mode === "digital" ? "Digital Leads" : "Gallery Footfall"}
         </div>
+        {TABS.length > 0 && (
         <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.08)", borderRadius: 999, padding: 4 }}>
           {TABS.map(t => (
             <button
@@ -48,6 +51,7 @@ export function LeadConversionPage() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       <div className="wrap">

@@ -3,7 +3,7 @@ import { showTip, hideTip } from "../common/hoverTip";
 import { AnimatePresence, motion } from "framer-motion";
 import { dayToDate, fNum } from "../../utils/footfallLogic";
 import {
-  HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
+  StackedHBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
   CARD, MCARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
@@ -57,11 +57,23 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
   const opp = rows.filter(r => r.stg >= 0).length;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
 
-  const listFrom = (get: (r: DigRec) => number, names: string[], top = 8) => {
+  const listFrom = (get: (r: DigRec) => number, names: string[], top = 99999) => {
     const m = new Map<number, number>();
     rows.forEach(r => { const k = get(r); if (k >= 0) m.set(k, (m.get(k) ?? 0) + 1); });
     return [...m.entries()].map(([key, value]) => ({ key, label: names[key], value }))
       .sort((a, b) => b.value - a.value).slice(0, top);
+  };
+  const QUAL_I = DG.STA.indexOf("Qualified");
+  const stackedFrom = (get: (r: DigRec) => number, names: string[]) => {
+    const tot = new Map<number, number>(), ql = new Map<number, number>();
+    rows.forEach(r => {
+      const k = get(r);
+      if (k < 0) return;
+      tot.set(k, (tot.get(k) ?? 0) + 1);
+      if (r.sta === QUAL_I) ql.set(k, (ql.get(k) ?? 0) + 1);
+    });
+    return [...tot.entries()].map(([key, value]) => ({ key, label: names[key], value, hl: ql.get(key) ?? 0 }))
+      .sort((a, b) => b.value - a.value);
   };
 
   const PER = 8;
@@ -161,7 +173,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                   <div style={MCARD}>
                     <h3 style={H3}>By sub-source</h3>
                     <div style={CAP}>click → narrow further</div>
-                    <HBarList items={listFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} onPick={addChip("sub")} />
+                    <StackedHBarList items={stackedFrom(r => r.sub, DG.SUB)} total={total} color={BLUE} hlColor={GREEN} hlLabel="Qualified" onPick={addChip("sub")} maxHeight={260} sortable />
                   </div>
                 )}
                 {!has("sta") && (
@@ -181,21 +193,21 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                   <div style={MCARD}>
                     <h3 style={H3}>By project / campaign</h3>
                     <div style={CAP}>click → narrow further</div>
-                    <HBarList items={listFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} onPick={addChip("p")} />
+                    <StackedHBarList items={stackedFrom(r => r.p, DG.PRJ)} total={total} color={GOLD} hlColor={GREEN} hlLabel="Qualified" onPick={addChip("p")} maxHeight={260} sortable />
                   </div>
                 )}
                 {!has("ag") && (
                   <div style={MCARD}>
                     <h3 style={H3}>Agency source</h3>
                     <div style={CAP}>click → narrow further</div>
-                    <HBarList items={listFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} onPick={addChip("ag")} />
+                    <StackedHBarList items={stackedFrom(r => r.ag, DG.AGN)} total={total} color={TEAL} hlColor={GREEN} hlLabel="Qualified" onPick={addChip("ag")} maxHeight={260} sortable />
                   </div>
                 )}
                 {!has("ow") && (
                   <div style={MCARD}>
                     <h3 style={H3}>Presales owner</h3>
                     <div style={CAP}>click → narrow further</div>
-                    <HBarList items={listFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" onPick={addChip("ow")} />
+                    <StackedHBarList items={stackedFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" hlColor={GREEN} hlLabel="Qualified" onPick={addChip("ow")} maxHeight={260} sortable />
                   </div>
                 )}
                 {!has("stg") && (

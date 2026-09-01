@@ -67,7 +67,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
 
   const direct = rows.filter(r => r.src === 0 || r.src === 2).length;
   const withCp = rows.filter(r => r.src === 1).length;
-  const uProj = new Set(rows.map(r => r.p)).size;
+  const uProj = new Set(rows.filter(r => r.p >= 0).map(r => r.p)).size;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
 
   const listFrom = (map: Map<number, number>, names: string[], top = 8) =>
