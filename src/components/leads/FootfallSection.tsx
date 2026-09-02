@@ -363,7 +363,7 @@ export function FootfallSection() {
           <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "5px 12px", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.45 : 1, fontFamily: "inherit" }}>‹ Prev</button>
           <span>Page {page} of {fNum(pageCount)}</span>
           <button disabled={page >= pageCount} onClick={() => setPage(p => p + 1)} style={{ border: "1px solid var(--line)", background: "#fff", borderRadius: 7, padding: "5px 12px", cursor: page >= pageCount ? "default" : "pointer", opacity: page >= pageCount ? 0.45 : 1, fontFamily: "inherit" }}>Next ›</button>
-          <span style={{ marginLeft: "auto", fontSize: 11.5 }}>{FF.meta.source}</span>
+          <span style={{ marginLeft: "auto", fontSize: 11.5 }}>data as on {FF.meta.asOn}</span>
         </div>
       </div>
     </div>

@@ -283,7 +283,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                 </button>
                 {showLogic && (
                   <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
-                    Every figure is a straight count over the rows of {DG.meta.source} matching the chips above — no sampling or estimation,
+                    Every figure is a straight count over the digital enquiry export rows matching the chips above — no sampling or estimation,
                     so totals always reconcile with the source file. <b>Qualified</b> counts the presales Status column;
                     <b> Opportunities</b> = rows where an opportunity Stage exists (CRM creates a stage only when an opportunity is created).
                     <b> Funnel</b> steps are nested populations down to Booked. Agency names are case-normalised.

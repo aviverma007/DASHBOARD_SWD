@@ -29,6 +29,7 @@ export interface Bk {
 export interface CpRawFile { P: string[]; TW: string[]; FL: string[]; CFG: string[]; CP: string[]; R: (number | string)[][] }
 export const CPD = raw as unknown as CpRawFile;
 export const BROKERS = CPD.CP;
+export const AS_ON: string = ((raw as unknown as { meta?: { asOn?: string } }).meta?.asOn) ?? "";
 /** Active bookings straight from the single source, WITH broker. */
 export const ROWS: Bk[] = CPD.R.filter(r => r[13] === 0).map(r => ({
   p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,

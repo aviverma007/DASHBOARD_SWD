@@ -304,7 +304,7 @@ export function DigitalSection() {
         </button>
         {showLogic && (
           <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
-            Every figure is a straight count over the rows of {DG.meta.source} ("Digital Presales Enquiry" sheet, {fNum(DG.meta.rows)} enquiries,
+            Every figure is a straight count over the digital enquiry export ({fNum(DG.meta.rows)} enquiries,
             Apr–Aug 2026) matching the active filters — no sampling or estimation.
             <b> Qualified</b> counts the presales Status column. <b>Opportunities</b> = enquiries where an opportunity Stage exists
             (a stage appears only once CRM creates the opportunity — {fNum(1925)} of {fNum(11946)} overall).

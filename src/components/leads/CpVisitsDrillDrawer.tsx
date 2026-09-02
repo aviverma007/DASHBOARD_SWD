@@ -250,7 +250,7 @@ export function CpVisitsDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                 </button>
                 {showLogic && (
                   <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
-                    Every figure is a straight count over the rows of {CPV.meta.source} ({fNum(CPV.meta.rows)} partner visits)
+                    Every figure is a straight count over the CP visit export rows ({fNum(CPV.meta.rows)} partner visits)
                     matching the chips above. A row = one channel-partner rep visiting a sales gallery, stamped with its
                     Date &amp; Time of Site visit. <b>Revisit</b> = the partner already had an earlier visit anywhere in the data;
                     <b> group</b> = the "No of Visitors" column where recorded. Blank cells are excluded from a card but never

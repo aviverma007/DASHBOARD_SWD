@@ -27,7 +27,7 @@ export const PDRN_ACTIVE = {
   R: ACTIVE.map(r => r.slice(0, 12)) as (number | string)[][],
   meta: {
     rows: ACTIVE.length,
-    source: "PDRN export (single source: cpAnalytics.json — actives incl. broker; cancellations tracked separately)",
+    source: "PDRN export",
     years,
   },
 };

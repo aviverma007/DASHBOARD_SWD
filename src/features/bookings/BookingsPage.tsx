@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import {
-  type Bk, type Dim, BROKERS, ROWS, CANCELLED,
+  type Bk, type Dim, BROKERS, ROWS, CANCELLED, AS_ON,
   MON, fN, CRf, ymKey, qKey, fyKey, ymLbl, PSHORT, BANDS, bandOf,
 } from "../../components/bookings/bookingsShared";
 import { BookingsDrillDrawer, type BkDrillSeed } from "../../components/bookings/BookingsDrillDrawer";
@@ -174,7 +174,7 @@ export function BookingsPage() {
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "18px 24px 16px", borderBottom: "3px solid var(--gold)" }}>
         <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Bookings</div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 3 }}>
-          {fN(ROWS.length)} active bookings · {PDRN.meta.source}
+          {fN(ROWS.length)} active bookings · data as on {AS_ON}
         </div>
       </div>
 
@@ -518,7 +518,7 @@ export function BookingsPage() {
                   });
                 })()}
                 <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 10 }}>
-                  Live from MERGED_PDRN_02-09.xlsx — per-booking Total Received (with tax), TCV (with tax, after
+                  Live per-booking data — Total Received (with tax), TCV (with tax, after
                   credit/debit adjustment) and Total Due. Fully scope-aware: project, period and drawer filters all apply.
                 </div>
               </div>
@@ -565,7 +565,7 @@ export function BookingsPage() {
         </div>
 
         <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
-          Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). Single source: cpAnalytics.json (full PDRN export — actives with broker, plus cancellations). Collected/Outstanding and customer geography still need collection and postal columns.
+          Live PDRN booking data ({fN(PDRN.meta.rows)} actives, with broker; cancellations tracked separately) · as on {AS_ON}. Customer geography needs a postal-code column in a future export.
         </div>
       </div>
 

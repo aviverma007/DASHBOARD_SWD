@@ -314,7 +314,7 @@ export function FootfallDrillDrawer({ seed, baseRows, baseLabel, onClose, showBo
                 </button>
                 {showLogic && (
                   <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
-                    Every figure is a straight count over the Excel rows (Footfall_data_till_21_aug.xlsx · "Customer Site Visit" · 54,222 rows)
+                    Every figure is a straight count over the footfall export rows ({fNum(FF.meta.rows)} site visits, as on {FF.meta.asOn})
                     that match the active chips above — no sampling, weighting or estimation, so totals always reconcile with the source file.
                     <b> Footfall</b> = matching rows. <b>Direct / With CP</b> = split on the Walk-in Source column (Direct Loyalty counts with Direct in the KPI; the source donut shows it separately).
                     <b> Funnel</b>: Opportunity Stage is a <i>current status</i>, so bands are nested populations — In pipeline = everyone not Closed Lost;

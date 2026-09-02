@@ -328,7 +328,7 @@ export function CpVisitsSection() {
       </div>
 
       <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
-        Source: {CPV.meta.source} ({fNum(CPV.meta.rows)} rows, as on {CPV.meta.asOn}) · a row = one channel-partner rep visiting a
+        CP visit export · {fNum(CPV.meta.rows)} rows · as on {CPV.meta.asOn} · a row = one channel-partner rep visiting a
         sales gallery · new partner = first-ever visit falls inside the selected period · revisit = the partner already had an
         earlier visit · {CPV.meta.note}.
       </div>
