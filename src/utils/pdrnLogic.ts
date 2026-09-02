@@ -42,6 +42,7 @@ export interface PdrnDataset {
 
 export interface InvDataset {
   P: string[];
+  TW: string[];
   /** Positional unit tuples; index 12 is the unit number string
    * (e.g. "T6-903"), the rest are numeric codes/values. */
   U: (number | string)[][];

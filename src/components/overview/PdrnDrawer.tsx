@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { SalesRecord, PeriodFilter } from "../../utils/pdrnLogic";
-import { getSoldRecords, PDRN, fArea, fCr, fRate, computeRateStats } from "../../utils/pdrnLogic";
+import { getSoldRecords, PDRN, INV, fArea, fCr, fRate, computeRateStats } from "../../utils/pdrnLogic";
 import { CollapsibleCard } from "../common/CollapsibleCard";
 
 /** Per-unit ₹/sqft rate; null when the record can't yield one. */
@@ -118,6 +118,7 @@ export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUni
             <UnitDetail record={selectedUnit} onBack={() => setSelectedUnit(null)} />
           ) : (
             <DrillContent
+              invProjIdx={invProjIdx}
               level={current.level}
               records={scopedRecords}
               scoped={scoped}
@@ -152,12 +153,13 @@ interface DrillContentProps {
   unsoldArea: number;
   totalUnits: number;
   totalArea: number;
+  invProjIdx: number;
   onTowerDrill: (idx: number) => void;
   onFloorDrill: (floorNum: number, label: string) => void;
   onUnitClick: (r: SalesRecord) => void;
 }
 
-function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
+function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, invProjIdx, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
   return (
     <>
       {/* Insight */}
@@ -188,7 +190,7 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUn
       <RateExtremesCard records={records} onUnitClick={onUnitClick} />
 
       {/* Level-specific content */}
-      {level === "project" && <TowerList records={records} onDrill={onTowerDrill} />}
+      {level === "project" && <TowerList records={records} invProjIdx={invProjIdx} onDrill={onTowerDrill} />}
       {level === "tower" && <FloorList records={records} onDrill={onFloorDrill} />}
       {level === "floor" && <UnitList records={records} onUnitClick={onUnitClick} />}
     </>
@@ -238,7 +240,24 @@ function RateExtremesCard({ records, onUnitClick }: { records: SalesRecord[]; on
   );
 }
 
-function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx: number) => void }) {  const towers = useMemo(() => {
+function TowerList({ records, invProjIdx, onDrill }: { records: SalesRecord[]; invProjIdx: number; onDrill: (idx: number) => void }) {
+  /** Projects with zero bookings (e.g. Residencies, INVR-only) would
+   * render an empty card — fall back to AVAILABLE stock by tower
+   * from the INVR file instead. */
+  const availTowers = useMemo(() => {
+    if (records.length > 0) return [];
+    const m = new Map<string, { units: number; area: number }>();
+    INV.U.forEach((u) => {
+      if ((u[0] as number) !== invProjIdx) return;
+      const tw = INV.TW[u[1] as number] ?? "No tower";
+      if (!m.has(tw)) m.set(tw, { units: 0, area: 0 });
+      const e = m.get(tw)!;
+      e.units++; e.area += u[6] as number;
+    });
+    return [...m.entries()].map(([name, e]) => ({ name, ...e })).sort((a, b) => b.units - a.units);
+  }, [records, invProjIdx]);
+  const maxAvail = Math.max(...availTowers.map((t) => t.units), 1);
+  const towers = useMemo(() => {
     const m = new Map<number, SalesRecord[]>();
     records.forEach((r) => {
       const list = m.get(r.towerIdx) ?? [];
@@ -260,6 +279,18 @@ function TowerList({ records, onDrill }: { records: SalesRecord[]; onDrill: (idx
 
   return (
     <CollapsibleCard defaultOpen title={<>By tower <span className="hint">click → tower</span></>}>
+      {towers.length === 0 && availTowers.map((t) => (
+        <div className="barrow" key={t.name} style={{ cursor: "default" }}>
+          <div className="lbl">
+            <span className="nm">{t.name}</span>
+            <span className="r">{t.units} available · {fArea(t.area)}</span>
+          </div>
+          <div className="vbar" style={{ width: `${(t.units / maxAvail) * 100}%`, background: "#7fa8c9" }} />
+        </div>
+      ))}
+      {towers.length === 0 && availTowers.length > 0 && (
+        <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 6 }}>No bookings yet — showing available stock by tower (INVR).</div>
+      )}
       {towers.map((t) => (
         <div className="barrow" key={t.idx} onClick={() => onDrill(t.idx)}>
           <div className="lbl">
