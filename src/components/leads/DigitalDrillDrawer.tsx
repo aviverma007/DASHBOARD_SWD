@@ -178,7 +178,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                 )}
                 {!has("sta") && (
                   <div style={MCARD}>
-                    <h3 style={H3}>Presales status</h3>
+                    <h3 style={H3}>Enquiry Status</h3>
                     <div style={CAP}>qualification outcome</div>
                     <Donut
                       segs={listFrom(r => r.sta, DG.STA, 6).map(s => ({
@@ -205,7 +205,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                 )}
                 {!has("ow") && (
                   <div style={MCARD}>
-                    <h3 style={H3}>Presales owner</h3>
+                    <h3 style={H3}>Presales Team Qualification</h3>
                     <div style={CAP}>click → narrow further</div>
                     <StackedHBarList items={stackedFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" hlColor={GREEN} hlLabel="Qualified" onPick={addChip("ow")} maxHeight={260} sortable />
                   </div>

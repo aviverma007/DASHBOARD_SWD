@@ -174,7 +174,20 @@ export function ChannelPartnerPage() {
   const topTsv = useMemo(() => topByTsv(scopedRecords, TOP_N, true), [scopedRecords]);
 
   const trend = useMemo(() => monthlyTrend(scopedRecords, true), [scopedRecords]);
-  const rateRanges = useMemo(() => cpRateRanges(scopedRecords), [scopedRecords]);
+  const rateRangesRaw = useMemo(() => cpRateRanges(scopedRecords), [scopedRecords]);
+  const [rrSort, setRrSort] = useState<{ key: "name" | "units" | "hiRate" | "loRate" | "lastDay"; desc: boolean }>({ key: "hiRate", desc: true });
+  const rateRanges = useMemo(() => {
+    const arr = [...rateRangesRaw];
+    const { key, desc } = rrSort;
+    arr.sort((a, b) => key === "name" ? a.name.localeCompare(b.name) : (a[key] as number) - (b[key] as number));
+    if (desc) arr.reverse();
+    return arr;
+  }, [rateRangesRaw, rrSort]);
+  const rrTh = (key: "name" | "units" | "hiRate" | "loRate" | "lastDay") => ({
+    onClick: () => setRrSort(p => ({ key, desc: p.key === key ? !p.desc : true })),
+    style: { cursor: "pointer" as const, userSelect: "none" as const },
+  });
+  const rrArrow = (key: string) => rrSort.key === key ? (rrSort.desc ? " ↓" : " ↑") : "";
 
   function handleReset() {
     setSelectedProjects(new Set());
@@ -361,18 +374,18 @@ export function ChannelPartnerPage() {
             <div style={{ fontWeight: 600, fontSize: 14, color: "#1a3752", marginBottom: 8 }}>
               CP RATE RANGE — HIGHEST &amp; LOWEST PER CHANNEL PARTNER{" "}
               <span style={{ fontSize: 11.5, fontWeight: 400, color: "var(--mut)" }}>
-                {rateRanges.length} partners · sorted by highest rate · click a row → drill CP
+                {rateRanges.length} partners · click a column to sort · click a row → drill CP
               </span>
             </div>
             <div style={{ maxHeight: 420, overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid var(--line)", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
-                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px 7px 0" }}>Channel partner</th>
-                    <th style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px" }}>Units</th>
-                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "7px 8px" }}>Highest rate · project</th>
-                    <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "7px 8px" }}>Lowest rate · project</th>
-                    <th style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 0 7px 8px" }}>Last booking</th>
+                    <th {...rrTh("name")} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px 7px 0", cursor: "pointer", userSelect: "none" }}>Channel partner{rrArrow("name")}</th>
+                    <th {...rrTh("units")} style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px", cursor: "pointer", userSelect: "none" }}>Units{rrArrow("units")}</th>
+                    <th {...rrTh("hiRate")} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "7px 8px", cursor: "pointer", userSelect: "none" }}>Highest rate · project{rrArrow("hiRate")}</th>
+                    <th {...rrTh("loRate")} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "7px 8px", cursor: "pointer", userSelect: "none" }}>Lowest rate · project{rrArrow("loRate")}</th>
+                    <th {...rrTh("lastDay")} style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 0 7px 8px", cursor: "pointer", userSelect: "none" }}>Last booking{rrArrow("lastDay")}</th>
                   </tr>
                 </thead>
                 <tbody>

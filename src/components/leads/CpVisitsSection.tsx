@@ -7,9 +7,10 @@ import {
 } from "../../utils/cpVisitsLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN, PAL,
+  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
 } from "./footfallCharts";
 import { CpVisitsDrillDrawer, type CpvDrillSeed } from "./CpVisitsDrillDrawer";
+import { todayDay } from "../../utils/footfallLogic";
 
 const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" };
 
@@ -33,6 +34,9 @@ export function CpVisitsSection() {
     return PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
   }, [perKey, customFrom, customTo, PRESETS]);
   const [drill, setDrill] = useState<CpvDrillSeed | null>(null);
+  /** Inactive-partners card: its own window selector. */
+  const [inactMode, setInactMode] = useState<"m" | "q" | "fy" | "y" | "c">("q");
+  const [inactFrom, setInactFrom] = useState("");
   const openDrill = (dim: CpvDim) => (val: number | string, label: string) => setDrill({ dim, val, label });
 
   const FIRST = useMemo(() => cpvFirstVisitMap(), []);
@@ -209,19 +213,6 @@ export function CpVisitsSection() {
           </div>
         </div>
         <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
-          <h3 style={H3}>Visit status</h3>
-          <div style={CAP}>click a slice</div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-            <Donut
-              segs={listFrom(r => r.sta, CPV.STA, 6).map(s => ({
-                ...s,
-                color: s.label === "Completed" ? GREEN : s.label === "Scheduled" ? GOLD : s.label === "In Progress" ? TEAL : PAL[3],
-              }))}
-              onPick={openDrill("sta")}
-            />
-          </div>
-        </div>
-        <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
           <h3 style={H3}>Visit type</h3>
           <div style={CAP}>{fNum(rows.filter(r => r.vt >= 0).length)} of {fNum(total)} specified</div>
           <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
@@ -278,6 +269,77 @@ export function CpVisitsSection() {
           <h3 style={H3}>Weekday pattern</h3>
           <div style={CAP}>visits by day of week · click a day</div>
           <WeekdayChart items={weekday} onPick={openDrill("dow")} />
+        </div>
+      </div>
+
+      {/* Inactive channel partners */}
+      <div style={ROW}>
+        <div style={CARD}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <h3 style={H3}>Inactive channel partners</h3>
+            <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3, gap: 2 }}>
+              {([["m", "Last month"], ["q", "Last quarter"], ["y", "Last year"], ["fy", "This FY"], ["c", "Custom"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setInactMode(k)}
+                  style={{ border: "none", background: inactMode === k ? "#B8893C" : "transparent", color: inactMode === k ? "#fff" : "var(--mut)", fontWeight: 700, fontSize: 11.5, padding: "5px 12px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {inactMode === "c" && (
+            <div style={{ marginTop: 8 }}>
+              <span style={{ fontSize: 11.5, color: "var(--mut)", marginRight: 8 }}>No visit since</span>
+              <input type="date" min="2022-01-01" value={inactFrom} onChange={e => setInactFrom(e.target.value)} style={{ ...SEL, minWidth: 150 }} />
+            </div>
+          )}
+          {(() => {
+            const today = todayDay();
+            const winStart =
+              inactMode === "m" ? today - 30 :
+              inactMode === "q" ? today - 91 :
+              inactMode === "y" ? today - 365 :
+              inactMode === "fy" ? (() => { const d = new Date(); const fyStart = new Date(d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1, 3, 1); return Math.floor((fyStart.getTime() - new Date("2022-01-01T00:00:00").getTime()) / 86400000); })() :
+              (inactFrom ? isoToDay(inactFrom) : today - 91);
+            // per partner over ALL data (scoped to project filter): total visits + last visit
+            const agg = new Map<number, { n: number; last: number }>();
+            dimRows.forEach(r => {
+              if (r.cp < 0 || r.day < 0) return;
+              if (!agg.has(r.cp)) agg.set(r.cp, { n: 0, last: -1 });
+              const e = agg.get(r.cp)!;
+              e.n++; if (r.day > e.last) e.last = r.day;
+            });
+            const inactive = [...agg.entries()]
+              .filter(([, e]) => e.last < winStart)
+              .map(([cp, e]) => ({ cp, name: CPV.CPN[cp], n: e.n, last: e.last }))
+              .sort((a, b) => b.n - a.n);
+            const activeCount = agg.size - inactive.length;
+            const mx = Math.max(...inactive.map(i => i.n), 1);
+            return (
+              <>
+                <div style={CAP}>
+                  {fNum(inactive.length)} of {fNum(agg.size)} partners have NOT visited in the window ({fNum(activeCount)} active) ·
+                  sorted by lifetime visits · click → partner drill
+                </div>
+                <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                  {inactive.map(it => (
+                    <div key={it.cp} className="barrow" onClick={() => openDrill("cp")(it.cp, it.name)}
+                      onMouseEnter={e => showTip(e, `<b>${it.name}</b><br/>Lifetime visits — ${fNum(it.n)}<br/>Last visit — ${it.last >= 0 ? dayToDate(it.last).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}`)}
+                      onMouseMove={e => showTip(e, `<b>${it.name}</b><br/>Lifetime visits — ${fNum(it.n)}<br/>Last visit — ${it.last >= 0 ? dayToDate(it.last).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}`)}
+                      onMouseLeave={hideTip}
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3, gap: 8 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</span>
+                        <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fNum(it.n)} visits · last {it.last >= 0 ? dayToDate(it.last).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}</span>
+                      </div>
+                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(it.n / mx) * 100}%`, background: "#c0392b", opacity: 0.75, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { showTip, hideTip } from "../../components/common/hoverTip";
 import { useMemo, useState } from "react";
 import rawData from "../../data/smartworldInventory.json";
 import type { RawInventoryDataset, RawUnit, ScopeCondition, FilterState } from "../../types/smartworldRaw";
@@ -166,8 +167,8 @@ export function SmartworldInventoryPage() {
 
         {filterState.status === "blk" && <SwBlkByProjCard arr={arr} P={P} onRowClick={handleProj} />}
 
-        <div className="grid g2">
-          <CollapsibleCard defaultOpen title={<>Stock status <span className="hint">click a slice → drill</span></>}>
+        <div className="grid g2" style={{ alignItems: "stretch" }}>
+          <CollapsibleCard defaultOpen style={{ height: "100%" }} title={<>Inventory status <span className="hint">click a slice → drill</span></>}>
             <div className="dual-donut">
               <div className="dual-donut-col">
                 <div className="dual-donut-label">Units</div>
@@ -186,7 +187,7 @@ export function SmartworldInventoryPage() {
             </div>
           </CollapsibleCard>
 
-          <CollapsibleCard defaultOpen title={<>By category <span className="hint">click a slice → drill</span></>}>
+          <CollapsibleCard defaultOpen style={{ height: "100%" }} title={<>Inventory category <span className="hint">click a slice → drill</span></>}>
             <div className="dual-donut">
               <div className="dual-donut-col">
                 <div className="dual-donut-label">Units</div>
@@ -209,12 +210,15 @@ export function SmartworldInventoryPage() {
         <SwLegend />
 
         <div className="grid g2">
-          <CollapsibleCard defaultOpen title={<>Availability by project <span className="hint">most available first · click → project</span></>}>
+          <CollapsibleCard defaultOpen title={<>Project wise inventory status <span className="hint">most available first · click → project</span></>}>
             {pae.map((x) => {
               const bk = x.us.filter((u) => u[8] === 1).length;
               const bl = x.us.length - x.av - bk;
               return (
-                <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
+                <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}
+                  onMouseEnter={(e) => showTip(e, `<b>${P[x.i]}</b><br/>Available — ${x.av} (${pct(x.av, x.us.length)}%)<br/>Booked — ${bk} · Blocked — ${bl}<br/>Total — ${x.us.length}`)}
+                  onMouseMove={(e) => showTip(e, `<b>${P[x.i]}</b><br/>Available — ${x.av} (${pct(x.av, x.us.length)}%)<br/>Booked — ${bk} · Blocked — ${bl}<br/>Total — ${x.us.length}`)}
+                  onMouseLeave={hideTip}>
                   <div className="lbl">
                     <span className="nm">{P[x.i]}</span>
                     <span className="r">{pct(x.av, x.us.length)}% avail · {x.av} units</span>
@@ -225,9 +229,12 @@ export function SmartworldInventoryPage() {
             })}
           </CollapsibleCard>
 
-          <CollapsibleCard defaultOpen title={<>Available area by project <span className="hint">sq ft available · click → project</span></>}>
+          <CollapsibleCard defaultOpen title={<>Project wise available area <span className="hint">sq ft available · click → project</span></>}>
             {ua.map((x) => (
-              <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}>
+              <div className="barrow" key={x.i} onClick={() => handleProj(x.i)}
+                onMouseEnter={(e) => showTip(e, `<b>${P[x.i]}</b><br/>Available area — ${fArea(x.v)}`)}
+                onMouseMove={(e) => showTip(e, `<b>${P[x.i]}</b><br/>Available area — ${fArea(x.v)}`)}
+                onMouseLeave={hideTip}>
                 <div className="lbl">
                   <span className="nm">{P[x.i]}</span>
                   <span className="r">{fArea(x.v)}</span>
@@ -238,7 +245,7 @@ export function SmartworldInventoryPage() {
           </CollapsibleCard>
         </div>
 
-        <CollapsibleCard defaultOpen title={<>Config gap analysis <span className="hint">available units by project × config · click a cell</span></>}>
+        <CollapsibleCard defaultOpen title={<>Configuration analysis <span className="hint">available units by project × config · click a cell</span></>}>
           <SwConfigGap arr={arr} rowsP={rowsP} cols={cols} P={P} CFG={CFG} onCellClick={handleCell} />
         </CollapsibleCard>
 

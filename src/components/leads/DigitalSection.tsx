@@ -11,6 +11,8 @@ import {
 } from "./digitalShared";
 import { DigitalFunnelCard } from "./DigitalFunnelCard";
 import { DigitalDrillDrawer } from "./DigitalDrillDrawer";
+import { EnquiryRecordPanel } from "./EnquiryRecordPanel";
+import type { DigRec as DigRecT } from "./digitalShared";
 
 /** Digital presales enquiries — full analytics preview of the 21-Aug
  * export (11,946 enquiries, Apr–Aug 2026), in the same visual system
@@ -24,6 +26,7 @@ import { DigitalDrillDrawer } from "./DigitalDrillDrawer";
 export function DigitalSection() {
   const [chips, setChips] = useState<Chip[]>([]);
   const [drill, setDrill] = useState<import("./DigitalDrillDrawer").DigDrillSeed | null>(null);
+  const [recDetail, setRecDetail] = useState<DigRecT | null>(null);
   const openDrill = (dim: Dim) => (val: number | string, label: string) => setDrill({ dim, val, label });
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
@@ -104,6 +107,7 @@ export function DigitalSection() {
 
   return (
     <div>
+      <EnquiryRecordPanel rec={recDetail} onClose={() => setRecDetail(null)} />
       <DigitalDrillDrawer
         seed={drill}
         baseRows={rows}
@@ -195,7 +199,7 @@ export function DigitalSection() {
         )}
         {!has("ow") && (
           <div style={CARD}>
-            <h3 style={H3}>Presales owner</h3>
+            <h3 style={H3}>Presales Team Qualification</h3>
             <div style={CAP}>all owners · qualified overlay · click → owner</div>
             <StackedHBarList items={stackedFrom(r => r.ow, DG.OWN)} total={total} color="#7b5cb8" hlColor={GREEN} hlLabel="Qualified" onPick={openDrill("ow")} maxHeight={300} sortable />
           </div>
@@ -205,8 +209,8 @@ export function DigitalSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
         {!has("sta") && (
           <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
-            <h3 style={H3}>Presales status</h3>
-            <div style={CAP}>qualification outcome · click a slice</div>
+            <h3 style={H3}>Enquiry Status</h3>
+            <div style={CAP}>click a slice</div>
             <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
 <Donut
               segs={listFrom(r => r.sta, DG.STA, 6).map(s => ({
@@ -255,7 +259,7 @@ export function DigitalSection() {
 
 
       {/* Records */}
-      <div><Banner title="ENQUIRY RECORDS" sub={`${fNum(total)} in scope · PII excluded`} /></div>
+      <div><Banner title="ENQUIRY RECORDS" sub={`${fNum(total)} in scope · click a row for full detail · PII excluded`} /></div>
       <div style={{ ...CARD, paddingBottom: 6 }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
@@ -268,7 +272,10 @@ export function DigitalSection() {
             </thead>
             <tbody>
               {shown.map((r, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                <tr key={i} onClick={() => setRecDetail(r)}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}
+                  style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}>
                   <td style={{ padding: "7px 8px", whiteSpace: "nowrap" }}>{r.day >= 0 ? dayToDate(r.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.sub >= 0 ? DG.SUB[r.sub] : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.p >= 0 ? DG.PRJ[r.p] : "—"}</td>

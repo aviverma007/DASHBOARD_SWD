@@ -1,3 +1,4 @@
+import { showTip, hideTip } from "../common/hoverTip";
 import type { RawUnit } from "../../types/smartworldRaw";
 
 interface SwConfigGapProps {
@@ -53,7 +54,9 @@ export function SwConfigGap({ arr, rowsP, cols, P, CFG, onCellClick }: SwConfigG
                     <td
                       key={cell.b}
                       className={`cell ${cell.cls}`}
-                      title={`${cell.av} available of ${cell.total}`}
+                      onMouseEnter={(e) => showTip(e, `<b>${P[row.i]} × ${CFG[cell.b]}</b><br/>Available — ${cell.av} of ${cell.total}`)}
+                      onMouseMove={(e) => showTip(e, `<b>${P[row.i]} × ${CFG[cell.b]}</b><br/>Available — ${cell.av} of ${cell.total}`)}
+                      onMouseLeave={hideTip}
                       onClick={() => onCellClick(row.i, cell.b)}
                     >
                       {cell.av}

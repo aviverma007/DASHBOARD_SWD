@@ -3,6 +3,7 @@
  * helper functions (donut, dlegend, bar3, legend, stpill) as React
  * components. Markup structure and class names match the source.
  */
+import { showTip, hideTip } from "../common/hoverTip";
 import { fNum, STL } from "../../utils/smartworldLogic";
 
 export interface DonutSegment {
@@ -67,11 +68,10 @@ export function SwDonut({ segs, onSegmentClick, valueFormatter = fNum }: SwDonut
             strokeDashoffset={dashOffset}
             transform={`rotate(-90 ${cx} ${cy})`}
             onClick={() => onSegmentClick?.(s)}
-          >
-            <title>
-              {s.label}: {valueFormatter(s.value)} ({((s.value / total) * 100).toFixed(1)}%)
-            </title>
-          </circle>
+            onMouseEnter={(e) => showTip(e, `<b>${s.label}</b><br/>${valueFormatter(s.value)} (${((s.value / total) * 100).toFixed(1)}%)`)}
+            onMouseMove={(e) => showTip(e, `<b>${s.label}</b><br/>${valueFormatter(s.value)} (${((s.value / total) * 100).toFixed(1)}%)`)}
+            onMouseLeave={hideTip}
+          />
         );
       })}
       {line2 ? (
@@ -110,6 +110,9 @@ export function SwDLegend({ segs, onItemClick, valueFormatter = fNum }: SwDLegen
           data-act={s.act}
           data-v={s.v}
           onClick={() => onItemClick?.(s)}
+          onMouseEnter={(e) => showTip(e, `<b>${s.label}</b><br/>${valueFormatter(s.value)} (${((s.value / total) * 100).toFixed(1)}%)`)}
+          onMouseMove={(e) => showTip(e, `<b>${s.label}</b><br/>${valueFormatter(s.value)} (${((s.value / total) * 100).toFixed(1)}%)`)}
+          onMouseLeave={hideTip}
           className="li"
         >
           <span className="sw" style={{ background: s.color }} />

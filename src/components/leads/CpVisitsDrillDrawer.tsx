@@ -7,7 +7,7 @@ import {
 } from "../../utils/cpVisitsLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, PAL, BLUE, TEAL, GOLD, GREEN,
+  CARD, H3, CAP, BLUE, TEAL, GOLD,
 } from "./footfallCharts";
 import { showTip, hideTip } from "../common/hoverTip";
 
@@ -165,19 +165,6 @@ export function CpVisitsDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
                     <h3 style={H3}>Assigned RM</h3>
                     <div style={CAP}>who handles the partner · click → RM</div>
                     <HBarList items={listFrom(r => r.asg, CPV.ASG)} total={total} color="#7b5cb8" onPick={addChip("asg")} maxHeight={230} />
-                  </div>
-                )}
-                {!has("sta") && (
-                  <div style={CARD}>
-                    <h3 style={H3}>Visit status</h3>
-                    <div style={CAP}>click a slice</div>
-                    <Donut
-                      segs={listFrom(r => r.sta, CPV.STA, 6).map(s => ({
-                        ...s,
-                        color: s.label === "Completed" ? GREEN : s.label === "Scheduled" ? GOLD : s.label === "In Progress" ? TEAL : PAL[3],
-                      }))}
-                      onPick={addChip("sta")}
-                    />
                   </div>
                 )}
                 {!has("vt") && (

@@ -1,4 +1,5 @@
 import { pct } from "../../utils/smartworldLogic";
+import { showTip, hideTip } from "../common/hoverTip";
 import type { GroupBarItem } from "../../utils/smartworldLogic";
 import { SwBar3 } from "./swPieces";
 
@@ -20,7 +21,10 @@ export function SwGroupBars({ items, names, onClick }: SwGroupBarsProps) {
         const bk = o.us.filter((u) => u[8] === 1).length;
         const bl = o.us.length - o.av - bk;
         return (
-          <div className="barrow" key={o.k} onClick={() => onClick(o.k)}>
+          <div className="barrow" key={o.k} onClick={() => onClick(o.k)}
+            onMouseEnter={(e) => showTip(e, `<b>${names[o.k]}</b><br/>Available — ${o.av} (${pct(o.av, o.us.length)}%)<br/>Booked — ${bk} · Blocked — ${bl}<br/>Total — ${o.us.length}`)}
+            onMouseMove={(e) => showTip(e, `<b>${names[o.k]}</b><br/>Available — ${o.av} (${pct(o.av, o.us.length)}%)<br/>Booked — ${bk} · Blocked — ${bl}<br/>Total — ${o.us.length}`)}
+            onMouseLeave={hideTip}>
             <div className="lbl">
               <span className="nm">{names[o.k]}</span>
               <span className="r">
