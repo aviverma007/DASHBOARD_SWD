@@ -9,6 +9,8 @@ export interface CpRecord {
   unitNo: string; customerName: string; paymentPlan: string; cpIdx: number;
   status: 0 | 1; // 0 = active/booked, 1 = cancelled
   rebooked: 0 | 1; // only meaningful when status=1
+  /** booking day offset from 2022-01-01 (−1 unknown) */
+  day: number;
 }
 
 function toRecord(r: number[]): CpRecord {
@@ -17,6 +19,7 @@ function toRecord(r: number[]): CpRecord {
     area: r[5], tsv: r[6], year: r[7], month: r[8],
     unitNo: String(r[9]), customerName: String(r[10]), paymentPlan: String(r[11]),
     cpIdx: r[12], status: r[13] as 0 | 1, rebooked: r[14] as 0 | 1,
+    day: (r[18] as number) ?? -1,
   };
 }
 
@@ -137,6 +140,8 @@ export interface CpRateRange {
   units: number;
   hiRate: number; hiProj: string; hiUnit: string;
   loRate: number; loProj: string; loUnit: string;
+  /** latest booking day offset in scope (−1 if none dated) */
+  lastDay: number;
 }
 
 /** For EVERY channel partner in scope: their own highest- and lowest-
@@ -165,6 +170,7 @@ export function cpRateRanges(records: CpRecord[]): CpRateRange[] {
       units: recs.length,
       hiRate: Math.round(hi.tsv / hi.area), hiProj: CP.P[hi.projIdx], hiUnit: hi.unitNo,
       loRate: Math.round(lo.tsv / lo.area), loProj: CP.P[lo.projIdx], loUnit: lo.unitNo,
+      lastDay: recs.reduce((m, r) => Math.max(m, r.day), -1),
     });
   });
   return rows.sort((a, b) => b.hiRate - a.hiRate);

@@ -372,6 +372,7 @@ export function ChannelPartnerPage() {
                     <th style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 8px" }}>Units</th>
                     <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#1a7a4a", padding: "7px 8px" }}>Highest rate · project</th>
                     <th style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#c97a1a", padding: "7px 8px" }}>Lowest rate · project</th>
+                    <th style={{ textAlign: "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 0 7px 8px" }}>Last booking</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -390,6 +391,9 @@ export function ChannelPartnerPage() {
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>
                         <span style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "#c97a1a" }}>{fRate(row.loRate)}</span>
                         <span style={{ fontSize: 11.5, color: "var(--mut)", marginLeft: 7 }}>{row.loProj}</span>
+                      </td>
+                      <td style={{ fontSize: 12.5, color: "var(--ink)", padding: "8px 0 8px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        {row.lastDay >= 0 ? new Date(new Date("2022-01-01T00:00:00").getTime() + row.lastDay * 86400000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
                       </td>
                     </tr>
                   ))}
