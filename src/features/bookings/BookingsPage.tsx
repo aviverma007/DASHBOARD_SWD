@@ -406,10 +406,11 @@ export function BookingsPage() {
                 <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
                   {items.map(it => (
                     <div key={it.k} className="barrow"
-                      onMouseEnter={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${((it.n / Math.max(total, 1)) * 100).toFixed(1)}% share<br/>${CRf(it.v)} · avg ${CRf(it.v / it.n)}`)}
+                      onClick={() => openDrill("cp")(it.k, BROKERS[it.k])}
+                      onMouseEnter={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${((it.n / Math.max(total, 1)) * 100).toFixed(1)}% share<br/>${CRf(it.v)} · avg ${CRf(it.v / it.n)}<br/>click → drill drawer`)}
                       onMouseMove={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${((it.n / Math.max(total, 1)) * 100).toFixed(1)}% share<br/>${CRf(it.v)} · avg ${CRf(it.v / it.n)}`)}
                       onMouseLeave={hideTip}
-                      style={{ padding: "4px 0" }}>
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3, gap: 8 }}>
                         <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{BROKERS[it.k]}</span>
                         <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fN(it.n)} · {CRf(it.v)}</span>
@@ -505,17 +506,17 @@ export function BookingsPage() {
               <Zoomable title="Collection by project">
               <div style={{ ...CARD, marginBottom: 14 }}>
                 <h3 style={H3}>Collection by project</h3>
-                <div style={CAP}>received ÷ value (with tax) · green ≥ 50% · click a project → full drill</div>
+                <div style={CAP}>received ÷ value (excl. tax) · green ≥ 50% · click a project → full drill</div>
                 {(() => {
                   const g = new Map<number, { t: number; r: number; n: number }>();
-                  rows.forEach(b => { if (!g.has(b.p)) g.set(b.p, { t: 0, r: 0, n: 0 }); const e = g.get(b.p)!; e.t += b.tcvT; e.r += b.rec; e.n++; });
+                  rows.forEach(b => { if (!g.has(b.p)) g.set(b.p, { t: 0, r: 0, n: 0 }); const e = g.get(b.p)!; e.t += b.valN; e.r += b.recN; e.n++; });
                   return [...g.entries()].sort((a, b) => b[1].t - a[1].t).map(([p, e]) => {
                     const pctv = e.t ? (e.r / e.t) * 100 : 0;
                     return (
                       <div key={p} className="barrow"
                         onClick={() => openProject(p)}
-                        onMouseEnter={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
-                        onMouseMove={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
+                        onMouseEnter={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>Bookings — ${e.n.toLocaleString("en-IN")}<br/>Value — ${CRf(e.t)}<br/>Collected — ${CRf(e.r)} (${pctv.toFixed(1)}%)<br/>Outstanding — ${CRf(e.t - e.r)}`)}
+                        onMouseMove={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>Bookings — ${e.n.toLocaleString("en-IN")}<br/>Value — ${CRf(e.t)}<br/>Collected — ${CRf(e.r)} (${pctv.toFixed(1)}%)<br/>Outstanding — ${CRf(e.t - e.r)}`)}
                         onMouseLeave={hideTip}
                         style={{ padding: "5px 0", cursor: "pointer" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>

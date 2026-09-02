@@ -22,6 +22,7 @@ function applyChips(rows: Bk[], chips: Chip[]): Bk[] {
         case "tw": return b.tw === c.val;
         case "band": return bandOf(b) === c.val;
         case "mon": return ymKey(b) === c.val;
+        case "cp": return b.broker === c.val;
         default: return true;
       }
     })
@@ -218,6 +219,7 @@ export function BookingsDrillDrawer({ seed, baseRows, cancelledBase, baseLabel, 
                     })()} total={total} color={GREEN} onPick={addChip("tw")} maxHeight={230} sortable />
                   </div>
                 )}
+                {!has("cp") && (
                 <div style={CARD}>
                   <h3 style={H3}>Channel-partner leaderboard</h3>
                   <div style={CAP}>bookings brought in this selection</div>
@@ -230,10 +232,11 @@ export function BookingsDrillDrawer({ seed, baseRows, cancelledBase, baseLabel, 
                       <div style={{ maxHeight: 230, overflowY: "auto", paddingRight: 6 }}>
                         {items.map(it => (
                           <div key={it.k} className="barrow"
-                            onMouseEnter={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${CRf(it.v)}`)}
+                            onClick={() => addChip("cp")(it.k, BROKERS[it.k])}
+                            onMouseEnter={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${CRf(it.v)}<br/>click → narrow`)}
                             onMouseMove={e => showTip(e, `<b>${BROKERS[it.k]}</b><br/>${fN(it.n)} bookings · ${CRf(it.v)}`)}
                             onMouseLeave={hideTip}
-                            style={{ padding: "4px 0" }}>
+                            style={{ padding: "4px 0", cursor: "pointer" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, gap: 8 }}>
                               <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{BROKERS[it.k]}</span>
                               <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fN(it.n)} · {CRf(it.v)}</span>
@@ -247,6 +250,7 @@ export function BookingsDrillDrawer({ seed, baseRows, cancelledBase, baseLabel, 
                     );
                   })()}
                 </div>
+                )}
               </div>
 
               {/* Trend */}

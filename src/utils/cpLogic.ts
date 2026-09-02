@@ -83,7 +83,7 @@ export interface CpRateExtreme {
  * (no-CP) sales are excluded — the ask is about channel partners. */
 export function cpRateExtremes(records: CpRecord[]): { hi: CpRateExtreme | null; lo: CpRateExtreme | null; avg: number | null } {
   const eligible = records.filter(r =>
-    r.status === 0 && r.area > 0 && r.tsv > 0 && CP.CP[r.cpIdx] !== "Direct"
+    r.status === 0 && r.area > 0 && r.tsv > 0 && r.cpIdx >= 0 && CP.CP[r.cpIdx] !== "Direct"
   );
   if (eligible.length === 0) return { hi: null, lo: null, avg: null };
   let hi = eligible[0], lo = eligible[0];
@@ -147,7 +147,7 @@ export function cpRateRanges(records: CpRecord[]): CpRateRange[] {
   const byCp = new Map<number, CpRecord[]>();
   records.forEach(r => {
     if (r.status !== 0 || r.area <= 0 || r.tsv <= 0) return;
-    if (CP.CP[r.cpIdx] === "Direct") return;
+    if (r.cpIdx < 0 || CP.CP[r.cpIdx] === "Direct") return; // -1 = direct booking (no broker)
     const list = byCp.get(r.cpIdx) ?? [];
     list.push(r);
     byCp.set(r.cpIdx, list);

@@ -66,7 +66,7 @@ export const BANDS: { label: string; lo: number; hi: number }[] = [
 ];
 export const bandOf = (b: Bk) => BANDS.findIndex(x => b.tsv >= x.lo && b.tsv < x.hi);
 
-export type Dim = "p" | "cfg" | "tw" | "band" | "mon";
+export type Dim = "p" | "cfg" | "tw" | "band" | "mon" | "cp";
 export interface Chip { dim: Dim; val: number | string; label: string }
-export const DIMN: Record<Dim, string> = { p: "Project", cfg: "Config", tw: "Tower", band: "Ticket band", mon: "Month" };
+export const DIMN: Record<Dim, string> = { p: "Project", cfg: "Config", tw: "Tower", band: "Ticket band", mon: "Month", cp: "Channel partner" };
 
