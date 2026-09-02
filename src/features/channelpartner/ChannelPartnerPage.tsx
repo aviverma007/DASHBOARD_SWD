@@ -194,8 +194,13 @@ export function ChannelPartnerPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
-      {/* Filter bar */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
+      {/* Header + filter bar */}
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px 14px", borderBottom: "3px solid var(--gold)" }}>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Channel Partners</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>Broker performance, trends and cancellations · live PDRN</div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
         <CpSearchMultiSelect selected={selectedCps} onChange={setSelectedCps} />
 
@@ -246,6 +251,7 @@ export function ChannelPartnerPage() {
         <div style={{ flex: 1 }} />
         <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 8, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
         <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
+        </div>
       </div>
 
       <div className="wrap">

@@ -837,7 +837,12 @@ export function TargetActualPage() {
           of staying pinned to the real viewport. */}
       <div className="tv-zoom-desktop" style={{ overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "12px 22px 14px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px 14px", borderBottom: "3px solid var(--gold)" }}>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Target vs Actual</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>AOP targets against achieved units, value and rates</div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <LocationSelect locations={LOCATIONS} value={location} onChange={handleLocationChange} />
         <ProjectMultiSelect projects={availableNames} selected={selectedProjects} onChange={setSelectedProjects} />
 
@@ -901,6 +906,7 @@ export function TargetActualPage() {
         <div style={{ flex: 1 }} />
         <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 9, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
         <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
+        </div>
       </div>
 
       <div className="wrap">
