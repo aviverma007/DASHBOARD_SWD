@@ -76,6 +76,11 @@ export function BookingsPage() {
   const areaL = rows.reduce((s, b) => s + b.area, 0) / 1e5;
   const avgTicket = total ? tcv / total : 0;
   const avgRate = rows.reduce((s, b) => s + b.area, 0) ? tcv / rows.reduce((s, b) => s + b.area, 0) : 0;
+  const vT = rows.reduce((s, b) => s + b.tcvT, 0);
+  const recT = rows.reduce((s, b) => s + b.rec, 0);
+  const vN = rows.reduce((s, b) => s + b.valN, 0);
+  const recNs = rows.reduce((s, b) => s + b.recN, 0);
+  const dueNow = rows.reduce((s, b) => s + Math.max(b.due, 0), 0);
   const cancelled = useMemo(() => CANCELLED.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [perMode, perSel, selProjects]);
@@ -242,6 +247,15 @@ export function BookingsPage() {
           <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
           <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
           <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => b.reb === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
+        </div>
+
+        {/* Collections KPIs — with tax AND excl. tax, scope-aware */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))", gap: 12, marginBottom: 6 }}>
+          <KPI k="Value (with tax)" v={CRf(vT)} s={`excl. tax ${CRf(vN)} (BSP net)`} />
+          <KPI k="Collected" v={CRf(recT)} s={`excl. tax ${CRf(recNs)}`} />
+          <KPI k="Outstanding" v={CRf(vT - recT)} s={`excl. tax ${CRf(vN - recNs)}`} />
+          <KPI k="Collection rate" v={`${vT ? ((recT / vT) * 100).toFixed(0) : 0}%`} s={`excl. tax ${vN ? ((recNs / vN) * 100).toFixed(0) : 0}%`} />
+          <KPI k="Due now" v={CRf(dueNow)} s="raised demands unpaid (incl. tax)" />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${scopeLabel}`} /></div>
@@ -464,31 +478,11 @@ export function BookingsPage() {
         </div>
         </Zoomable>
 
-        {/* Collections — LIVE from the 02-Sep PDRN, scope-aware */}
+        {/* Collection by project — live, scope-aware */}
         <div><Banner title="COLLECTIONS" sub={`live per-booking received/due · ${scopeLabel}`} /></div>
         {(() => {
-          const vT = rows.reduce((s, b) => s + b.tcvT, 0);
-          const rec = rows.reduce((s, b) => s + b.rec, 0);
-          const dueNow = rows.reduce((s, b) => s + Math.max(b.due, 0), 0);
-          const CsKPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
-            <div style={{ ...CARD, padding: "13px 16px" }}
-              onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
-              onMouseMove={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
-              onMouseLeave={hideTip}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
-              <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
-              <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 1 }}>{s}</div>
-            </div>
-          );
           return (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
-                <CsKPI k="Value (with tax)" v={CRf(vT)} s="TCV after credit/debit adj" />
-                <CsKPI k="Collected" v={CRf(rec)} s="received (incl. tax)" />
-                <CsKPI k="Outstanding" v={CRf(vT - rec)} s="receivable (value − received)" />
-                <CsKPI k="Collection rate" v={`${vT ? ((rec / vT) * 100).toFixed(0) : 0}%`} s="received ÷ value (with tax)" />
-                <CsKPI k="Due now" v={CRf(dueNow)} s="raised demands unpaid" />
-              </div>
               <Zoomable title="Collection by project">
               <div style={{ ...CARD, marginBottom: 14 }}>
                 <h3 style={H3}>Collection by project</h3>
