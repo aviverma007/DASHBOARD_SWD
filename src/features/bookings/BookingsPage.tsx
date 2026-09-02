@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import {
   type Bk, type Dim, BROKERS, ROWS, CANCELLED, AS_ON,
@@ -26,6 +26,15 @@ export function BookingsPage() {
   const [drill, setDrill] = useState<BkDrillSeed | null>(null);
   const [selProjects, setSelProjects] = useState<number[]>([]);
   const [projOpen, setProjOpen] = useState(false);
+  const projRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!projOpen) return;
+    const h = (e: MouseEvent) => {
+      if (projRef.current && !projRef.current.contains(e.target as Node)) setProjOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [projOpen]);
   /** Period pills (All time / Year / Quarter / Month) + a key select
    * for the chosen granularity — matches the Overview control. */
   const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m" | "c">("all");
@@ -181,7 +190,7 @@ export function BookingsPage() {
       <div style={{ padding: "16px 20px 40px" }}>
         {/* Filters: multi-project + period pills */}
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
-          <div style={{ position: "relative" }}>
+          <div ref={projRef} style={{ position: "relative" }}>
             <div style={SELLBL}>Projects</div>
             <button onClick={() => setProjOpen(v => !v)}
               style={{ ...SEL, minWidth: 210, textAlign: "left", cursor: "pointer" }}>
@@ -262,7 +271,7 @@ export function BookingsPage() {
           <KPI k="Collected" v={CRf(recNs)} s={`with tax ${CRf(recT)}`} />
           <KPI k="Outstanding" v={CRf(demN - recNs)} s={`demand − received · with tax ${CRf(demT - recT)}`} />
           <KPI k="Collection rate" v={`${vN ? ((recNs / vN) * 100).toFixed(0) : 0}%`} s={`received ÷ value · with tax ${vT ? ((recT / vT) * 100).toFixed(0) : 0}%`} />
-          <KPI k="Due now" v={CRf(dueNowN)} s={`with tax ${CRf(dueNow)} (export column)`} />
+          <KPI k="Due now" v={CRf(dueNowN)} s={`with tax ${CRf(dueNow)}`} />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${scopeLabel}`} /></div>
@@ -376,7 +385,6 @@ export function BookingsPage() {
           <Zoomable title="Bookings by source">
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
-            <div style={CAP}>live per-booking broker attribution · respects filters</div>
             <Donut segs={[
               { key: 1, label: "Via channel partner", value: rows.filter(b => b.broker >= 0).length, color: TEAL },
               { key: 0, label: "Direct", value: rows.filter(b => b.broker < 0).length, color: GOLD },
@@ -389,7 +397,6 @@ export function BookingsPage() {
           <Zoomable title="Channel-partner leaderboard">
           <div style={CARD}>
             <h3 style={H3}>Channel-partner leaderboard</h3>
-            <div style={CAP}>real per-booking brokers · bookings, value &amp; share · respects filters</div>
             {(() => {
               const g = new Map<number, { n: number; v: number }>();
               rows.forEach(b => { if (b.broker >= 0) { if (!g.has(b.broker)) g.set(b.broker, { n: 0, v: 0 }); const e = g.get(b.broker)!; e.n++; e.v += b.tsv; } });
@@ -451,7 +458,12 @@ export function BookingsPage() {
           <div style={CARD}>
             <h3 style={H3}>Bookings by tower</h3>
             <div style={CAP}>all towers · click a tower → drill drawer</div>
-            <HBarList items={listFrom(b => b.tw, PDRN.TW)} total={total} color={GREEN} onPick={openDrill("tw")} maxHeight={260} sortable />
+            <HBarList items={(() => {
+              const m = new Map<number, { n: number; p: number }>();
+              rows.forEach(b => { if (b.tw < 0) return; if (!m.has(b.tw)) m.set(b.tw, { n: 0, p: b.p }); m.get(b.tw)!.n++; });
+              return [...m.entries()].map(([key, e]) => ({ key, label: `${PSHORT[e.p]} — ${PDRN.TW[key]}`, value: e.n }))
+                .sort((a, b) => b.value - a.value);
+            })()} total={total} color={GREEN} onPick={openDrill("tw")} maxHeight={260} sortable />
           </div>
           </Zoomable>
         </div>

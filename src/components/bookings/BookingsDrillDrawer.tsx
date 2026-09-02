@@ -210,7 +210,12 @@ export function BookingsDrillDrawer({ seed, baseRows, cancelledBase, baseLabel, 
                   <div style={CARD}>
                     <h3 style={H3}>By tower</h3>
                     <div style={CAP}>click → narrow further</div>
-                    <HBarList items={listFrom(b => b.tw, PDRN.TW)} total={total} color={GREEN} onPick={addChip("tw")} maxHeight={230} sortable />
+                    <HBarList items={(() => {
+                      const m = new Map<number, { n: number; p: number }>();
+                      rows.forEach(b => { if (b.tw < 0) return; if (!m.has(b.tw)) m.set(b.tw, { n: 0, p: b.p }); m.get(b.tw)!.n++; });
+                      return [...m.entries()].map(([key, e]) => ({ key, label: `${PSHORT[e.p]} — ${PDRN.TW[key]}`, value: e.n }))
+                        .sort((a, b) => b.value - a.value);
+                    })()} total={total} color={GREEN} onPick={addChip("tw")} maxHeight={230} sortable />
                   </div>
                 )}
                 <div style={CARD}>
