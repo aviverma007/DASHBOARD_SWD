@@ -83,6 +83,9 @@ export function BookingsPage() {
   const dueNow = rows.reduce((s, b) => s + Math.max(b.due, 0), 0);
   const demN = rows.reduce((s, b) => s + b.demN, 0);
   const demT = rows.reduce((s, b) => s + b.demT, 0);
+  /** No excl-tax due column exists in the export; closest faithful
+   * analog is per-booking max(demand − received, 0) excl tax. */
+  const dueNowN = rows.reduce((s, b) => s + Math.max(b.demN - b.recN, 0), 0);
   const cancelled = useMemo(() => CANCELLED.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [perMode, perSel, selProjects]);
@@ -258,7 +261,7 @@ export function BookingsPage() {
           <KPI k="Collected" v={CRf(recNs)} s={`with tax ${CRf(recT)}`} />
           <KPI k="Outstanding" v={CRf(demN - recNs)} s={`demand − received · with tax ${CRf(demT - recT)}`} />
           <KPI k="Collection rate" v={`${vN ? ((recNs / vN) * 100).toFixed(0) : 0}%`} s={`received ÷ value · with tax ${vT ? ((recT / vT) * 100).toFixed(0) : 0}%`} />
-          <KPI k="Due now" v={CRf(dueNow)} s="raised demands unpaid (incl. tax)" />
+          <KPI k="Due now" v={CRf(dueNowN)} s={`with tax ${CRf(dueNow)} (export column)`} />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${scopeLabel}`} /></div>
