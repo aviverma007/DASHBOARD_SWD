@@ -27,7 +27,7 @@ const GUIDE: GuideSection[] = [
       { term: "Cr (Crore)", body: "₹1 Crore = ₹1,00,00,000 (ten million rupees). All value figures are shown in Crores." },
       { term: "L sq ft (Lakh sq ft)", body: "1 Lakh square feet = 1,00,000 sq ft. All area totals are shown in Lakh sq ft; individual units in plain sq ft." },
       { term: "₹/sqft", body: "Rate per square foot of super area. All rates in the app are on super area, not carpet area." },
-      { term: "INVR", body: "The inventory export — source of the full unit stock with each unit's status (Available / Booked / Blocked), area, tower, floor and configuration." },
+      { term: "Inventory export", body: "Source of the full unit stock with each unit's status (Available / Booked / Blocked), area, tower, floor and configuration." },
       { term: "Booking export", body: "The sales export — source of every sold unit's record: customer, booking date, area, BSP, payment plan, broker, collections." },
       { term: "AOP", body: "Annual Operating Plan — the fiscal-year sales target (units, area, value) that Target vs Actual measures against." },
       { term: "FY / Quarters", body: "Fiscal year runs April to March. Q1 = Apr–Jun, Q2 = Jul–Sep, Q3 = Oct–Dec, Q4 = Jan–Mar. \u201CFY 2026-27\u201D means Apr'26–Mar'27." },
@@ -53,7 +53,7 @@ const GUIDE: GuideSection[] = [
     title: "Overview page — formulas & logic",
     intro: "Sold comes from the booking export; unsold from the inventory export.",
     entries: [
-      { term: "Sold / Available / Total", body: "Total = every unit in the INVR stock register — identical to the Inventory tab. Sold = booking records in PDRN. Available = INVR units with no matching sale record (so Sold + Available = Total; includes blocked stock). A unit flagged booked in INVR without a PDRN record counts as available until the exports reconcile.", formula: "Sold % = Sold ÷ Total × 100" },
+      { term: "Sold / Available / Total", body: "Total = every unit in the inventory stock register — identical to the Inventory tab. Sold = records in the booking export. Available = stock units with no matching sale record (so Sold + Available = Total; includes blocked stock). A unit flagged booked in stock without a matching booking record counts as available until the exports reconcile.", formula: "Sold % = Sold ÷ Total × 100" },
       { term: "TSV (per card)", body: "Sum of the BSP of every sold unit in that project (or all projects on the Business Overview card)." },
       { term: "Avg rate", body: "Blended selling rate over sold units.", formula: "Avg rate = Σ TSV ÷ Σ super area  (₹/sqft)" },
       { term: "H / L rate", body: "The single sold unit with the highest / lowest own rate.", formula: "Unit rate = unit TSV ÷ unit super area" },
@@ -65,7 +65,7 @@ const GUIDE: GuideSection[] = [
   {
     title: "Inventory page — formulas & logic",
     entries: [
-      { term: "Total / Available / Booked / Blocked", body: "Unit counts by INVR status. Cards are clickable — each applies the matching status filter." },
+      { term: "Total / Available / Booked / Blocked", body: "Unit counts by inventory status. Cards are clickable — each applies the matching status filter." },
       { term: "Booked · absorption", body: "Booked units with the absorbed share of stock.", formula: "Absorption % = Booked ÷ Total × 100" },
       { term: "Area available", body: "Sum of super area of AVAILABLE units only — i.e. area except blocked units (and excluding already-booked area).", formula: "Area available = Σ super area where status = Available" },
       { term: "Area booked", body: "Sum of super area of sold units.", formula: "Area booked = Σ super area where status = Booked" },
