@@ -527,8 +527,8 @@ function StackedHBarList({ items, total, color, hlColor, hlLabel, onPick, maxHei
       <div style={maxHeight ? { maxHeight, overflowY: "auto", paddingRight: 6 } : undefined}>
         {shown.map(it => (
           <div key={it.key} onClick={() => onPick?.(it.key, it.label)} className="barrow"
-            onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} total · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
-            onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fNum(it.value)} total · ${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
+            onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>Total: ${fNum(it.value)} (${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%)<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
+            onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>Total: ${fNum(it.value)} (${((it.value / Math.max(total, 1)) * 100).toFixed(1)}%)<br/>${hlLabel}: ${fNum(it.hl)} (${((it.hl / Math.max(it.value, 1)) * 100).toFixed(1)}%)`)}
             onMouseLeave={hideTip}
             style={{ padding: "4px 0", cursor: onPick ? "pointer" : "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
