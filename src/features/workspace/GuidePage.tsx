@@ -97,16 +97,37 @@ const GUIDE: GuideSection[] = [
     ],
   },
   {
-    title: "Lead Conversion — logic",
+    title: "Gallery Footfall — logic",
     entries: [
-      { term: "Three independent funnels", body: "Footfall (walk-ins), CP Visits and Digital each have their own stage ladder because their data supports different depths — e.g. CP Visits has no booking-outcome field, so that funnel ends at \u201CCompleted\u201D." },
-      { term: "Stage conversion", body: "Each stage shows its count and its share of the funnel's entry volume; drops between stages show where leads leak." },
+      { term: "Two tabs, two datasets", body: "Footfall = customer walk-ins from the presales footfall export (27,289 site visits, with CRM opportunity numbers). CP Visits = channel-partner reps visiting galleries from the dedicated CP-visit export (48,397 visits, 5,421 partners) — partner engagement, not customer traffic, so it carries no booking outcomes by design." },
+      { term: "Projects visited", body: "Counts distinct non-blank projects/campaigns; rows with the project left blank in the export are excluded from the count but never from totals." },
+      { term: "New partner vs revisit", body: "A partner is \u201Cnew\u201D if their first-ever visit in the data falls inside the selected period; any visit after a partner's first is a revisit." },
+      { term: "Future-dated visits", body: "The export contains scheduled (future) site visits; they appear in trends on their scheduled month, but momentum comparison never offers a period that hasn't begun." },
+    ],
+  },
+  {
+    title: "Digital Leads — logic",
+    entries: [
+      { term: "Enquiry funnel", body: "Enquiries → Qualified → Site visit+ → Booked, straight counts of opportunity stages from the digital presales export. Every enquiry row is EN-numbered; personal contact fields never enter the app." },
+      { term: "Stacked bars", body: "Sub-source, project, agency and owner charts show each value's total bar with a darker green overlay = how many of those reached Qualified; the tooltip gives the qualified share." },
+    ],
+  },
+  {
+    title: "Bookings — logic",
+    entries: [
+      { term: "Single source", body: "Overview, Bookings, Target drills, Reports and Channel Partners all derive from one PDRN export (actives + cancellations, with broker). Refreshing that one file updates them all; the INVR export separately drives Total/Available." },
+      { term: "Agreement value", body: "Σ basic selling price (TSV) of active bookings in scope; avg ticket = value ÷ bookings; area sold shows the blended ₹/sqft." },
+      { term: "Cancelled", body: "Bookings with status Cancelled in the PDRN export (rebooked units tracked separately so a re-sold unit isn't double-counted); scope-aware." },
+      { term: "Direct vs channel-partner", body: "In PDRN every booking is broker-attributed, so the true source split comes from the footfall export's Booked-stage walk-ins — that card is labelled with its own universe (1,209) to keep the two datasets distinct." },
+      { term: "Financial-year periods", body: "All quarters follow the Indian FY: Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar, labelled by FY end year (Jul–Sep 2026 = Q2 FY27). Years in momentum are FYs too. Periods that haven't begun are never offered." },
     ],
   },
   {
     title: "Interactions & shortcuts",
     entries: [
-      { term: "Click to drill", body: "Project cards, green bars (bar mode), green dots (line mode), towers, floors, configs and rate-extreme rows all open a drill-down drawer with the underlying units." },
+      { term: "Click to drill", body: "Almost everything is clickable: chart bars, donut slices, funnel rows, trend months and weekday bars open a side drill drawer scoped to that value; inside a drawer, further clicks stack as removable chips (removing the last chip closes it). Records rows open a second-level detail panel on top." },
+      { term: "Maximize any chart", body: "The \u2924-style button at each card's top-right opens the chart enlarged in an overlay; click outside, press Esc, or hit \u2715 to return." },
+      { term: "Sortable full lists", body: "Bar lists show every value with an inner scroll; the \u2193/\u2191 button flips between high\u2192low and low\u2192high." },
       { term: "Bar / Line toggle", body: "Flips the three Target vs Achieved charts (Units, TSV, Area) between bar and line views together." },
       { term: "Month / Quarter / Year toggle", body: "Re-buckets all four Target charts to the chosen granularity; the shortfall logic follows the same buckets." },
       { term: "Shared chart slider", body: "The scroll slider above the Target charts moves all of them together so months stay aligned." },
