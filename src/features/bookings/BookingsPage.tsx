@@ -29,8 +29,10 @@ export function BookingsPage() {
   const [projOpen, setProjOpen] = useState(false);
   /** Period pills (All time / Year / Quarter / Month) + a key select
    * for the chosen granularity — matches the Overview control. */
-  const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m">("all");
+  const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m" | "c">("all");
   const [perKey, setPerKey] = useState<string>("");
+  const [cFrom, setCFrom] = useState<string>("");
+  const [cTo, setCTo] = useState<string>("");
   const [gran, setGran] = useState<"m" | "q" | "y">("m");
   const [mgran, setMgran] = useState<"q" | "y">("q");
   const [q, setQ] = useState("");
@@ -48,6 +50,7 @@ export function BookingsPage() {
   const [mA, setMA] = useState<string | null>(null);
   const [mB, setMB] = useState<string | null>(null);
 
+  const allMonths = useMemo(() => [...new Set(ROWS.map(ymKey))].sort(), []);
   const perOptions = useMemo(() => {
     if (perMode === "y") return [...new Set(ROWS.map(fyKey))].sort().reverse();
     if (perMode === "q") return [...new Set(ROWS.map(qKey))].sort().reverse();
@@ -55,10 +58,14 @@ export function BookingsPage() {
     return [];
   }, [perMode]);
   const perSel = perKey && perOptions.includes(perKey) ? perKey : perOptions[0] ?? "";
-  const inPeriod = (b: Bk) =>
-    perMode === "all" ? true :
-    perMode === "y" ? fyKey(b) === perSel :
-    perMode === "q" ? qKey(b) === perSel : ymKey(b) === perSel;
+  const cF = cFrom || allMonths[0], cT = cTo || allMonths[allMonths.length - 1];
+  const inPeriod = (b: Bk) => {
+    if (perMode === "all") return true;
+    if (perMode === "y") return fyKey(b) === perSel;
+    if (perMode === "q") return qKey(b) === perSel;
+    if (perMode === "m") return ymKey(b) === perSel;
+    const k = ymKey(b); return k >= cF && k <= cT; // custom month range
+  };
   const inProjects = (b: Bk) => selProjects.length === 0 || selProjects.includes(b.p);
   const rows = useMemo(() => ROWS.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,7 +148,8 @@ export function BookingsPage() {
     perMode === "all" ? "all time" :
     perMode === "y" ? `FY ${perSel.slice(2)}` :
     perMode === "q" ? `Q${perSel.split("-Q")[1]} FY${perSel.slice(2, 4)}` :
-    perSel ? ymLbl(perSel) : "";
+    perMode === "m" ? (perSel ? ymLbl(perSel) : "") :
+    `${ymLbl(cF)} → ${ymLbl(cT)}`;
   const scopeLabel = `${selProjects.length ? (selProjects.length === 1 ? PSHORT[selProjects[0]] : selProjects.length + " projects") + " · " : ""}${perLabel}`;
 
   const KPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
@@ -201,7 +209,7 @@ export function BookingsPage() {
           <div>
             <div style={SELLBL}>Period</div>
             <div style={{ display: "inline-flex", background: "#14213d", borderRadius: 12, padding: 4, gap: 4 }}>
-              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"]] as const).map(([m, l]) => (
+              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([m, l]) => (
                 <button key={m} onClick={() => { setPerMode(m); setPerKey(""); setPage(1); }}
                   style={{ border: "none", borderRadius: 9, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                     background: perMode === m ? "#B8893C" : "transparent", color: "#fff" }}>
@@ -210,7 +218,23 @@ export function BookingsPage() {
               ))}
             </div>
           </div>
-          {perMode !== "all" && (
+          {perMode === "c" && (
+            <>
+              <div>
+                <div style={SELLBL}>From month</div>
+                <select style={SEL} value={cF} onChange={e => { setCFrom(e.target.value); setPage(1); }}>
+                  {allMonths.map(k => <option key={k} value={k}>{ymLbl(k)}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={SELLBL}>To month</div>
+                <select style={SEL} value={cT} onChange={e => { setCTo(e.target.value); setPage(1); }}>
+                  {allMonths.filter(k => k >= cF).map(k => <option key={k} value={k}>{ymLbl(k)}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+          {perMode !== "all" && perMode !== "c" && (
             <div>
               <div style={SELLBL}>{perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}</div>
               <select style={SEL} value={perSel} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
