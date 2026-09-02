@@ -53,7 +53,8 @@ export const ymKey = (b: Bk) => b.y < 0 ? "undated" : `${b.y}-${String(b.m).padS
 export const qKey = (b: Bk) => { if (b.y < 0) return "undated"; const fy = b.m >= 4 ? b.y + 1 : b.y; const q = b.m >= 4 ? Math.ceil((b.m - 3) / 3) : 4; return `${fy}-Q${q}`; };
 export const fyKey = (b: Bk) => b.y < 0 ? "undated" : String(b.m >= 4 ? b.y + 1 : b.y);
 export const ymLbl = (k: string) => { const [y, m] = k.split("-"); return `${MON[Number(m) - 1]}'${y.slice(2)}`; };
-export const PSHORT = PDRN.P.map(p => p.replace(/^SMARTWORLD\s+/i, "").replace(/\b\w+/g, s => s[0] + s.slice(1).toLowerCase()));
+/** Same names as the Overview tab (full, uppercase). */
+export const PSHORT = PDRN.P.map(p => p.toUpperCase());
 
 /** Ticket-size bands, as in the reference. */
 export const BANDS: { label: string; lo: number; hi: number }[] = [

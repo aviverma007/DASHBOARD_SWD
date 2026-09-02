@@ -248,7 +248,7 @@ export function BookingsPage() {
 
         {/* KPI strip — the reference's six, honestly marked */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 6 }}>
-          <KPI k="Bookings" v={fN(total)} s="active (PDRN)" />
+          <KPI k="Bookings" v={fN(total)} s="active" />
           <KPI k="Agreement value" v={CRf(tcv)} s="Σ basic selling price" />
           <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
           <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
@@ -376,7 +376,7 @@ export function BookingsPage() {
           <Zoomable title="Bookings by source">
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
-            <div style={CAP}>live from the PDRN broker column · respects filters</div>
+            <div style={CAP}>live per-booking broker attribution · respects filters</div>
             <Donut segs={[
               { key: 1, label: "Via channel partner", value: rows.filter(b => b.broker >= 0).length, color: TEAL },
               { key: 0, label: "Direct", value: rows.filter(b => b.broker < 0).length, color: GOLD },
@@ -565,7 +565,7 @@ export function BookingsPage() {
         </div>
 
         <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
-          Live PDRN booking data ({fN(PDRN.meta.rows)} actives, with broker; cancellations tracked separately) · as on {AS_ON}. Customer geography needs a postal-code column in a future export.
+          Live booking data ({fN(PDRN.meta.rows)} actives, with broker; cancellations tracked separately) · as on {AS_ON}. Customer geography needs a postal-code column in a future export.
         </div>
       </div>
 

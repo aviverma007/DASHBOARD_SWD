@@ -28,7 +28,7 @@ const GUIDE: GuideSection[] = [
       { term: "L sq ft (Lakh sq ft)", body: "1 Lakh square feet = 1,00,000 sq ft. All area totals are shown in Lakh sq ft; individual units in plain sq ft." },
       { term: "₹/sqft", body: "Rate per square foot of super area. All rates in the app are on super area, not carpet area." },
       { term: "INVR", body: "The inventory export — source of the full unit stock with each unit's status (Available / Booked / Blocked), area, tower, floor and configuration." },
-      { term: "PDRN", body: "The sales/booking export — source of every sold unit's record: customer, booking month, area, BSP, payment plan." },
+      { term: "Booking export", body: "The sales export — source of every sold unit's record: customer, booking date, area, BSP, payment plan, broker, collections." },
       { term: "AOP", body: "Annual Operating Plan — the fiscal-year sales target (units, area, value) that Target vs Actual measures against." },
       { term: "FY / Quarters", body: "Fiscal year runs April to March. Q1 = Apr–Jun, Q2 = Jul–Sep, Q3 = Oct–Dec, Q4 = Jan–Mar. \u201CFY 2026-27\u201D means Apr'26–Mar'27." },
       { term: "CP", body: "Channel Partner — an external broker who sources a booking. \u201CDirect\u201D means the sale had no CP." },
@@ -37,7 +37,7 @@ const GUIDE: GuideSection[] = [
       { term: "Blocked units", body: "Units held back by the developer and not open for sale (previously labelled \u201Cmanagement units\u201D). Shown in red everywhere." },
       { term: "Absorption", body: "The share of total stock that has been booked/sold.", formula: "Absorption % = Booked units ÷ Total units × 100" },
       { term: "Project codes ED · LC · RES · SA · ST · TR", body: "Short codes for The Edition, Le Courtyard, Residencies, Sky Arc, Suites and Trump Residences — used where space is tight." },
-      { term: "Data as on", body: `The date of the underlying INVR/PDRN extract (currently ${DATA_AS_ON}). Every number in the app reflects that snapshot, not live data.` },
+      { term: "Data as on", body: `The date of the underlying inventory/booking extract (currently ${DATA_AS_ON}). Every number in the app reflects that snapshot, not live data.` },
     ],
   },
   {
@@ -51,7 +51,7 @@ const GUIDE: GuideSection[] = [
   },
   {
     title: "Overview page — formulas & logic",
-    intro: "Sold comes from the sales export (PDRN); unsold from the inventory export (INVR).",
+    intro: "Sold comes from the booking export; unsold from the inventory export.",
     entries: [
       { term: "Sold / Available / Total", body: "Total = every unit in the INVR stock register — identical to the Inventory tab. Sold = booking records in PDRN. Available = INVR units with no matching sale record (so Sold + Available = Total; includes blocked stock). A unit flagged booked in INVR without a PDRN record counts as available until the exports reconcile.", formula: "Sold % = Sold ÷ Total × 100" },
       { term: "TSV (per card)", body: "Sum of the BSP of every sold unit in that project (or all projects on the Business Overview card)." },
@@ -115,10 +115,10 @@ const GUIDE: GuideSection[] = [
   {
     title: "Bookings — logic",
     entries: [
-      { term: "Single source", body: "Overview, Bookings, Target drills, Reports and Channel Partners all derive from one PDRN export (actives + cancellations, with broker). Refreshing that one file updates them all; the INVR export separately drives Total/Available." },
+      { term: "Single source", body: "Overview, Bookings, Target drills, Reports and Channel Partners all derive from one booking export (actives + cancellations, with broker). Refreshing that one file updates them all; the inventory export separately drives Total/Available." },
       { term: "Agreement value", body: "Σ basic selling price (TSV) of active bookings in scope; avg ticket = value ÷ bookings; area sold shows the blended ₹/sqft." },
-      { term: "Cancelled", body: "Bookings with status Cancelled in the PDRN export (rebooked units tracked separately so a re-sold unit isn't double-counted); scope-aware." },
-      { term: "Direct vs channel-partner", body: "In PDRN every booking is broker-attributed, so the true source split comes from the footfall export's Booked-stage walk-ins — that card is labelled with its own universe (1,209) to keep the two datasets distinct." },
+      { term: "Cancelled", body: "Bookings with status Cancelled in the booking export (rebooked units tracked separately so a re-sold unit isn't double-counted); scope-aware." },
+      { term: "Direct vs channel-partner", body: "Live per-booking broker attribution from the booking export: direct = no broker on the booking; the donut and leaderboard respect all filters." },
       { term: "Financial-year periods", body: "All quarters follow the Indian FY: Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar, labelled by FY end year (Jul–Sep 2026 = Q2 FY27). Years in momentum are FYs too. Periods that haven't begun are never offered." },
     ],
   },

@@ -198,7 +198,7 @@ export function ChannelPartnerPage() {
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px 14px", borderBottom: "3px solid var(--gold)" }}>
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Channel Partners</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>Broker performance, trends and cancellations · live PDRN</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>Broker performance, trends and cancellations</div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
         <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
