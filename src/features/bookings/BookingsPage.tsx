@@ -81,6 +81,8 @@ export function BookingsPage() {
   const vN = rows.reduce((s, b) => s + b.valN, 0);
   const recNs = rows.reduce((s, b) => s + b.recN, 0);
   const dueNow = rows.reduce((s, b) => s + Math.max(b.due, 0), 0);
+  const demN = rows.reduce((s, b) => s + b.demN, 0);
+  const demT = rows.reduce((s, b) => s + b.demT, 0);
   const cancelled = useMemo(() => CANCELLED.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [perMode, perSel, selProjects]);
@@ -249,12 +251,13 @@ export function BookingsPage() {
           <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => b.reb === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
         </div>
 
-        {/* Collections KPIs — with tax AND excl. tax, scope-aware */}
+        {/* Collections KPIs — excl-tax highlighted, with-tax below; outstanding = demand − received */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))", gap: 12, marginBottom: 6 }}>
-          <KPI k="Value (with tax)" v={CRf(vT)} s={`excl. tax ${CRf(vN)} (BSP net)`} />
-          <KPI k="Collected" v={CRf(recT)} s={`excl. tax ${CRf(recNs)}`} />
-          <KPI k="Outstanding" v={CRf(vT - recT)} s={`excl. tax ${CRf(vN - recNs)}`} />
-          <KPI k="Collection rate" v={`${vT ? ((recT / vT) * 100).toFixed(0) : 0}%`} s={`excl. tax ${vN ? ((recNs / vN) * 100).toFixed(0) : 0}%`} />
+          <KPI k="Total TSV" v={CRf(tcv)} s={`with tax ${CRf(vT)} (TCV after adj)`} />
+          <KPI k="Total demand" v={CRf(demN)} s={`with tax ${CRf(demT)}`} />
+          <KPI k="Collected" v={CRf(recNs)} s={`with tax ${CRf(recT)}`} />
+          <KPI k="Outstanding" v={CRf(demN - recNs)} s={`demand − received · with tax ${CRf(demT - recT)}`} />
+          <KPI k="Collection rate" v={`${vN ? ((recNs / vN) * 100).toFixed(0) : 0}%`} s={`received ÷ value · with tax ${vT ? ((recT / vT) * 100).toFixed(0) : 0}%`} />
           <KPI k="Due now" v={CRf(dueNow)} s="raised demands unpaid (incl. tax)" />
         </div>
 
@@ -486,7 +489,7 @@ export function BookingsPage() {
               <Zoomable title="Collection by project">
               <div style={{ ...CARD, marginBottom: 14 }}>
                 <h3 style={H3}>Collection by project</h3>
-                <div style={CAP}>received ÷ value (with tax) · green ≥ 50% · respects filters</div>
+                <div style={CAP}>received ÷ value (with tax) · green ≥ 50% · click a project → full drill</div>
                 {(() => {
                   const g = new Map<number, { t: number; r: number; n: number }>();
                   rows.forEach(b => { if (!g.has(b.p)) g.set(b.p, { t: 0, r: 0, n: 0 }); const e = g.get(b.p)!; e.t += b.tcvT; e.r += b.rec; e.n++; });
@@ -494,10 +497,11 @@ export function BookingsPage() {
                     const pctv = e.t ? (e.r / e.t) * 100 : 0;
                     return (
                       <div key={p} className="barrow"
+                        onClick={() => openProject(p)}
                         onMouseEnter={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
                         onMouseMove={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
                         onMouseLeave={hideTip}
-                        style={{ padding: "5px 0" }}>
+                        style={{ padding: "5px 0", cursor: "pointer" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
                           <span style={{ color: "var(--ink)", fontWeight: 600 }}>{PSHORT[p]}</span>
                           <span style={{ color: "var(--mut)" }}>{CRf(e.r)} of {CRf(e.t)} · <b style={{ color: pctv >= 50 ? "#1a7a4a" : "#c07a1a" }}>{pctv.toFixed(0)}%</b></span>
