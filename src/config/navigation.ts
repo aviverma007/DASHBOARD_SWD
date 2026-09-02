@@ -20,10 +20,10 @@ export const NAV_SECTIONS = ["Top", "Sales", "Inventory", "Workspace"] as const;
 export const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "Home", path: "/", icon: "House", status: "active", section: "Top" },
   { key: "overview", label: "Overview", path: "/overview", icon: "LayoutDashboard", status: "active", section: "Sales" },
+  { key: "bookings", label: "Bookings", path: "/bookings", icon: "ReceiptText", status: "active", section: "Sales" },
   { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },
   { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active", section: "Sales" },
-  { key: "bookings", label: "Bookings", path: "/bookings", icon: "ReceiptText", status: "active", section: "Sales" },
   { key: "galleryfootfall", label: "Gallery Footfall", path: "/gallery-footfall", icon: "Filter", status: "active", section: "Sales" },
   { key: "digitalleads", label: "Digital Leads", path: "/digital-leads", icon: "Zap", status: "active", section: "Sales" },
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },

@@ -25,7 +25,12 @@ import "../../components/inventory/smartworldInventory.css";
 
 export function BookingsPage() {
   const [drill, setDrill] = useState<BkDrillSeed | null>(null);
-  const [fy, setFy] = useState("all");
+  const [selProjects, setSelProjects] = useState<number[]>([]);
+  const [projOpen, setProjOpen] = useState(false);
+  /** Period pills (All time / Year / Quarter / Month) + a key select
+   * for the chosen granularity — matches the Overview control. */
+  const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m">("all");
+  const [perKey, setPerKey] = useState<string>("");
   const [gran, setGran] = useState<"m" | "q" | "y">("m");
   const [mgran, setMgran] = useState<"q" | "y">("q");
   const [q, setQ] = useState("");
@@ -43,14 +48,30 @@ export function BookingsPage() {
   const [mA, setMA] = useState<string | null>(null);
   const [mB, setMB] = useState<string | null>(null);
 
-  const rows = useMemo(() => ROWS.filter(b => fy === "all" || String(b.y) === fy), [fy]);
+  const perOptions = useMemo(() => {
+    if (perMode === "y") return [...new Set(ROWS.map(fyKey))].sort().reverse();
+    if (perMode === "q") return [...new Set(ROWS.map(qKey))].sort().reverse();
+    if (perMode === "m") return [...new Set(ROWS.map(ymKey))].sort().reverse();
+    return [];
+  }, [perMode]);
+  const perSel = perKey && perOptions.includes(perKey) ? perKey : perOptions[0] ?? "";
+  const inPeriod = (b: Bk) =>
+    perMode === "all" ? true :
+    perMode === "y" ? fyKey(b) === perSel :
+    perMode === "q" ? qKey(b) === perSel : ymKey(b) === perSel;
+  const inProjects = (b: Bk) => selProjects.length === 0 || selProjects.includes(b.p);
+  const rows = useMemo(() => ROWS.filter(b => inPeriod(b) && inProjects(b)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [perMode, perSel, selProjects]);
 
   const total = rows.length;
   const tcv = rows.reduce((s, b) => s + b.tsv, 0);
   const areaL = rows.reduce((s, b) => s + b.area, 0) / 1e5;
   const avgTicket = total ? tcv / total : 0;
   const avgRate = rows.reduce((s, b) => s + b.area, 0) ? tcv / rows.reduce((s, b) => s + b.area, 0) : 0;
-  const cancelled = useMemo(() => CANCELLED.filter(b => fy === "all" || String(b.y) === fy), [fy]);
+  const cancelled = useMemo(() => CANCELLED.filter(b => inPeriod(b) && inProjects(b)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [perMode, perSel, selProjects]);
 
   /** Every card click opens the side drill drawer (like the other
    * tabs) instead of adding an inline chip. */
@@ -116,6 +137,13 @@ export function BookingsPage() {
     { key: 3, label: "Digital", value: bookedFf.filter(r => r.src === 3).length, color: "#7b5cb8" },
   ].filter(s => s.value > 0);
 
+  const perLabel =
+    perMode === "all" ? "all time" :
+    perMode === "y" ? `FY ${perSel.slice(2)}` :
+    perMode === "q" ? `Q${perSel.split("-Q")[1]} FY${perSel.slice(2, 4)}` :
+    perSel ? ymLbl(perSel) : "";
+  const scopeLabel = `${selProjects.length ? (selProjects.length === 1 ? PSHORT[selProjects[0]] : selProjects.length + " projects") + " · " : ""}${perLabel}`;
+
   const KPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
     <div style={{ ...CARD, padding: "13px 16px" }}
       onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
@@ -145,15 +173,55 @@ export function BookingsPage() {
       </div>
 
       <div style={{ padding: "18px 24px 40px", maxWidth: 1500, margin: "0 auto" }}>
-        {/* Filters + chips */}
+        {/* Filters: multi-project + period pills */}
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
-          <div>
-            <div style={SELLBL}>Financial year</div>
-            <select style={SEL} value={fy} onChange={e => { setFy(e.target.value); setPage(1); }}>
-              <option value="all">All years</option>
-              {PDRN.meta.years.map(y => <option key={y} value={String(y)}>{y}</option>)}
-            </select>
+          <div style={{ position: "relative" }}>
+            <div style={SELLBL}>Projects</div>
+            <button onClick={() => setProjOpen(v => !v)}
+              style={{ ...SEL, minWidth: 210, textAlign: "left", cursor: "pointer" }}>
+              {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? PSHORT[selProjects[0]] : `${selProjects.length} projects selected`} ▾
+            </button>
+            {projOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 260 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer", fontWeight: 700 }}>
+                  <input type="checkbox" checked={selProjects.length === 0} onChange={() => { setSelProjects([]); setPage(1); }} style={{ accentColor: "#0e7490" }} />
+                  All projects
+                </label>
+                {PSHORT.map((p, i) => (
+                  <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer" }}>
+                    <input type="checkbox" checked={selProjects.includes(i)}
+                      onChange={() => { setSelProjects(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]); setPage(1); }}
+                      style={{ accentColor: "#0e7490" }} />
+                    {p}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
+          <div>
+            <div style={SELLBL}>Period</div>
+            <div style={{ display: "inline-flex", background: "#14213d", borderRadius: 12, padding: 4, gap: 4 }}>
+              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"]] as const).map(([m, l]) => (
+                <button key={m} onClick={() => { setPerMode(m); setPerKey(""); setPage(1); }}
+                  style={{ border: "none", borderRadius: 9, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    background: perMode === m ? "#B8893C" : "transparent", color: "#fff" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {perMode !== "all" && (
+            <div>
+              <div style={SELLBL}>{perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}</div>
+              <select style={SEL} value={perSel} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
+                {perOptions.map(k => (
+                  <option key={k} value={k}>
+                    {perMode === "y" ? `FY ${k.slice(2)}` : perMode === "q" ? `Q${k.split("-Q")[1]} FY${k.slice(2, 4)}` : ymLbl(k)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* KPI strip — the reference's six, honestly marked */}
@@ -165,7 +233,7 @@ export function BookingsPage() {
           <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => (CPD.R.find(r => String(r[9]) === b.unit && r[13] === 1)?.[14] ?? 0) === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
         </div>
 
-        <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${fy === "all" ? "all years" : fy}`} /></div>
+        <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${scopeLabel}`} /></div>
 
         {/* Momentum & comparison */}
         <Zoomable title="Momentum & comparison">
@@ -425,7 +493,7 @@ export function BookingsPage() {
         seed={drill}
         baseRows={rows}
         cancelledBase={cancelled}
-        baseLabel={fy === "all" ? "all years" : `FY ${fy}`}
+        baseLabel={scopeLabel}
         onClose={() => setDrill(null)}
         onRecord={b => setDetail(b)}
       />
