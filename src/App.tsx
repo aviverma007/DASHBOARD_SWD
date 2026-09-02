@@ -1,23 +1,35 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RequireAuth } from "./features/authentication/RequireAuth";
 import { AppShell } from "./components/layout/AppShell";
-import { InventoryOverviewPage } from "./features/inventory/InventoryOverviewPage";
-import { SmartworldInventoryPage } from "./features/inventory/SmartworldInventoryPage";
-import { ProjectsPage } from "./features/projects/ProjectsPage";
-import { ReportsPage } from "./features/reports/ReportsPage";
-import { TargetActualPage } from "./features/target/TargetActualPage";
-import { ChannelPartnerPage } from "./features/channelpartner/ChannelPartnerPage";
-import { LeadConversionPage } from "./features/leads/LeadConversionPage";
-import { BookingsPage } from "./features/bookings/BookingsPage";
-import { SettingsPage } from "./features/settings/SettingsPage";
-import { ChangePasswordPage } from "./features/settings/ChangePasswordPage";
 import { HomePage } from "./features/home/HomePage";
-import { NotesPage } from "./features/workspace/NotesPage";
-import { GuidePage } from "./features/workspace/GuidePage";
+
+/* Route-level code splitting: each heavy page (and its dataset JSON)
+ * downloads only when first visited, instead of one ~5.6 MB chunk on
+ * login. Named-export modules are mapped to default for lazy(). */
+const InventoryOverviewPage = lazy(() => import("./features/inventory/InventoryOverviewPage").then(m => ({ default: m.InventoryOverviewPage })));
+const SmartworldInventoryPage = lazy(() => import("./features/inventory/SmartworldInventoryPage").then(m => ({ default: m.SmartworldInventoryPage })));
+const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage").then(m => ({ default: m.ProjectsPage })));
+const ReportsPage = lazy(() => import("./features/reports/ReportsPage").then(m => ({ default: m.ReportsPage })));
+const TargetActualPage = lazy(() => import("./features/target/TargetActualPage").then(m => ({ default: m.TargetActualPage })));
+const ChannelPartnerPage = lazy(() => import("./features/channelpartner/ChannelPartnerPage").then(m => ({ default: m.ChannelPartnerPage })));
+const LeadConversionPage = lazy(() => import("./features/leads/LeadConversionPage").then(m => ({ default: m.LeadConversionPage })));
+const BookingsPage = lazy(() => import("./features/bookings/BookingsPage").then(m => ({ default: m.BookingsPage })));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const ChangePasswordPage = lazy(() => import("./features/settings/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
+const NotesPage = lazy(() => import("./features/workspace/NotesPage").then(m => ({ default: m.NotesPage })));
+const GuidePage = lazy(() => import("./features/workspace/GuidePage").then(m => ({ default: m.GuidePage })));
+
+const Fallback = (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: "#8a94a6", fontSize: 14, fontFamily: "inherit" }}>
+    Loading…
+  </div>
+);
 
 function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={Fallback}>
       <Routes>
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route path="/" element={<HomePage />} />
@@ -37,6 +49,7 @@ function App() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
