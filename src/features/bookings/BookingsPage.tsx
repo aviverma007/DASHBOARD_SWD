@@ -169,6 +169,7 @@ export function BookingsPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
+      <div className="tv-zoom-desktop">
       {/* Header */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "18px 24px 16px", borderBottom: "3px solid var(--gold)" }}>
         <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Bookings</div>
@@ -177,7 +178,7 @@ export function BookingsPage() {
         </div>
       </div>
 
-      <div style={{ padding: "18px 24px 40px", maxWidth: 1500, margin: "0 auto" }}>
+      <div style={{ padding: "16px 20px 40px" }}>
         {/* Filters: multi-project + period pills */}
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
           <div style={{ position: "relative" }}>
@@ -566,6 +567,8 @@ export function BookingsPage() {
         <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 12 }}>
           Source: {PDRN.meta.source} ({fN(PDRN.meta.rows)} active bookings). Single source: cpAnalytics.json (full PDRN export — actives with broker, plus cancellations). Collected/Outstanding and customer geography still need collection and postal columns.
         </div>
+      </div>
+
       </div>
 
       <BookingsDrillDrawer
