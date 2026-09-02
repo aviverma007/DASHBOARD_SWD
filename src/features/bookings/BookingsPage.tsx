@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import { FF, FF_RECORDS } from "../../utils/footfallLogic";
+import collSnap from "../../data/collectionsSnapshot.json";
 import {
   type Bk, type Dim, CPD, BROKERS, ROWS, CANCELLED,
   MON, fN, CRf, ymKey, qKey, fyKey, ymLbl, PSHORT, BANDS, bandOf,
@@ -470,6 +471,70 @@ export function BookingsPage() {
           })()}
         </div>
         </Zoomable>
+
+        {/* Collections & cancellations — company-wide snapshot */}
+        <div><Banner title="COLLECTIONS & CANCELLATIONS" sub={`company-wide snapshot · ${(collSnap as { meta: { rows: number; asOn: string } }).meta.rows.toLocaleString("en-IN")} bookings · as on ${(collSnap as { meta: { asOn: string } }).meta.asOn}`} /></div>
+        {(() => {
+          const CS = collSnap as { P: string[]; R: number[][]; meta: { rows: number; asOn: string; note: string } };
+          const tcvAll = CS.R.reduce((s, r) => s + r[1], 0);
+          const recAll = CS.R.reduce((s, r) => s + r[2], 0);
+          const cancN = CS.R.filter(r => r[3] !== 0).length;
+          const cancV = CS.R.filter(r => r[3] !== 0).reduce((s, r) => s + r[1], 0);
+          const CsKPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
+            <div style={{ ...CARD, padding: "13px 16px" }}
+              onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
+              onMouseMove={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
+              onMouseLeave={hideTip}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+              <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: "var(--ink)", marginTop: 3 }}>{v}</div>
+              <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 1 }}>{s}</div>
+            </div>
+          );
+          return (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
+                <CsKPI k="Booking value" v={CRf(tcvAll)} s={`${CS.meta.rows.toLocaleString("en-IN")} bookings, all projects`} />
+                <CsKPI k="Collected" v={CRf(recAll)} s="received (incl. tax)" />
+                <CsKPI k="Outstanding" v={CRf(tcvAll - recAll)} s="receivable" />
+                <CsKPI k="Collection rate" v={`${((recAll / tcvAll) * 100).toFixed(0)}%`} s="received (incl. tax) ÷ value" />
+                <CsKPI k="Cancelled" v={cancN.toLocaleString("en-IN")} s={`cancelled + surrendered · ${CRf(cancV)}`} />
+              </div>
+              <Zoomable title="Collection by project">
+              <div style={{ ...CARD, marginBottom: 14 }}>
+                <h3 style={H3}>Collection by project</h3>
+                <div style={CAP}>received ÷ value per project · green ≥ 50% · company-wide snapshot</div>
+                {(() => {
+                  const g = new Map<number, { t: number; r: number; n: number }>();
+                  CS.R.forEach(r => { if (!g.has(r[0])) g.set(r[0], { t: 0, r: 0, n: 0 }); const e = g.get(r[0])!; e.t += r[1]; e.r += r[2]; e.n++; });
+                  return [...g.entries()].sort((a, b) => b[1].t - a[1].t).map(([p, e]) => {
+                    const pctv = e.t ? (e.r / e.t) * 100 : 0;
+                    return (
+                      <div key={p} className="barrow"
+                        onMouseEnter={ev => showTip(ev, `<b>${CS.P[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
+                        onMouseMove={ev => showTip(ev, `<b>${CS.P[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
+                        onMouseLeave={hideTip}
+                        style={{ padding: "5px 0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CS.P[p].replace("Smartworld ", "")}</span>
+                          <span style={{ color: "var(--mut)" }}>{CRf(e.r)} of {CRf(e.t)} · <b style={{ color: pctv >= 50 ? "#1a7a4a" : "#c07a1a" }}>{pctv.toFixed(0)}%</b></span>
+                        </div>
+                        <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${Math.min(pctv, 100)}%`, background: pctv >= 50 ? "#1BAF7A" : "#EDA100", borderRadius: 5 }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+                <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 10, lineHeight: 1.55 }}>
+                  {CS.meta.note}. This section is a company-wide snapshot (12 projects) and is NOT affected by the filters above;
+                  the PDRN sections stay the live single source for the 5 PDRN projects. Share a current PDRN export with a
+                  Received column and this becomes live + filterable.
+                </div>
+              </div>
+              </Zoomable>
+            </>
+          );
+        })()}
 
         {/* Records */}
         <div><Banner title="BOOKING RECORDS" sub={`${fN(filtered.length)} bookings · newest first · click a row for full detail`} /></div>
