@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
-import { FF, FF_RECORDS } from "../../utils/footfallLogic";
-import collSnap from "../../data/collectionsSnapshot.json";
 import {
-  type Bk, type Dim, CPD, BROKERS, ROWS, CANCELLED,
+  type Bk, type Dim, BROKERS, ROWS, CANCELLED,
   MON, fN, CRf, ymKey, qKey, fyKey, ymLbl, PSHORT, BANDS, bandOf,
 } from "../../components/bookings/bookingsShared";
 import { BookingsDrillDrawer, type BkDrillSeed } from "../../components/bookings/BookingsDrillDrawer";
@@ -51,11 +49,12 @@ export function BookingsPage() {
   const [mA, setMA] = useState<string | null>(null);
   const [mB, setMB] = useState<string | null>(null);
 
-  const allMonths = useMemo(() => [...new Set(ROWS.map(ymKey))].sort(), []);
+  const allMonths = useMemo(() => [...new Set(ROWS.map(ymKey))].filter(k => k !== "undated").sort(), []);
   const perOptions = useMemo(() => {
-    if (perMode === "y") return [...new Set(ROWS.map(fyKey))].sort().reverse();
-    if (perMode === "q") return [...new Set(ROWS.map(qKey))].sort().reverse();
-    if (perMode === "m") return [...new Set(ROWS.map(ymKey))].sort().reverse();
+    const clean = (a: string[]) => a.filter(k => k !== "undated").sort().reverse();
+    if (perMode === "y") return clean([...new Set(ROWS.map(fyKey))]);
+    if (perMode === "q") return clean([...new Set(ROWS.map(qKey))]);
+    if (perMode === "m") return clean([...new Set(ROWS.map(ymKey))]);
     return [];
   }, [perMode]);
   const perSel = perKey && perOptions.includes(perKey) ? perKey : perOptions[0] ?? "";
@@ -131,19 +130,6 @@ export function BookingsPage() {
   const pages = Math.max(1, Math.ceil(filtered.length / PER));
   const shown = filtered.slice((page - 1) * PER, page * PER);
 
-  // ── Channel view — PDRN has no source column, but the footfall
-  // export's Booked-stage rows (with Walk-in Source + Channel
-  // Partner) give a genuine bookings-by-channel picture. Separate
-  // universe (walk-in bookings only), so it's labelled with its own
-  // count and source.
-  const BOOKED_I = FF.STG.indexOf("Booked");
-  const bookedFf = useMemo(() => FF_RECORDS.filter(r => r.stg === BOOKED_I), [BOOKED_I]);
-  const bkSrc = [
-    { key: 1, label: "Channel Partner", value: bookedFf.filter(r => r.src === 1).length, color: TEAL },
-    { key: 0, label: "Direct", value: bookedFf.filter(r => r.src === 0).length, color: BLUE },
-    { key: 2, label: "Direct Loyalty", value: bookedFf.filter(r => r.src === 2).length, color: GOLD },
-    { key: 3, label: "Digital", value: bookedFf.filter(r => r.src === 3).length, color: "#7b5cb8" },
-  ].filter(s => s.value > 0);
 
   const perLabel =
     perMode === "all" ? "all time" :
@@ -255,7 +241,7 @@ export function BookingsPage() {
           <KPI k="Agreement value" v={CRf(tcv)} s="Σ basic selling price" />
           <KPI k="Avg ticket" v={CRf(avgTicket)} s="value ÷ bookings" />
           <KPI k="Area sold" v={`${areaL.toFixed(2)} L sqft`} s={`avg rate ₹${Math.round(avgRate).toLocaleString("en-IN")}/sqft`} />
-          <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => (CPD.R.find(r => String(r[9]) === b.unit && r[13] === 1)?.[14] ?? 0) === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
+          <KPI k="Cancelled" v={fN(cancelled.length)} s={`${fN(cancelled.filter(b => b.reb === 1).length)} rebooked · ${CRf(cancelled.reduce((s, b) => s + b.tsv, 0))}`} />
         </div>
 
         <div><Banner title="BOOKINGS ANALYSIS" sub={`${fN(total)} bookings · ${CRf(tcv)} · ${scopeLabel}`} /></div>
@@ -369,8 +355,14 @@ export function BookingsPage() {
           <Zoomable title="Bookings by source">
           <div style={CARD}>
             <h3 style={H3}>Direct vs channel-partner</h3>
-            <div style={CAP}>{fN(bookedFf.length)} booked walk-ins (footfall export, {FF.meta.asOn}) · in PDRN every booking is broker-attributed, so walk-ins give the only true source split</div>
-            <Donut segs={bkSrc} />
+            <div style={CAP}>live from the PDRN broker column · respects filters</div>
+            <Donut segs={[
+              { key: 1, label: "Via channel partner", value: rows.filter(b => b.broker >= 0).length, color: TEAL },
+              { key: 0, label: "Direct", value: rows.filter(b => b.broker < 0).length, color: GOLD },
+            ].filter(s => s.value > 0)} />
+            <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 6 }}>
+              CP value {CRf(rows.filter(b => b.broker >= 0).reduce((s, b) => s + b.tsv, 0))} · direct value {CRf(rows.filter(b => b.broker < 0).reduce((s, b) => s + b.tsv, 0))}
+            </div>
           </div>
           </Zoomable>
           <Zoomable title="Channel-partner leaderboard">
@@ -472,14 +464,12 @@ export function BookingsPage() {
         </div>
         </Zoomable>
 
-        {/* Collections & cancellations — company-wide snapshot */}
-        <div><Banner title="COLLECTIONS & CANCELLATIONS" sub={`company-wide snapshot · ${(collSnap as { meta: { rows: number; asOn: string } }).meta.rows.toLocaleString("en-IN")} bookings · as on ${(collSnap as { meta: { asOn: string } }).meta.asOn}`} /></div>
+        {/* Collections — LIVE from the 02-Sep PDRN, scope-aware */}
+        <div><Banner title="COLLECTIONS" sub={`live per-booking received/due · ${scopeLabel}`} /></div>
         {(() => {
-          const CS = collSnap as { P: string[]; R: number[][]; meta: { rows: number; asOn: string; note: string } };
-          const tcvAll = CS.R.reduce((s, r) => s + r[1], 0);
-          const recAll = CS.R.reduce((s, r) => s + r[2], 0);
-          const cancN = CS.R.filter(r => r[3] !== 0).length;
-          const cancV = CS.R.filter(r => r[3] !== 0).reduce((s, r) => s + r[1], 0);
+          const vT = rows.reduce((s, b) => s + b.tcvT, 0);
+          const rec = rows.reduce((s, b) => s + b.rec, 0);
+          const dueNow = rows.reduce((s, b) => s + Math.max(b.due, 0), 0);
           const CsKPI = ({ k, v, s }: { k: string; v: string; s: string }) => (
             <div style={{ ...CARD, padding: "13px 16px" }}
               onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)}
@@ -493,29 +483,29 @@ export function BookingsPage() {
           return (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
-                <CsKPI k="Booking value" v={CRf(tcvAll)} s={`${CS.meta.rows.toLocaleString("en-IN")} bookings, all projects`} />
-                <CsKPI k="Collected" v={CRf(recAll)} s="received (incl. tax)" />
-                <CsKPI k="Outstanding" v={CRf(tcvAll - recAll)} s="receivable" />
-                <CsKPI k="Collection rate" v={`${((recAll / tcvAll) * 100).toFixed(0)}%`} s="received (incl. tax) ÷ value" />
-                <CsKPI k="Cancelled" v={cancN.toLocaleString("en-IN")} s={`cancelled + surrendered · ${CRf(cancV)}`} />
+                <CsKPI k="Value (with tax)" v={CRf(vT)} s="TCV after credit/debit adj" />
+                <CsKPI k="Collected" v={CRf(rec)} s="received (incl. tax)" />
+                <CsKPI k="Outstanding" v={CRf(vT - rec)} s="receivable (value − received)" />
+                <CsKPI k="Collection rate" v={`${vT ? ((rec / vT) * 100).toFixed(0) : 0}%`} s="received ÷ value (with tax)" />
+                <CsKPI k="Due now" v={CRf(dueNow)} s="raised demands unpaid" />
               </div>
               <Zoomable title="Collection by project">
               <div style={{ ...CARD, marginBottom: 14 }}>
                 <h3 style={H3}>Collection by project</h3>
-                <div style={CAP}>received ÷ value per project · green ≥ 50% · company-wide snapshot</div>
+                <div style={CAP}>received ÷ value (with tax) · green ≥ 50% · respects filters</div>
                 {(() => {
                   const g = new Map<number, { t: number; r: number; n: number }>();
-                  CS.R.forEach(r => { if (!g.has(r[0])) g.set(r[0], { t: 0, r: 0, n: 0 }); const e = g.get(r[0])!; e.t += r[1]; e.r += r[2]; e.n++; });
+                  rows.forEach(b => { if (!g.has(b.p)) g.set(b.p, { t: 0, r: 0, n: 0 }); const e = g.get(b.p)!; e.t += b.tcvT; e.r += b.rec; e.n++; });
                   return [...g.entries()].sort((a, b) => b[1].t - a[1].t).map(([p, e]) => {
                     const pctv = e.t ? (e.r / e.t) * 100 : 0;
                     return (
                       <div key={p} className="barrow"
-                        onMouseEnter={ev => showTip(ev, `<b>${CS.P[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
-                        onMouseMove={ev => showTip(ev, `<b>${CS.P[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
+                        onMouseEnter={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
+                        onMouseMove={ev => showTip(ev, `<b>${PSHORT[p]}</b><br/>${e.n.toLocaleString("en-IN")} bookings · value ${CRf(e.t)}<br/>collected ${CRf(e.r)} (${pctv.toFixed(1)}%) · outstanding ${CRf(e.t - e.r)}`)}
                         onMouseLeave={hideTip}
                         style={{ padding: "5px 0" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
-                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CS.P[p].replace("Smartworld ", "")}</span>
+                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{PSHORT[p]}</span>
                           <span style={{ color: "var(--mut)" }}>{CRf(e.r)} of {CRf(e.t)} · <b style={{ color: pctv >= 50 ? "#1a7a4a" : "#c07a1a" }}>{pctv.toFixed(0)}%</b></span>
                         </div>
                         <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
@@ -525,10 +515,9 @@ export function BookingsPage() {
                     );
                   });
                 })()}
-                <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 10, lineHeight: 1.55 }}>
-                  {CS.meta.note}. This section is a company-wide snapshot (12 projects) and is NOT affected by the filters above;
-                  the PDRN sections stay the live single source for the 5 PDRN projects. Share a current PDRN export with a
-                  Received column and this becomes live + filterable.
+                <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 10 }}>
+                  Live from MERGED_PDRN_02-09.xlsx — per-booking Total Received (with tax), TCV (with tax, after
+                  credit/debit adjustment) and Total Due. Fully scope-aware: project, period and drawer filters all apply.
                 </div>
               </div>
               </Zoomable>
@@ -618,7 +607,7 @@ export function BookingsPage() {
                   style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, fontSize: 15, cursor: "pointer" }}>✕</button>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px 26px" }}>
-                {([["Booked", `${MON[detail.m - 1]} ${detail.y}`],
+                {([["Booked", detail.day >= 0 ? new Date(new Date("2022-01-01T00:00:00").getTime() + detail.day * 86400000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : `${MON[detail.m - 1] ?? "—"} ${detail.y > 0 ? detail.y : ""}`],
                    ["Project", PDRN.P[detail.p]],
                    ["Tower", PDRN.TW[detail.tw] ?? "—"],
                    ["Unit", detail.unit],
@@ -627,7 +616,10 @@ export function BookingsPage() {
                    ["Agreement value", CRf(detail.tsv)],
                    ["Rate", `₹${Math.round(detail.tsv / Math.max(detail.area, 1)).toLocaleString("en-IN")}/sqft`],
                    ["Customer", detail.name],
-                   ["Payment plan", detail.plan]] as const).map(([k, v]) => (
+                   ["Payment plan", detail.plan],
+                   ["Received (incl. tax)", CRf(detail.rec)],
+                   ["Value (with tax)", CRf(detail.tcvT)],
+                   ["Due now", CRf(Math.max(detail.due, 0))]] as const).map(([k, v]) => (
                   <div key={k} style={{ padding: "10px 0", borderBottom: "1px solid #eae6da" }}>
                     <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginTop: 3, wordBreak: "break-word" }}>{v}</div>
