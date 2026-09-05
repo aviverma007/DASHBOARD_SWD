@@ -78,7 +78,7 @@ export function BookingsPage() {
   const inProjects = (b: Bk) => selProjects.length === 0 || selProjects.includes(b.p);
   const rows = useMemo(() => ROWS.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [perMode, perSel, selProjects]);
+    [perMode, perSel, selProjects, cF, cT]);
 
   const total = rows.length;
   const tcv = rows.reduce((s, b) => s + b.tsv, 0);
@@ -97,7 +97,7 @@ export function BookingsPage() {
   const dueNowN = rows.reduce((s, b) => s + Math.max(b.demN - b.recN, 0), 0);
   const cancelled = useMemo(() => CANCELLED.filter(b => inPeriod(b) && inProjects(b)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [perMode, perSel, selProjects]);
+    [perMode, perSel, selProjects, cF, cT]);
 
   /** Every card click opens the side drill drawer (like the other
    * tabs) instead of adding an inline chip. */
@@ -150,10 +150,12 @@ export function BookingsPage() {
   const shown = filtered.slice((page - 1) * PER, page * PER);
 
 
+  /** "2027" (FY end year) → "FY 26-27" */
+  const fyLbl = (fyEnd: string) => `FY ${String(Number(fyEnd) - 1).slice(2)}-${fyEnd.slice(2)}`;
   const perLabel =
     perMode === "all" ? "all time" :
-    perMode === "y" ? `FY ${perSel.slice(2)}` :
-    perMode === "q" ? `Q${perSel.split("-Q")[1]} FY${perSel.slice(2, 4)}` :
+    perMode === "y" ? fyLbl(perSel) :
+    perMode === "q" ? `Q${perSel.split("-Q")[1]} ${fyLbl(perSel.split("-Q")[0])}` :
     perMode === "m" ? (perSel ? ymLbl(perSel) : "") :
     `${ymLbl(cF)} → ${ymLbl(cT)}`;
   const scopeLabel = `${selProjects.length ? (selProjects.length === 1 ? PSHORT[selProjects[0]] : selProjects.length + " projects") + " · " : ""}${perLabel}`;
@@ -247,7 +249,7 @@ export function BookingsPage() {
               <select style={SEL} value={perSel} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
                 {perOptions.map(k => (
                   <option key={k} value={k}>
-                    {perMode === "y" ? `FY ${k.slice(2)}` : perMode === "q" ? `Q${k.split("-Q")[1]} FY${k.slice(2, 4)}` : ymLbl(k)}
+                    {perMode === "y" ? fyLbl(k) : perMode === "q" ? `Q${k.split("-Q")[1]} · ${fyLbl(k.split("-Q")[0])}` : ymLbl(k)}
                   </option>
                 ))}
               </select>
