@@ -187,7 +187,7 @@ export default function CaseManagementPage() {
     const get = (c: CaseRec) => (ownerMode === "owner" ? c.own : c.tl);
     const m = new Map<number, { t: number; o: number }>();
     pageRows.forEach(c => { const k = get(c); if (k < 0) return; if (!m.has(k)) m.set(k, { t: 0, o: 0 }); const e = m.get(k)!; e.t++; if (!isClosed(c)) e.o++; });
-    return { names, items: [...m.entries()].sort((a, b) => b[1].t - a[1].t).slice(0, 20) };
+    return { names, items: [...m.entries()].sort((a, b) => b[1].t - a[1].t) };
   }, [pageRows, ownerMode]);
 
   const tatByOwner = useMemo(() => {
@@ -217,7 +217,7 @@ export default function CaseManagementPage() {
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [pageRows]);
 
-  const PER = 25;
+  const PER = 100;
   const pages = Math.max(Math.ceil(pageRows.length / PER), 1);
   const shown = pageRows.slice((page - 1) * PER, page * PER);
 
@@ -381,18 +381,18 @@ export default function CaseManagementPage() {
                 <div style={CAP}>{pageLabel.toLowerCase()} · click a slice → filter</div>
                 {(() => {
                   const tot = Math.max(typeDonut.reduce((s, i) => s + i.v, 0), 1);
-                  const R = 50, C = 2 * Math.PI * R;
+                  const R = 70, C = 2 * Math.PI * R;
                   let off = 0;
                   return (
-                    <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-                      <svg width={130} height={130} viewBox="0 0 130 130">
+                    <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center", height: "calc(100% - 48px)", minHeight: 200 }}>
+                      <svg width={190} height={190} viewBox="0 0 190 190" style={{ flexShrink: 0 }}>
                         {typeDonut.map((it, i) => {
                           const frac = it.v / tot, dash = frac * C, o = off; off += dash;
                           const idx = CM.TYP.indexOf(it.label);
                           return (
-                            <circle key={it.label} cx={65} cy={65} r={R} fill="none" stroke={PAL[i % PAL.length]}
-                              strokeWidth={fTyp >= 0 && fTyp === idx ? 26 : 20}
-                              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 65 65)"
+                            <circle key={it.label} cx={95} cy={95} r={R} fill="none" stroke={PAL[i % PAL.length]}
+                              strokeWidth={fTyp >= 0 && fTyp === idx ? 34 : 28}
+                              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 95 95)"
                               style={{ cursor: "pointer", opacity: fTyp >= 0 && fTyp !== idx ? 0.35 : 1 }}
                               onClick={() => setDrill({ chips: [{ dim: "typ", val: idx, label: it.label }] })}
                               onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
@@ -400,8 +400,8 @@ export default function CaseManagementPage() {
                               onMouseLeave={hideTip} />
                           );
                         })}
-                        <text x={65} y={62} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
-                        <text x={65} y={77} textAnchor="middle" style={{ fontSize: 8.5, fill: "var(--mut)", letterSpacing: 1 }}>CASES</text>
+                        <text x={95} y={91} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
+                        <text x={95} y={108} textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--mut)", letterSpacing: 1 }}>CASES</text>
                       </svg>
                       <div style={{ flex: 1, minWidth: 120 }}>
                         {typeDonut.map((it, i) => (
@@ -489,6 +489,7 @@ export default function CaseManagementPage() {
                   ))}
                 </div>
               </div>
+              <div style={{ maxHeight: 345, overflowY: "auto", paddingRight: 6 }}>
               {(() => {
                 const mx = Math.max(...byOwner.items.map(([, e]) => e.t), 1);
                 return byOwner.items.map(([k, e]) => (
@@ -511,6 +512,8 @@ export default function CaseManagementPage() {
                   </div>
                 ));
               })()}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 8 }}>Top 10 visible — scroll for all {fN(byOwner.items.length)}.</div>
             </div>
           </Zoomable>
 
@@ -600,10 +603,10 @@ export default function CaseManagementPage() {
           <div style={{ ...CARD }}>
             <h3 style={H3}>{pageLabel} — records</h3>
             <div style={CAP}>{fN(pageRows.length)} in scope · click a row for full detail</div>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
                 <thead>
-                  <tr style={{ borderBottom: "2px solid #eae6da" }}>
+                  <tr style={{ borderBottom: "2px solid #eae6da", position: "sticky", top: 0, background: "#fff", zIndex: 2 }}>
                     {["Case no.", "Account", "Opened", "Status", "Type", "Project", "Owner", "Age (d)"].map(h => (
                       <th key={h} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
