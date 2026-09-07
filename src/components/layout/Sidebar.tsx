@@ -17,6 +17,8 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProps) {
   const access = useAuthStore((st: { access: "all" | string[] | null }) => st.access);
+  const role = useAuthStore((st: { role: string | null }) => st.role);
+  const sectionLabel = (sec: string) => (sec === "Sales" && role === "pl" ? "Profit and Loss" : sec);
   // Which section groups are folded shut; all open by default.
   const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
   function toggleSection(section: string) {
@@ -100,7 +102,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
               onMouseEnter={(e) => { e.currentTarget.style.color = "#1E3163"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#9aa3b5"; }}
             >
-              <span>{section}</span>
+              <span>{sectionLabel(section)}</span>
               {closedSections.has(section)
                 ? <Icons.ChevronRight size={13} strokeWidth={2.2} />
                 : <Icons.ChevronDown size={13} strokeWidth={2.2} />}

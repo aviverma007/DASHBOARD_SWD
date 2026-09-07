@@ -17,7 +17,8 @@ interface AuthState {
   userLabel: string | null;
   /** "all" or allowed route paths; null = legacy session (treated as all). */
   access: "all" | string[] | null;
-  login: (label: string, access?: "all" | string[]) => void;
+  role: string | null;
+  login: (label: string, access?: "all" | string[], role?: string) => void;
   logout: () => void;
 }
 
@@ -27,8 +28,9 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       userLabel: null,
       access: null,
-      login: (label, access = "all") => set({ isAuthenticated: true, userLabel: label, access }),
-      logout: () => set({ isAuthenticated: false, userLabel: null, access: null }),
+      role: null,
+      login: (label, access = "all", role = "admin") => set({ isAuthenticated: true, userLabel: label, access, role }),
+      logout: () => set({ isAuthenticated: false, userLabel: null, access: null, role: null }),
     }),
     {
       name: "swd-auth", // localStorage key
