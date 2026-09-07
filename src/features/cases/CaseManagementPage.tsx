@@ -225,6 +225,12 @@ export default function CaseManagementPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
+      <style>{`
+        .cm-btn{transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease,background .15s ease;box-shadow:0 2px 6px rgba(20,33,61,.14);}
+        .cm-btn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 9px 20px rgba(20,33,61,.28);}
+        .cm-btn:active{transform:translateY(0) scale(.95);}
+        .cm-btn-on{box-shadow:0 6px 16px rgba(20,33,61,.30),0 0 0 3px rgba(184,137,60,.25);}
+      `}</style>
       <div className="tv-zoom-desktop">
       {/* ── Header: title + the 4 reference page tabs ── */}
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px", borderBottom: "3px solid var(--gold)" }}>
@@ -235,7 +241,7 @@ export default function CaseManagementPage() {
           </div>
           <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
             {TABS.map(t => (
-              <button key={t.k} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}
+              <button key={t.k} className={`cm-btn${tab === t.k ? " cm-btn-on" : ""}`} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}
                 style={{ border: "none", background: tab === t.k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 12, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
                 {t.l}
               </button>
@@ -260,7 +266,7 @@ export default function CaseManagementPage() {
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period (opened)</div>
             <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
               {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setPerMode(k)}
+                <button key={k} className={`cm-btn${perMode === k ? " cm-btn-on" : ""}`} onClick={() => setPerMode(k)}
                   style={{ border: "none", background: perMode === k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 11.5, padding: "6px 13px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
                   {l}
                 </button>
@@ -296,7 +302,7 @@ export default function CaseManagementPage() {
               </div>
             </>
           )}
-          <button onClick={resetAll}
+          <button className="cm-btn" onClick={resetAll}
             style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
             ⟲ Reset
           </button>
@@ -313,7 +319,7 @@ export default function CaseManagementPage() {
               const col = a === "Exclusion" ? RED : GREEN;
               const on = applic === i;
               return (
-                <button key={a} onClick={() => setApplic(on ? -1 : i)}
+                <button key={a} className={`cm-btn${on ? " cm-btn-on" : ""}`} onClick={() => setApplic(on ? -1 : i)}
                   style={{ background: on ? col : "#fff", color: on ? "#fff" : col, border: `1.5px solid ${col}`, borderRadius: 8, padding: "6px 18px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                   {a}
                 </button>
@@ -323,7 +329,7 @@ export default function CaseManagementPage() {
           </div>
 
           {/* Stat tickets — per active tab, like the reference pages */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(220px, 1fr))", gap: 12, marginBottom: 14, maxWidth: 1000 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 14 }}>
             {(tab === "overall" ? [
               { v: totalT, l: "Total tickets", c: TEAL },
               { v: openT, l: "Open tickets", c: AMBER },
@@ -336,7 +342,7 @@ export default function CaseManagementPage() {
               <div key={s.l}
                 onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)} (${totalT ? ((s.v / totalT) * 100).toFixed(1) : 0}% of total)`)}
                 onMouseMove={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)}`)} onMouseLeave={hideTip}
-                style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${s.c}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, minHeight: 54 }}>
+                style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${s.c}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "12px 18px", display: "flex", alignItems: "center", gap: 14, minHeight: 60 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.c}1f`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ width: 13, height: 13, borderRadius: "50%", background: s.c }} />
                 </div>
@@ -352,15 +358,15 @@ export default function CaseManagementPage() {
           {tab !== "overall" && (
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ background: NAVY, color: "#fff", fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", borderRadius: 8, padding: "6px 12px", textTransform: "uppercase" }}>TAT</span>
-              <button onClick={() => setTatChip(tatChip === "within" ? "" : "within")}
+              <button className={`cm-btn${tatChip === "within" ? " cm-btn-on" : ""}`} onClick={() => setTatChip(tatChip === "within" ? "" : "within")}
                 style={{ border: `1.5px solid ${GREEN}`, background: tatChip === "within" ? GREEN : "#fff", color: tatChip === "within" ? "#fff" : GREEN, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 Within TAT
               </button>
-              <button onClick={() => setTatChip(tatChip === "beyond" ? "" : "beyond")}
+              <button className={`cm-btn${tatChip === "beyond" ? " cm-btn-on" : ""}`} onClick={() => setTatChip(tatChip === "beyond" ? "" : "beyond")}
                 style={{ border: `1.5px solid ${RED}`, background: tatChip === "beyond" ? RED : "#fff", color: tatChip === "beyond" ? "#fff" : RED, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 Beyond TAT
               </button>
-              <button onClick={() => setHniChip(h => !h)}
+              <button className={`cm-btn${hniChip ? " cm-btn-on" : ""}`} onClick={() => setHniChip(h => !h)}
                 style={{ border: `1.5px solid ${GOLD}`, background: hniChip ? GOLD : "#fff", color: hniChip ? "#fff" : GOLD, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                 👑 HNI Tickets
               </button>
@@ -482,7 +488,7 @@ export default function CaseManagementPage() {
                 </div>
                 <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3, gap: 2 }}>
                   {([["owner", "By Case Owner"], ["tl", "By Team Leader"]] as const).map(([k, l]) => (
-                    <button key={k} onClick={() => setOwnerMode(k)}
+                    <button key={k} className={`cm-btn${ownerMode === k ? " cm-btn-on" : ""}`} onClick={() => setOwnerMode(k)}
                       style={{ border: "none", background: ownerMode === k ? NAVY : "transparent", color: ownerMode === k ? "#fff" : "var(--mut)", fontWeight: 700, fontSize: 11.5, padding: "6px 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
                       {l}
                     </button>
