@@ -50,15 +50,15 @@ function SFilter({ label, value, onChange, options }: { label: string; value: nu
   const list = [{ i: -1, n: "All" }, ...options.map((n, i) => ({ i, n }))];
   const shown = q ? list.filter(o => o.n.toLowerCase().includes(q.toLowerCase())) : list;
   return (
-    <div ref={ref} style={{ marginBottom: 12 }}>
-      <div style={{ background: NAVY, color: "#fff", fontSize: 10.5, fontWeight: 800, textAlign: "center", borderRadius: 8, padding: "5px 0", marginBottom: 5, letterSpacing: "0.8px", textTransform: "uppercase" }}>{label}</div>
+    <div ref={ref} style={{ position: "relative", minWidth: 150 }}>
+      <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>{label}</div>
       <div onClick={() => setOpen(o => !o)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: 12.5, fontWeight: 600, color: value < 0 ? "var(--mut)" : "var(--ink)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value < 0 ? "All" : options[value]}</span>
         <span style={{ fontSize: 9, color: "var(--mut)", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
       </div>
       {open && (
-        <div style={{ marginTop: 5, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", overflow: "hidden" }}>
           <div style={{ padding: 6, borderBottom: "1px solid #f0ede5" }}>
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()} placeholder="Search…"
               style={{ width: "100%", boxSizing: "border-box", fontSize: 12, fontWeight: 600, color: "var(--ink)", background: "#faf8f2", border: "1px solid #eae6da", borderRadius: 6, padding: "5px 8px", outline: "none", fontFamily: "inherit" }} />
@@ -200,48 +200,45 @@ export default function CaseManagementPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       <div className="tv-zoom-desktop">
       {/* ── Header: title + the 4 reference page tabs ── */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px", borderBottom: "3px solid var(--gold)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Case Management</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</div>
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px", borderBottom: "3px solid var(--gold)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Case Management</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</div>
+          </div>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+            {TABS.map(t => (
+              <button key={t.k} onClick={() => { setTab(t.k); setTatChip(""); setAgeF(-1); }}
+                style={{ border: "none", background: tab === t.k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 12, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                {t.l}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
-          {TABS.map(t => (
-            <button key={t.k} onClick={() => { setTab(t.k); setTatChip(""); setAgeF(-1); }}
-              style={{ border: "none", background: tab === t.k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 12, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
-              {t.l}
-            </button>
-          ))}
+        {/* Filter bar — same placement pattern as every other page */}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12, marginTop: 12 }}>
+          <div style={{ minWidth: 180 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Search</div>
+            <input value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="Case number / account…"
+              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, padding: "7px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit" }} />
+          </div>
+          <SFilter label="Category" value={fArea} onChange={setFArea} options={CM.AREA} />
+          <SFilter label="Sub Category" value={fSubA} onChange={setFSubA} options={CM.SUBA} />
+          <SFilter label="Case Type" value={fTyp} onChange={setFTyp} options={CM.TYP} />
+          <SFilter label="Priority" value={fPri} onChange={setFPri} options={CM.PRI} />
+          <SFilter label="Case Status" value={fSta} onChange={setFSta} options={CM.STA} />
+          <SFilter label="Case Origin" value={fOrg} onChange={setFOrg} options={CM.ORG} />
+          <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
+          <button onClick={resetAll}
+            style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
+            ⟲ Reset
+          </button>
         </div>
       </div>
 
-      {/* ── Body: reference layout — left filter rail + content ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 20px 40px" }}>
-        {/* Sidebar filters — same set as the reference */}
-        <aside style={{ width: 218, flexShrink: 0, position: "sticky", top: 12 }}>
-          <div style={{ ...CARD, padding: 14 }}>
-            <div style={{ background: `linear-gradient(135deg, ${NAVY}, #2A4488)`, borderRadius: 10, padding: "12px 8px", textAlign: "center", marginBottom: 14 }}>
-              <div style={{ color: "#fff", fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>SMARTWORLD</div>
-              <div style={{ color: "rgba(255,255,255,.7)", fontSize: 8, letterSpacing: 1.5, fontWeight: 700 }}>CASE MANAGEMENT</div>
-            </div>
-            <input value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="Search Case Number…"
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, marginBottom: 12, fontFamily: "inherit" }} />
-            <SFilter label="Category" value={fArea} onChange={setFArea} options={CM.AREA} />
-            <SFilter label="Sub Category" value={fSubA} onChange={setFSubA} options={CM.SUBA} />
-            <SFilter label="Case Type" value={fTyp} onChange={setFTyp} options={CM.TYP} />
-            <SFilter label="Priority" value={fPri} onChange={setFPri} options={CM.PRI} />
-            <SFilter label="Case Status" value={fSta} onChange={setFSta} options={CM.STA} />
-            <SFilter label="Case Origin" value={fOrg} onChange={setFOrg} options={CM.ORG} />
-            <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
-            <button onClick={resetAll}
-              style={{ width: "100%", border: "1px solid #d8d2c4", background: "#faf8f2", color: "var(--ink)", fontWeight: 700, fontSize: 12, padding: "8px 0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
-              ⟲ Reset filters
-            </button>
-          </div>
-        </aside>
-
-        {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* ── Body ── */}
+      <div style={{ padding: "16px 20px 40px" }}>
+        <div>
           {/* Applicability toggle — reference behaviour */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             <span style={{ background: NAVY, color: "#fff", fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", borderRadius: 8, padding: "6px 12px", textTransform: "uppercase" }}>Case applicability</span>
