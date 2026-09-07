@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { showTip, hideTip } from "../common/hoverTip";
 import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
@@ -28,28 +28,51 @@ export function DigitalSection() {
   const [drill, setDrill] = useState<import("./DigitalDrillDrawer").DigDrillSeed | null>(null);
   const [recDetail, setRecDetail] = useState<DigRecT | null>(null);
   const openDrill = (dim: Dim) => (val: number | string, label: string) => setDrill({ dim, val, label });
-  const PRESETS = useMemo(() => periodPresets(), []);
-  const [perKey, setPerKey] = useState("all");
+  const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m" | "c">("all");
+  const [perSel, setPerSel] = useState("");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const per: PeriodPreset = useMemo(() => {
-    if (perKey === "custom") {
-      const from = customFrom ? isoToDay(customFrom) : -1;
-      const to = customTo ? isoToDay(customTo) : 1e9;
-      const lbl = customFrom || customTo
-        ? `Custom (${customFrom || "…"} → ${customTo || "…"})`
-        : "Custom range";
-      return { key: "custom", label: lbl, from, to };
-    }
-    return PRESETS.find(p => p.key === perKey) ?? PRESETS[0];
-  }, [perKey, customFrom, customTo, PRESETS]);
+  const EPOCH = new Date("2022-01-01T00:00:00").getTime();
+  const dOf = (d: number) => new Date(EPOCH + d * 86400000);
+  const fyOf = (d: number) => { const dt = dOf(d); return dt.getMonth() + 1 >= 4 ? dt.getFullYear() + 1 : dt.getFullYear(); };
+  const fyLbl = (fy: number) => `FY ${String(fy - 1).slice(2)}-${String(fy).slice(2)}`;
+  const qOf = (d: number) => { const dt = dOf(d); const m = dt.getMonth() + 1; const fy = m >= 4 ? dt.getFullYear() + 1 : dt.getFullYear(); const q = m >= 4 ? Math.ceil((m - 3) / 3) : 4; return `${fy}-Q${q}`; };
+  const ymOfD = (d: number) => { const dt = dOf(d); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`; };
+  const ymLblD = (k: string) => { const [y, m] = k.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }).replace(" ", "'"); };
+  const perOptions = useMemo(() => {
+    const dated = RECORDS.filter(r => r.day >= 0);
+    if (perMode === "y") return [...new Set(dated.map(r => String(fyOf(r.day))))].sort().reverse();
+    if (perMode === "q") return [...new Set(dated.map(r => qOf(r.day)))].sort().reverse();
+    if (perMode === "m") return [...new Set(dated.map(r => ymOfD(r.day)))].sort().reverse();
+    return [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perMode]);
+  useEffect(() => { if (["y", "q", "m"].includes(perMode) && perOptions.length && !perOptions.includes(perSel)) setPerSel(perOptions[0]); }, [perMode, perOptions, perSel]);
+  const inPer = (d: number) => {
+    if (perMode === "all") return true;
+    if (d < 0) return false;
+    if (perMode === "y") return String(fyOf(d)) === perSel;
+    if (perMode === "q") return qOf(d) === perSel;
+    if (perMode === "m") return ymOfD(d) === perSel;
+    const lo = customFrom ? isoToDay(customFrom) : -1;
+    const hi = customTo ? isoToDay(customTo) : 1e9;
+    return d >= lo && d <= hi;
+  };
+  const perLabel =
+    perMode === "all" ? "All time" :
+    perMode === "y" ? fyLbl(Number(perSel)) :
+    perMode === "q" ? `Q${perSel.split("-Q")[1]} ${fyLbl(Number(perSel.split("-Q")[0]))}` :
+    perMode === "m" ? (perSel ? ymLblD(perSel) : "") :
+    `Custom (${customFrom || "…"} → ${customTo || "…"})`;
+  const per = { key: perMode, label: perLabel } as PeriodPreset;
   const [page, setPage] = useState(1);
   const [showLogic, setShowLogic] = useState(false);
 
   const dimRows = useMemo(() => applyChips(RECORDS, chips), [chips]);
   const rows = useMemo(
-    () => (per.key === "all" ? dimRows : dimRows.filter(r => r.day >= per.from && r.day <= per.to)),
-    [dimRows, per]
+    () => dimRows.filter(r => inPer(r.day)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dimRows, perMode, perSel, customFrom, customTo]
   );
   const total = rows.length;
 
@@ -119,14 +142,28 @@ export function DigitalSection() {
       <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
           <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
-          <select
-            style={SEL}
-            value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
-            {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            <option value="custom">Custom range…</option>
-          </select>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+            {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => { setPerMode(k); setPage(1); }}
+                style={{ border: "none", background: perMode === k ? "#B8893C" : "transparent", color: "#fff", fontWeight: 700, fontSize: 11.5, padding: "6px 13px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
-        {per.key === "custom" && (
+        {["y", "q", "m"].includes(perMode) && (
+          <div>
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>{perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}</div>
+            <select style={SEL} value={perSel} onChange={e => { setPerSel(e.target.value); setPage(1); }}>
+              {perOptions.map(k => (
+                <option key={k} value={k}>
+                  {perMode === "y" ? fyLbl(Number(k)) : perMode === "q" ? `Q${k.split("-Q")[1]} · ${fyLbl(Number(k.split("-Q")[0]))}` : ymLblD(k)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {perMode === "c" && (
           <>
             <div>
               <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
