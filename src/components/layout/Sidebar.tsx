@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { NAV_ITEMS, NAV_SECTIONS } from "../../config/navigation";
+import { canAccess } from "../../config/users";
+import { useAuthStore } from "../../store/authStore";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -14,6 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProps) {
+  const access = useAuthStore((st: { access: "all" | string[] | null }) => st.access);
   // Which section groups are folded shut; all open by default.
   const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
   function toggleSection(section: string) {
@@ -66,7 +69,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
           {collapsed ? <Icons.ChevronsRight size={17} strokeWidth={2} /> : <Icons.ChevronsLeft size={17} strokeWidth={2} />}
         </button>
       )}
-      {NAV_SECTIONS.map((section, si) => (
+      {NAV_SECTIONS.filter((section) => section === "Top" ? true : NAV_ITEMS.some((it) => it.section === section && canAccess(access, it.path))).map((section, si) => (
         <div key={section} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {/* Section sub-heading — a thin divider stands in when the
               rail is collapsed and there's no room for a label */}
@@ -116,7 +119,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: 2 }}
             >
-          {NAV_ITEMS.filter((item) => item.section === section).map((item) => {
+          {NAV_ITEMS.filter((item) => item.section === section && canAccess(access, item.path)).map((item) => {
         const Icon =
           (Icons as unknown as Record<string, Icons.LucideIcon>)[item.icon] ??
           Icons.Circle;

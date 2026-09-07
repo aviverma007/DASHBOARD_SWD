@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
+import { canAccess } from "../../config/users";
 import { INV, PDRN, fCr } from "../../utils/pdrnLogic";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import { AnimatedNumber } from "../../components/common/AnimatedNumber";
@@ -19,6 +20,7 @@ const MODULES: { icon: keyof typeof Icons; label: string; desc: string; path: st
   { icon: "ReceiptText",     label: "Bookings",         desc: "Booking value, trend, ticket mix and records",           path: "/bookings" },
   { icon: "Filter",          label: "Gallery Footfall", desc: "Customer footfall and CP gallery visits",                path: "/gallery-footfall" },
   { icon: "Zap",             label: "Digital Leads",    desc: "Digital enquiries, channels and funnels",                path: "/digital-leads" },
+  { icon: "Headset",         label: "Case Management", desc: "CRM tickets — open/closed, TAT, owners and ageing",      path: "/case-management" },
   { icon: "Building2",       label: "Inventory",        desc: "Stock by project, tower, floor and unit status",         path: "/inventory" },
   { icon: "Building",        label: "Projects",         desc: "Project cards with mix, absorption and site plans",      path: "/projects" },
   { icon: "FileText",        label: "Reports",          desc: "Excel exports of every dataset",                         path: "/reports" },
@@ -28,6 +30,8 @@ const MODULES: { icon: keyof typeof Icons; label: string; desc: string; path: st
 
 export function HomePage() {
   const userLabel = useAuthStore((s) => s.userLabel);
+  const access = useAuthStore((s) => s.access);
+  const visibleModules = MODULES.filter(m => canAccess(access, m.path));
 
   // Honest company snapshot straight from the datasets
   const totalUnits = INV.U.length;
@@ -87,7 +91,7 @@ export function HomePage() {
           Jump into
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 13 }}>
-          {MODULES.map((m, i) => {
+          {visibleModules.map((m, i) => {
             const Icon = Icons[m.icon] as React.ComponentType<{ size?: number; strokeWidth?: number }>;
             return (
               <motion.div key={m.path} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 + i * 0.045, duration: 0.34, ease: [0.22, 1, 0.36, 1] }}>

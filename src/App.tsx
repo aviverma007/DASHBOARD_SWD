@@ -1,7 +1,9 @@
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { RequireAuth } from "./features/authentication/RequireAuth";
 import { AppShell } from "./components/layout/AppShell";
+import { useAuthStore } from "./store/authStore";
+import { canAccess } from "./config/users";
 import { HomePage } from "./features/home/HomePage";
 
 /* Route-level code splitting: each heavy page (and its dataset JSON)
@@ -43,6 +45,12 @@ const GuidePage = lazy(() => load.guide().then(m => ({ default: m.GuidePage })))
  * so even a cold click keeps the current page visible instead of a
  * fallback flash (fallback below is null for exactly that reason —
  * it only ever applies to a hard refresh mid-route). */
+
+function RequireAccess({ path, children }: { path: string; children: React.ReactElement }) {
+  const access = useAuthStore((s) => s.access);
+  if (!canAccess(access, path)) return <Navigate to="/" replace />;
+  return children;
+}
 function PrefetchAll() {
   useEffect(() => {
     const t = window.setTimeout(() => { Object.values(load).forEach(fn => { fn().catch(() => {}); }); }, 300);
@@ -61,19 +69,19 @@ function App() {
       <Routes>
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/overview" element={<InventoryOverviewPage />} />
-          <Route path="/inventory" element={<SmartworldInventoryPage />} />
-          <Route path="/target" element={<TargetActualPage />} />
-          <Route path="/channel-partners" element={<ChannelPartnerPage />} />
-          <Route path="/bookings" element={<BookingsPage />} />
-          <Route path="/case-management" element={<CaseManagementPage />} />
-          <Route path="/gallery-footfall" element={<LeadConversionPage mode="footfall" />} />
-          <Route path="/digital-leads" element={<LeadConversionPage mode="digital" />} />
-          <Route path="/lead-conversion" element={<LeadConversionPage mode="footfall" />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/notes" element={<NotesPage />} />
-          <Route path="/guide" element={<GuidePage />} />
+          <Route path="/overview" element={<RequireAccess path="/overview"><InventoryOverviewPage /></RequireAccess>} />
+          <Route path="/inventory" element={<RequireAccess path="/inventory"><SmartworldInventoryPage /></RequireAccess>} />
+          <Route path="/target" element={<RequireAccess path="/target"><TargetActualPage /></RequireAccess>} />
+          <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><ChannelPartnerPage /></RequireAccess>} />
+          <Route path="/bookings" element={<RequireAccess path="/bookings"><BookingsPage /></RequireAccess>} />
+          <Route path="/case-management" element={<RequireAccess path="/case-management"><CaseManagementPage /></RequireAccess>} />
+          <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><LeadConversionPage mode="footfall" /></RequireAccess>} />
+          <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><LeadConversionPage mode="digital" /></RequireAccess>} />
+          <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage mode="footfall" /></RequireAccess>} />
+          <Route path="/projects" element={<RequireAccess path="/projects"><ProjectsPage /></RequireAccess>} />
+          <Route path="/reports" element={<RequireAccess path="/reports"><ReportsPage /></RequireAccess>} />
+          <Route path="/notes" element={<RequireAccess path="/notes"><NotesPage /></RequireAccess>} />
+          <Route path="/guide" element={<RequireAccess path="/guide"><GuidePage /></RequireAccess>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>

@@ -43,7 +43,7 @@ export function LoginPage() {
     setLoginSuccess(true); // buddy gives a thumbs-up…
     // …and holds it for a beat before the app takes over
     setTimeout(() => {
-      login(user.displayName);
+      login(user.displayName, user.access);
       setLoading(false);
     }, 1000);
   }

@@ -15,7 +15,9 @@ import { persist } from "zustand/middleware";
 interface AuthState {
   isAuthenticated: boolean;
   userLabel: string | null;
-  login: (label: string) => void;
+  /** "all" or allowed route paths; null = legacy session (treated as all). */
+  access: "all" | string[] | null;
+  login: (label: string, access?: "all" | string[]) => void;
   logout: () => void;
 }
 
@@ -24,8 +26,9 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       isAuthenticated: false,
       userLabel: null,
-      login: (label) => set({ isAuthenticated: true, userLabel: label }),
-      logout: () => set({ isAuthenticated: false, userLabel: null }),
+      access: null,
+      login: (label, access = "all") => set({ isAuthenticated: true, userLabel: label, access }),
+      logout: () => set({ isAuthenticated: false, userLabel: null, access: null }),
     }),
     {
       name: "swd-auth", // localStorage key
