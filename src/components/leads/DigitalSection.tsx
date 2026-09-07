@@ -3,7 +3,7 @@ import { showTip, hideTip } from "../common/hoverTip";
 import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
   StackedHBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  CARD, H3, CAP, SEL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import {
   DG, RECORDS, applyChips, digMonthly, digWeekday,
@@ -116,9 +116,9 @@ export function DigitalSection() {
       />
 
       {/* Filter bar */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 5 }}>Period</div>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
           <select
             style={SEL}
             value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
@@ -129,13 +129,13 @@ export function DigitalSection() {
         {per.key === "custom" && (
           <>
             <div>
-              <div style={SELLBL}>From</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
               <input type="date" min="2022-01-01" value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={SELLBL}>To</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
               <input type="date" min="2022-01-01" value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />

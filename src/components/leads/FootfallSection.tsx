@@ -7,7 +7,7 @@ import {
 } from "../../utils/footfallLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, FunnelChart, Banner, Spark,
-  MomentumCard, CpBoard, CARD, H3, CAP, SEL, SELLBL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
+  MomentumCard, CpBoard, CARD, H3, CAP, SEL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
 } from "./footfallCharts";
 import { FootfallDrillDrawer, type DrillSeed } from "./FootfallDrillDrawer";
 import { VisitRecordPanel } from "./VisitRecordPanel";
@@ -110,10 +110,10 @@ export function FootfallSection() {
         baseLabel={`${selProjects.length ? (selProjects.length === 1 ? FF.P[selProjects[0]] : selProjects.length + " projects") + " · " : ""}${per.label}`}
         onClose={() => setDrill(null)}
       />
-      {/* Global filter bar — project + period, reference-style */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+      {/* Global filter bar — in the navy banner like every other page */}
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ position: "relative" }}>
-          <div style={SELLBL}>Projects / campaigns</div>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Projects / campaigns</div>
           <button onClick={() => setProjOpen(v => !v)}
             style={{ ...SEL, minWidth: 220, textAlign: "left", cursor: "pointer" }}>
             {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
@@ -137,7 +137,7 @@ export function FootfallSection() {
           )}
         </div>
         <div>
-          <div style={SELLBL}>Period</div>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
           <select style={SEL} value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             <option value="custom">Custom range…</option>
@@ -146,13 +146,13 @@ export function FootfallSection() {
         {per.key === "custom" && (
           <>
             <div>
-              <div style={SELLBL}>From</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
               <input type="date" min="2022-01-01" value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={SELLBL}>To</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
               <input type="date" min="2022-01-01" value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />

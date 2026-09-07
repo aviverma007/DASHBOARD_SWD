@@ -7,7 +7,7 @@ import {
 } from "../../utils/cpVisitsLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
-  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
+  CARD, H3, CAP, SEL, BLUE, TEAL, GOLD, GREEN,
 } from "./footfallCharts";
 import { CpVisitsDrillDrawer, type CpvDrillSeed } from "./CpVisitsDrillDrawer";
 import { todayDay } from "../../utils/footfallLogic";
@@ -135,10 +135,10 @@ export function CpVisitsSection() {
         onClose={() => setDrill(null)}
       />
 
-      {/* Filter bar */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+      {/* Filter bar — in the navy banner */}
+      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
-          <div style={SELLBL}>Project</div>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Project</div>
           <select
             style={SEL}
             value={projFilter ? String(projFilter.val) : "all"}
@@ -152,7 +152,7 @@ export function CpVisitsSection() {
           </select>
         </div>
         <div>
-          <div style={SELLBL}>Period</div>
+          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
           <select style={SEL} value={perKey} onChange={e => setPerKey(e.target.value)}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             <option value="custom">Custom range…</option>
@@ -161,11 +161,11 @@ export function CpVisitsSection() {
         {per.key === "custom" && (
           <>
             <div>
-              <div style={SELLBL}>From</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
               <input type="date" min="2022-01-01" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={SELLBL}>To</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
               <input type="date" min="2022-01-01" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...SEL, minWidth: 140 }} />
             </div>
           </>
