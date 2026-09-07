@@ -28,7 +28,7 @@ export const APP_USERS: AppUser[] = [
   // ── view-restricted logins ──
   { id: "sales@smartworlddevelopers.com", password: "Swd@2026", displayName: "Sales",  role: "sales", access: SALES_PATHS },
   { id: "crm@smartworlddevelopers.com",   password: "Swd@2026", displayName: "CRM",    role: "crm",   access: ["/case-management"] },
-  { id: "p&l@smartworlddevelopers.com",   password: "Swd@2026", displayName: "P&L",    role: "pl",    access: ["/target"] },
+  { id: "p&l@smartworlddevelopers.com",   password: "Swd@2026", displayName: "P&L",    role: "pl",    access: ["/overview", "/target"] },
 ];
 
 /** Always-permitted paths regardless of rights. */
