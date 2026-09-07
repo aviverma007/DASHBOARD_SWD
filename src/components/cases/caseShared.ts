@@ -60,3 +60,14 @@ export const fyOf = (d: number) => {
 };
 export const fyLbl = (fyEnd: number) => `FY ${String(fyEnd - 1).slice(2)}-${String(fyEnd).slice(2)}`;
 export const fN = (n: number) => n.toLocaleString("en-IN");
+
+/** Reference-style ageing buckets for open cases. */
+export const AGE_BANDS = [
+  { k: 0, label: "0\u20132 days", lo: 0, hi: 2 },
+  { k: 1, label: "3\u20137 days", lo: 3, hi: 7 },
+  { k: 2, label: "8\u201315 days", lo: 8, hi: 15 },
+  { k: 3, label: "16\u201330 days", lo: 16, hi: 30 },
+  { k: 4, label: "31\u201360 days", lo: 31, hi: 60 },
+  { k: 5, label: "60+ days", lo: 61, hi: Infinity },
+];
+export const ageBand = (age: number) => AGE_BANDS.find(b => age >= b.lo && age <= b.hi)?.k ?? 5;

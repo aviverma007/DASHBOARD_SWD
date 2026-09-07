@@ -4,8 +4,9 @@ import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
   CM, CASES, type CaseRec, isClosed, tatBucket,
-  fmtDay, ymOf, ymLbl, fN,
+  fmtDay, ymOf, ymLbl, fN, fyOf, fyLbl, EPOCH_MS, AGE_BANDS, ageBand,
 } from "../../components/cases/caseShared";
+import { CaseDrillDrawer, type CaseDrillSeed, type CaseChip } from "../../components/cases/CaseDrillDrawer";
 
 /* House tokens — identical family to Bookings. Structure mirrors the
  * reference CRM app: page tabs, applicability toggle, stat tickets,
@@ -26,15 +27,6 @@ const TABS: { k: Tab; l: string }[] = [
   { k: "resolved", l: "Resolved Tickets" },
 ];
 
-const AGE_BANDS = [
-  { k: 0, label: "0–2 days", lo: 0, hi: 2 },
-  { k: 1, label: "3–7 days", lo: 3, hi: 7 },
-  { k: 2, label: "8–15 days", lo: 8, hi: 15 },
-  { k: 3, label: "16–30 days", lo: 16, hi: 30 },
-  { k: 4, label: "31–60 days", lo: 31, hi: 60 },
-  { k: 5, label: "60+ days", lo: 61, hi: Infinity },
-];
-const ageBand = (age: number) => AGE_BANDS.find(b => age >= b.lo && age <= b.hi)?.k ?? 5;
 
 /** Reference SFilter — searchable dropdown, restyled to the house look. */
 function SFilter({ label, value, onChange, options }: { label: string; value: number; onChange: (v: number) => void; options: string[] }) {
@@ -94,18 +86,46 @@ export default function CaseManagementPage() {
   const [tatChip, setTatChip] = useState<"" | "within" | "beyond">("");
   const [ageF, setAgeF] = useState(-1);
   const [ownerMode, setOwnerMode] = useState<"owner" | "tl">("owner");
+  const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m" | "c">("all");
+  const [perSel, setPerSel] = useState("");
+  const [cFrom, setCFrom] = useState("");
+  const [cTo, setCTo] = useState("");
+  const [drill, setDrill] = useState<CaseDrillSeed | null>(null);
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<CaseRec | null>(null);
 
   const resolvedIdx = CM.STA.indexOf("Resolved");
+
+  const qKeyOf = (d: number) => { const dt = new Date(EPOCH_MS + d * 86400000); const m = dt.getMonth() + 1; const fy = m >= 4 ? dt.getFullYear() + 1 : dt.getFullYear(); const q = m >= 4 ? Math.ceil((m - 3) / 3) : 4; return `${fy}-Q${q}`; };
+  const perOptions = useMemo(() => {
+    const dated = CASES.filter(c => c.open >= 0);
+    if (perMode === "y") return [...new Set(dated.map(c => String(fyOf(c.open))))].sort().reverse();
+    if (perMode === "q") return [...new Set(dated.map(c => qKeyOf(c.open)))].sort().reverse();
+    if (perMode === "m") return [...new Set(dated.map(c => ymOf(c.open)))].sort().reverse();
+    return [];
+  }, [perMode]);
+  useEffect(() => { if (["y", "q", "m"].includes(perMode) && perOptions.length && !perOptions.includes(perSel)) setPerSel(perOptions[0]); }, [perMode, perOptions, perSel]);
+  const dayOfIso = (iso: string) => Math.floor((new Date(iso + "T00:00:00").getTime() - EPOCH_MS) / 86400000);
+  const inPeriod = (c: CaseRec) => {
+    if (perMode === "all") return true;
+    if (c.open < 0) return false;
+    if (perMode === "y") return String(fyOf(c.open)) === perSel;
+    if (perMode === "q") return qKeyOf(c.open) === perSel;
+    if (perMode === "m") return ymOf(c.open) === perSel;
+    const lo = cFrom ? dayOfIso(cFrom) : -Infinity;
+    const hi = cTo ? dayOfIso(cTo) : Infinity;
+    return c.open >= lo && c.open <= hi;
+  };
 
   const filtered = useMemo(() => CASES.filter(c =>
     (fArea < 0 || c.area === fArea) && (fSubA < 0 || c.subArea === fSubA) &&
     (fTyp < 0 || c.typ === fTyp) && (fPri < 0 || c.pri === fPri) &&
     (fSta < 0 || c.sta === fSta) && (fOrg < 0 || c.org === fOrg) &&
     (fOwn < 0 || c.own === fOwn) && (applic < 0 || c.app === applic) &&
-    (!searchNo.trim() || c.caseNo.includes(searchNo.trim()) || c.account.toLowerCase().includes(searchNo.trim().toLowerCase()))
-  ), [fArea, fSubA, fTyp, fPri, fSta, fOrg, fOwn, applic, searchNo]);
+    (!searchNo.trim() || c.caseNo.includes(searchNo.trim()) || c.account.toLowerCase().includes(searchNo.trim().toLowerCase())) &&
+    inPeriod(c)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [fArea, fSubA, fTyp, fPri, fSta, fOrg, fOwn, applic, searchNo, perMode, perSel, cFrom, cTo]);
 
   // page scope per top tab (reference semantics)
   const pageRows = useMemo(() => {
@@ -128,6 +148,7 @@ export default function CaseManagementPage() {
   const resetAll = () => {
     setFArea(-1); setFSubA(-1); setFTyp(-1); setFPri(-1); setFSta(-1); setFOrg(-1); setFOwn(-1);
     setApplic(-1); setTatChip(""); setAgeF(-1); setSearchNo("");
+    setPerMode("all"); setPerSel(""); setCFrom(""); setCTo("");
   };
 
   const statusName = (c: CaseRec) => (c.sta >= 0 ? CM.STA[c.sta] : "—");
@@ -229,6 +250,46 @@ export default function CaseManagementPage() {
           <SFilter label="Case Status" value={fSta} onChange={setFSta} options={CM.STA} />
           <SFilter label="Case Origin" value={fOrg} onChange={setFOrg} options={CM.ORG} />
           <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
+          <div>
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period (opened)</div>
+            <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setPerMode(k)}
+                  style={{ border: "none", background: perMode === k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 11.5, padding: "6px 13px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {["y", "q", "m"].includes(perMode) && (
+            <div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>
+                {perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}
+              </div>
+              <select value={perSel} onChange={e => setPerSel(e.target.value)}
+                style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                {perOptions.map(k => (
+                  <option key={k} value={k}>
+                    {perMode === "y" ? fyLbl(Number(k)) : perMode === "q" ? `Q${k.split("-Q")[1]} · ${fyLbl(Number(k.split("-Q")[0]))}` : ymLbl(k)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {perMode === "c" && (
+            <>
+              <div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From date</div>
+                <input type="date" min="2025-04-01" value={cFrom} onChange={e => setCFrom(e.target.value)}
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "6px 10px", fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To date</div>
+                <input type="date" min={cFrom || "2025-04-01"} value={cTo} onChange={e => setCTo(e.target.value)}
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "6px 10px", fontFamily: "inherit" }} />
+              </div>
+            </>
+          )}
           <button onClick={resetAll}
             style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
             ⟲ Reset
@@ -310,7 +371,7 @@ export default function CaseManagementPage() {
                               strokeWidth={fTyp >= 0 && fTyp === idx ? 26 : 20}
                               strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 65 65)"
                               style={{ cursor: "pointer", opacity: fTyp >= 0 && fTyp !== idx ? 0.35 : 1 }}
-                              onClick={() => setFTyp(fTyp === idx ? -1 : idx)}
+                              onClick={() => setDrill({ chips: [{ dim: "typ", val: idx, label: it.label }] })}
                               onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
                               onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
                               onMouseLeave={hideTip} />
@@ -344,7 +405,7 @@ export default function CaseManagementPage() {
                     const idx = CM.STA.indexOf(label);
                     return (
                       <div key={label} className="barrow"
-                        onClick={() => { if (label === "Closed") setFSta(-1); else setFSta(fSta === idx ? -1 : idx); }}
+                        onClick={() => setDrill({ chips: [label === "Closed" ? { dim: "stg", val: "closed", label: "Closed" } : { dim: "sta", val: idx, label }] })}
                         onMouseEnter={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)}
                         onMouseMove={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)} onMouseLeave={hideTip}
                         style={{ padding: "4.5px 0", cursor: "pointer" }}>
@@ -370,7 +431,7 @@ export default function CaseManagementPage() {
                   const tot = Math.max(pageRows.length, 1);
                   const mx = Math.max(...originList.map(([, v]) => v), 1);
                   return originList.map(([k, v]) => (
-                    <div key={k} className="barrow" onClick={() => setFOrg(fOrg === k ? -1 : k)}
+                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "org", val: k, label: CM.ORG[k] }] })}
                       onMouseEnter={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
                       onMouseMove={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
                       style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOrg >= 0 && fOrg !== k ? 0.45 : 1 }}>
@@ -409,11 +470,11 @@ export default function CaseManagementPage() {
                 const mx = Math.max(...byOwner.items.map(([, e]) => e.t), 1);
                 return byOwner.items.map(([k, e]) => (
                   <div key={k} className="barrow"
-                    onClick={() => { if (ownerMode === "owner") setFOwn(fOwn === k ? -1 : k); }}
+                    onClick={() => setDrill({ chips: [ownerMode === "owner" ? { dim: "own", val: k, label: byOwner.names[k] } : { dim: "tl", val: k, label: byOwner.names[k] }] })}
                     onMouseEnter={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)}<br/>Open — ${fN(e.o)} · Closed — ${fN(e.t - e.o)}`)}
                     onMouseMove={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)} · Open — ${fN(e.o)}`)}
                     onMouseLeave={hideTip}
-                    style={{ padding: "3.5px 0", cursor: ownerMode === "owner" ? "pointer" : "default", opacity: ownerMode === "owner" && fOwn >= 0 && fOwn !== k ? 0.45 : 1 }}>
+                    style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOwn >= 0 && ownerMode === "owner" && fOwn !== k ? 0.45 : 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ width: 170, fontSize: 12, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right", flexShrink: 0 }}>{byOwner.names[k]}</span>
                       <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 6, overflow: "hidden", position: "relative" }}>
@@ -469,7 +530,7 @@ export default function CaseManagementPage() {
                     const v = ageing.get(b.k) ?? 0;
                     const mx = Math.max(...AGE_BANDS.map(x => ageing.get(x.k) ?? 0), 1);
                     return (
-                      <div key={b.k} className="barrow" onClick={() => setAgeF(ageF === b.k ? -1 : b.k)}
+                      <div key={b.k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "age", val: b.k, label: AGE_BANDS[b.k].label }] })}
                         onMouseEnter={e => showTip(e, `<b>${b.label}</b><br/>${fN(v)} open cases`)}
                         onMouseMove={e => showTip(e, `<b>${b.label}</b><br/>${fN(v)} open cases`)} onMouseLeave={hideTip}
                         style={{ padding: "5px 0", cursor: "pointer", opacity: ageF >= 0 && ageF !== b.k ? 0.45 : 1 }}>
@@ -493,7 +554,7 @@ export default function CaseManagementPage() {
             <div style={{ ...CARD, marginBottom: 14 }}>
               <h3 style={H3}>Monthly opened vs closed</h3>
               <div style={CAP}>teal = opened · green = closed in month · scoped to {pageLabel.toLowerCase()}</div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 165, overflowX: "auto", paddingBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 165, overflowX: "auto", overflowY: "hidden", paddingBottom: 6, width: "100%", boxSizing: "border-box" }}>
                 {(() => {
                   const mx = Math.max(...trend.map(([, v]) => Math.max(v.o, v.c)), 1);
                   return trend.map(([k, v]) => (
@@ -557,6 +618,15 @@ export default function CaseManagementPage() {
         </div>
       </div>
       </div>
+
+      <CaseDrillDrawer
+        seed={drill}
+        baseRows={pageRows}
+        baseLabel={pageLabel}
+        onClose={() => setDrill(null)}
+        onAddChip={(chip: CaseChip) => setDrill(d => (d && !d.chips.some(c => c.dim === chip.dim) ? { chips: [...d.chips, chip] } : d))}
+        onRecord={(c: CaseRec) => setDetail(c)}
+      />
 
       {/* Detail slide-over */}
       <AnimatePresence>
