@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { showTip, hideTip } from "../common/hoverTip";
-import { dayToDate, fNum, isoToDay, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
+import { dayToDate, fNum, isoToDay, type PeriodPreset } from "../../utils/footfallLogic";
 import {
   StackedHBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
   CARD, H3, CAP, SEL, PAL, BLUE, TEAL, GOLD, GREEN, RED,
