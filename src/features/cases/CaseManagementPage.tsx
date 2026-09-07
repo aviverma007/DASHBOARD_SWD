@@ -220,7 +220,7 @@ export default function CaseManagementPage() {
           <div style={{ minWidth: 180 }}>
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Search</div>
             <input value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="Case number / account…"
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, padding: "7px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit" }} />
+              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit", outline: "none" }} />
           </div>
           <SFilter label="Category" value={fArea} onChange={setFArea} options={CM.AREA} />
           <SFilter label="Sub Category" value={fSubA} onChange={setFSubA} options={CM.SUBA} />
