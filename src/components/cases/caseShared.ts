@@ -7,7 +7,7 @@ import raw from "../../data/caseManagement.json";
  * Days are offsets from 2022-01-01; −1 = unknown/blank. */
 export interface CmDataset {
   STA: string[]; TYP: string[]; PRI: string[]; ORG: string[]; TAT: string[];
-  AREA: string[]; SUBA: string[]; PRJ: string[]; OWN: string[]; APP: string[];
+  AREA: string[]; SUBA: string[]; PRJ: string[]; OWN: string[]; APP: string[]; TL: string[];
   R: (number | string)[][];
   meta: { rows: number; asOn: string };
 }
@@ -17,7 +17,7 @@ export interface CaseRec {
   open: number; closed: number; sta: number; typ: number; pri: number;
   org: number; tat: number; area: number; subArea: number; prj: number;
   own: number; app: number; age: number; account: string; caseNo: string;
-  hni: number; legal: number; reassigns: number;
+  hni: number; legal: number; reassigns: number; tl: number;
 }
 export const CASES: CaseRec[] = CM.R.map(r => ({
   open: r[0] as number, closed: r[1] as number, sta: r[2] as number, typ: r[3] as number,
@@ -25,6 +25,7 @@ export const CASES: CaseRec[] = CM.R.map(r => ({
   subArea: r[8] as number, prj: r[9] as number, own: r[10] as number, app: r[11] as number,
   age: r[12] as number, account: String(r[13]), caseNo: String(r[14]),
   hni: r[15] as number, legal: r[16] as number, reassigns: r[17] as number,
+  tl: (r[18] as number) ?? -1,
 }));
 
 const CLOSED_NAMES = new Set(["Closed", "Resolved", "Close"]);
