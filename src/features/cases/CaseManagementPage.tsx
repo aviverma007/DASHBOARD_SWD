@@ -581,12 +581,12 @@ export default function CaseManagementPage() {
                 {(() => {
                   const mx = Math.max(...trend.map(([, v]) => Math.max(v.o, v.c)), 1);
                   return trend.map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 44 }}
+                    <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: "1 0 44px", minWidth: 44 }}
                       onMouseEnter={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)}<br/>Closed — ${fN(v.c)}`)}
                       onMouseMove={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)} · Closed — ${fN(v.c)}`)} onMouseLeave={hideTip}>
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 125 }}>
-                        <div style={{ width: 15, height: `${(v.o / mx) * 100}%`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
-                        <div style={{ width: 15, height: `${(v.c / mx) * 100}%`, background: GREEN, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 125, width: "100%", justifyContent: "center" }}>
+                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.o / mx) * 100}%`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
+                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.c / mx) * 100}%`, background: GREEN, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
                       </div>
                       <span style={{ fontSize: 9.5, color: "var(--mut)", whiteSpace: "nowrap" }}>{ymLbl(k)}</span>
                     </div>
