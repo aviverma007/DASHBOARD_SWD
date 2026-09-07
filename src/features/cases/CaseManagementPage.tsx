@@ -323,7 +323,7 @@ export default function CaseManagementPage() {
           </div>
 
           {/* Stat tickets — per active tab, like the reference pages */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(220px, 1fr))", gap: 12, marginBottom: 14, maxWidth: 1000 }}>
             {(tab === "overall" ? [
               { v: totalT, l: "Total tickets", c: TEAL },
               { v: openT, l: "Open tickets", c: AMBER },
@@ -336,9 +336,14 @@ export default function CaseManagementPage() {
               <div key={s.l}
                 onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)} (${totalT ? ((s.v / totalT) * 100).toFixed(1) : 0}% of total)`)}
                 onMouseMove={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)}`)} onMouseLeave={hideTip}
-                style={{ ...CARD, padding: "14px 18px", borderLeft: `5px solid ${s.c}` }}>
-                <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(s.v)}</div>
-                <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--mut)", marginTop: 5 }}>{s.l}</div>
+                style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${s.c}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, minHeight: 54 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.c}1f`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ width: 13, height: 13, borderRadius: "50%", background: s.c }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(s.v)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.l}</div>
+                </div>
               </div>
             ))}
           </div>
