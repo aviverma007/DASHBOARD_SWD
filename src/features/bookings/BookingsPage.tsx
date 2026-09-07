@@ -11,10 +11,12 @@ import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
   HBarListRaw as HBarList, Donut, Banner,
-  CARD, H3, CAP, SEL, SELLBL, BLUE, TEAL, GOLD, GREEN,
+  CARD, H3, CAP, SEL, BLUE, TEAL, GOLD, GREEN,
 } from "../../components/leads/footfallCharts";
 import { AnimatePresence, motion } from "framer-motion";
 import "../../components/inventory/smartworldInventory.css";
+
+const SELLBL: React.CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 };
 
 /** BOOKINGS — modelled on the reference suite's Bookings tab, driven
  * by the PDRN export we already ship (active bookings). The HTML's
@@ -187,11 +189,8 @@ export function BookingsPage() {
         <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 3 }}>
           {fN(ROWS.length)} active bookings · data as on {AS_ON}
         </div>
-      </div>
-
-      <div style={{ padding: "16px 20px 40px" }}>
-        {/* Filters: multi-project + period pills */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
+        {/* Filters: multi-project + period pills — in the banner like every other page */}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, alignItems: "flex-end" }}>
           <div ref={projRef} style={{ position: "relative" }}>
             <div style={SELLBL}>Projects</div>
             <button onClick={() => setProjOpen(v => !v)}
@@ -256,6 +255,9 @@ export function BookingsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div style={{ padding: "16px 20px 40px" }}>
 
         {/* KPI strip — the reference's six, honestly marked */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 6 }}>
