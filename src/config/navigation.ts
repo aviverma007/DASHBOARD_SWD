@@ -10,7 +10,7 @@ export interface NavItem {
 
 /** Section display order in the sidebar. */
 /** "Top" renders without a heading — standalone items above the groups. */
-export const NAV_SECTIONS = ["Top", "Sales", "Inventory", "Workspace"] as const;
+export const NAV_SECTIONS = ["Top", "Sales", "Inventory", "CRM", "Workspace"] as const;
 
 /**
  * Only Overview and Inventory are fully built in this phase.
@@ -27,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "galleryfootfall", label: "Gallery Footfall", path: "/gallery-footfall", icon: "Filter", status: "active", section: "Sales" },
   { key: "digitalleads", label: "Digital Leads", path: "/digital-leads", icon: "Zap", status: "active", section: "Sales" },
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
+  { key: "casemanagement", label: "Case Management", path: "/case-management", icon: "Headset", status: "active", section: "CRM" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
   { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },
   { key: "guide", label: "Guide", path: "/guide", icon: "BookOpen", status: "active", section: "Workspace" },

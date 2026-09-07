@@ -16,6 +16,7 @@ const load = {
   cp: () => import("./features/channelpartner/ChannelPartnerPage"),
   leads: () => import("./features/leads/LeadConversionPage"),
   bookings: () => import("./features/bookings/BookingsPage"),
+  cases: () => import("./features/cases/CaseManagementPage"),
   settings: () => import("./features/settings/SettingsPage"),
   changePw: () => import("./features/settings/ChangePasswordPage"),
   notes: () => import("./features/workspace/NotesPage"),
@@ -29,6 +30,7 @@ const TargetActualPage = lazy(() => load.target().then(m => ({ default: m.Target
 const ChannelPartnerPage = lazy(() => load.cp().then(m => ({ default: m.ChannelPartnerPage })));
 const LeadConversionPage = lazy(() => load.leads().then(m => ({ default: m.LeadConversionPage })));
 const BookingsPage = lazy(() => load.bookings().then(m => ({ default: m.BookingsPage })));
+const CaseManagementPage = lazy(load.cases);
 const SettingsPage = lazy(() => load.settings().then(m => ({ default: m.SettingsPage })));
 const ChangePasswordPage = lazy(() => load.changePw().then(m => ({ default: m.ChangePasswordPage })));
 const NotesPage = lazy(() => load.notes().then(m => ({ default: m.NotesPage })));
@@ -64,6 +66,7 @@ function App() {
           <Route path="/target" element={<TargetActualPage />} />
           <Route path="/channel-partners" element={<ChannelPartnerPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
+          <Route path="/case-management" element={<CaseManagementPage />} />
           <Route path="/gallery-footfall" element={<LeadConversionPage mode="footfall" />} />
           <Route path="/digital-leads" element={<LeadConversionPage mode="digital" />} />
           <Route path="/lead-conversion" element={<LeadConversionPage mode="footfall" />} />
