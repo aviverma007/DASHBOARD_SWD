@@ -84,6 +84,7 @@ export default function CaseManagementPage() {
   const [fOwn, setFOwn] = useState(-1);
   const [applic, setApplic] = useState(-1); // Inclusion/Exclusion toggle
   const [tatChip, setTatChip] = useState<"" | "within" | "beyond">("");
+  const [hniChip, setHniChip] = useState(false);
   const [ageF, setAgeF] = useState(-1);
   const [ownerMode, setOwnerMode] = useState<"owner" | "tl">("owner");
   const [perMode, setPerMode] = useState<"all" | "y" | "q" | "m" | "c">("all");
@@ -128,16 +129,21 @@ export default function CaseManagementPage() {
   ), [fArea, fSubA, fTyp, fPri, fSta, fOrg, fOwn, applic, searchNo, perMode, perSel, cFrom, cTo]);
 
   // page scope per top tab (reference semantics)
-  const pageRows = useMemo(() => {
+  const tabScoped = useMemo(() => {
     let r = filtered;
     if (tab === "open") r = r.filter(c => !isClosed(c));
     if (tab === "closed") r = r.filter(c => isClosed(c));
     if (tab === "resolved") r = r.filter(c => c.sta === resolvedIdx);
-    if (tab === "open" && tatChip === "beyond") r = r.filter(c => tatBucket(c) === "overdue");
-    if (tab === "open" && tatChip === "within") r = r.filter(c => tatBucket(c) !== "overdue");
+    return r;
+  }, [filtered, tab, resolvedIdx]);
+  const pageRows = useMemo(() => {
+    let r = tabScoped;
+    if (tatChip === "beyond") r = r.filter(c => tatBucket(c) === "overdue");
+    if (tatChip === "within") r = r.filter(c => tatBucket(c) !== "overdue");
+    if (hniChip) r = r.filter(c => c.hni === 1);
     if (tab === "open" && ageF >= 0) r = r.filter(c => ageBand(c.age) === ageF);
     return r;
-  }, [filtered, tab, tatChip, ageF, resolvedIdx]);
+  }, [tabScoped, tatChip, hniChip, ageF, tab]);
 
   const totalT = filtered.length;
   const closedT = filtered.filter(isClosed).length;
@@ -147,7 +153,7 @@ export default function CaseManagementPage() {
 
   const resetAll = () => {
     setFArea(-1); setFSubA(-1); setFTyp(-1); setFPri(-1); setFSta(-1); setFOrg(-1); setFOwn(-1);
-    setApplic(-1); setTatChip(""); setAgeF(-1); setSearchNo("");
+    setApplic(-1); setTatChip(""); setHniChip(false); setAgeF(-1); setSearchNo("");
     setPerMode("all"); setPerSel(""); setCFrom(""); setCTo("");
   };
 
@@ -229,7 +235,7 @@ export default function CaseManagementPage() {
           </div>
           <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
             {TABS.map(t => (
-              <button key={t.k} onClick={() => { setTab(t.k); setTatChip(""); setAgeF(-1); }}
+              <button key={t.k} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}
                 style={{ border: "none", background: tab === t.k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 12, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
                 {t.l}
               </button>
@@ -316,13 +322,17 @@ export default function CaseManagementPage() {
             {applic >= 0 && <span style={{ fontSize: 11.5, color: "var(--mut)" }}>showing {CM.APP[applic]} only · click again to clear</span>}
           </div>
 
-          {/* Stat tickets — Total / Open / Closed */}
+          {/* Stat tickets — per active tab, like the reference pages */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
-            {[
+            {(tab === "overall" ? [
               { v: totalT, l: "Total tickets", c: TEAL },
               { v: openT, l: "Open tickets", c: AMBER },
               { v: closedT, l: "Closed tickets", c: GREEN },
-            ].map(s => (
+            ] : [
+              { v: tabScoped.length, l: `${pageLabel}`, c: tab === "open" ? AMBER : tab === "closed" ? GREEN : TEAL },
+              { v: tabScoped.filter(c => tatBucket(c) === "overdue").length, l: "Overdue (beyond TAT)", c: RED },
+              { v: tabScoped.filter(c => tatBucket(c) === "atrisk").length, l: "In escalation", c: GOLD },
+            ]).map(s => (
               <div key={s.l}
                 onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)} (${totalT ? ((s.v / totalT) * 100).toFixed(1) : 0}% of total)`)}
                 onMouseMove={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.v)}`)} onMouseLeave={hideTip}
@@ -333,16 +343,24 @@ export default function CaseManagementPage() {
             ))}
           </div>
 
-          {/* Open-page TAT chips (reference: '' | within | beyond) */}
-          {tab === "open" && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-              {([["", "All open"], ["within", "Within time"], ["beyond", "Beyond TAT"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setTatChip(k)}
-                  style={{ border: `1.5px solid ${k === "beyond" ? RED : TEAL}`, background: tatChip === k ? (k === "beyond" ? RED : TEAL) : "#fff", color: tatChip === k ? "#fff" : (k === "beyond" ? RED : TEAL), borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                  {l}
-                </button>
-              ))}
-              {ageF >= 0 && (
+          {/* TAT / HNI toggles — reference pages */}
+          {tab !== "overall" && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ background: NAVY, color: "#fff", fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", borderRadius: 8, padding: "6px 12px", textTransform: "uppercase" }}>TAT</span>
+              <button onClick={() => setTatChip(tatChip === "within" ? "" : "within")}
+                style={{ border: `1.5px solid ${GREEN}`, background: tatChip === "within" ? GREEN : "#fff", color: tatChip === "within" ? "#fff" : GREEN, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                Within TAT
+              </button>
+              <button onClick={() => setTatChip(tatChip === "beyond" ? "" : "beyond")}
+                style={{ border: `1.5px solid ${RED}`, background: tatChip === "beyond" ? RED : "#fff", color: tatChip === "beyond" ? "#fff" : RED, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                Beyond TAT
+              </button>
+              <button onClick={() => setHniChip(h => !h)}
+                style={{ border: `1.5px solid ${GOLD}`, background: hniChip ? GOLD : "#fff", color: hniChip ? "#fff" : GOLD, borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                👑 HNI Tickets
+              </button>
+              {(tatChip || hniChip) && <span style={{ fontSize: 11.5, color: "var(--mut)" }}>filtering charts &amp; records · click again to clear</span>}
+              {tab === "open" && ageF >= 0 && (
                 <button onClick={() => setAgeF(-1)} style={{ border: "1.5px solid #d8d2c4", background: "#faf8f2", color: "var(--ink)", borderRadius: 999, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                   Ageing: {AGE_BANDS[ageF].label} ✕
                 </button>
