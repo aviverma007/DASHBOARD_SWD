@@ -15,6 +15,9 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
+/** Survives sidebar remounts on navigation; reset only on page reload. */
+let closedSectionsCache: Set<string> | null = null;
+
 export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProps) {
   const access = useAuthStore((st: { access: "all" | string[] | null }) => st.access);
   const role = useAuthStore((st: { role: string | null }) => st.role);
@@ -22,7 +25,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
   // Which section groups are folded shut; all minimized by default
   // (except Top, which holds Home) — click a header to expand.
   const [closedSections, setClosedSections] = useState<Set<string>>(
-    () => new Set(NAV_SECTIONS.filter(sec => sec !== "Top"))
+    () => closedSectionsCache ?? new Set(NAV_SECTIONS.filter(sec => sec !== "Top"))
   );
   function toggleSection(section: string) {
     setClosedSections(prev => {
