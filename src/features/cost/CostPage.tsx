@@ -13,6 +13,7 @@ const CAP: React.CSSProperties = { fontSize: 11.5, color: "#b8893c", marginBotto
 const SEL: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontFamily: "inherit", maxWidth: 220 };
 const WLBL: React.CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 };
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
+const fShort = (v: number) => (Math.abs(v) >= 1e7 ? `${(v / 1e7).toFixed(1)}Cr` : Math.abs(v) >= 1e5 ? `${(v / 1e5).toFixed(0)}L` : `${Math.round(v / 1000)}k`);
 const ST_COL = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8d99ae" } as const;
 
 export default function CostPage() {
@@ -90,6 +91,7 @@ export default function CostPage() {
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: "var(--ink)", lineHeight: 1, whiteSpace: "nowrap" }}>{v}</div>
         <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: "#8a8474", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s}</div>
       </div>
     </div>
   );
@@ -149,9 +151,9 @@ export default function CostPage() {
         {/* KPI tickets — reference set */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
-          <KPI k="Utilized" v={fMoney(assigned)} s={`from ${fN(poRows.length)} PO lines · actual + commitment`} col={TEAL} />
-          <KPI k="Balance available" v={fMoney(available)} s={`unspent as on ${CB.meta.asOn}`} col={GREEN} />
-          <KPI k="Utilization" v={`${util.toFixed(1)}%`} s="watch >80% · critical >95%" col={util > 95 ? RED : util > 80 ? AMBER : GOLD} />
+          <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
+          <KPI k="Balance available" v={fMoney(available)} s={`${(100 - util).toFixed(1)}% of ${fMoney(budget)} unspent`} col={GREEN} />
+          <KPI k="Utilization" v={`${util.toFixed(1)}%`} s={`${fMoney(assigned)} used vs ${fMoney(budget)} total`} col={util > 95 ? RED : util > 80 ? AMBER : GOLD} />
           <KPI k="WBS at risk" v={fN(critWbs)} s={`critical of ${fN(rows.length)} in scope`} col={RED}
             onClick={() => open([{ dim: "status", val: "critical", label: "Critical (>95%)" }])} />
         </div>
@@ -172,13 +174,19 @@ export default function CostPage() {
                       style={{ padding: "4px 0", cursor: "pointer" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
                         <span style={{ color: "var(--ink)", fontWeight: 700 }}>{p}</span>
-                        <span style={{ color: "var(--mut)" }}>{fMoney(e.a)} / {fMoney(e.b)}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700 }}>Utilized {fMoney(e.a)} / Budget {fMoney(e.b)} · {e.b > 0 ? `${((e.a / e.b) * 100).toFixed(1)}%` : "—"}</span>
                       </div>
-                      <div style={{ height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden", marginBottom: 2 }}>
-                        <div style={{ height: "100%", width: `${(e.b / mx) * 100}%`, background: NAVY, borderRadius: 4 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <div style={{ flex: 1, height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.b / mx) * 100}%`, background: NAVY, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: NAVY, width: 52, textAlign: "right", flexShrink: 0 }}>{fShort(e.b)}</span>
                       </div>
-                      <div style={{ height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(e.a / mx) * 100}%`, background: TEAL, borderRadius: 4 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ flex: 1, height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.a / mx) * 100}%`, background: TEAL, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: TEAL, width: 52, textAlign: "right", flexShrink: 0 }}>{fShort(e.a)}</span>
                       </div>
                     </div>
                   ));
@@ -198,7 +206,8 @@ export default function CostPage() {
                       onClick={() => open([{ dim: "mon", val: k, label: ymLbl(k) }])}
                       onMouseEnter={e => showTip(e, `<b>${ymLbl(k)}</b><br/>${fMoney(v)} ordered<br/>click → drill`)}
                       onMouseMove={e => showTip(e, `<b>${ymLbl(k)}</b><br/>${fMoney(v)}`)} onMouseLeave={hideTip}>
-                      <div style={{ width: "60%", maxWidth: 22, height: `${(v / mx) * 190}px`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2, cursor: "pointer" }} />
+                      <span style={{ fontSize: 8.5, fontWeight: 700, color: TEAL, whiteSpace: "nowrap" }}>{fShort(v)}</span>
+                      <div style={{ width: "60%", maxWidth: 22, height: `${(v / mx) * 172}px`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2, cursor: "pointer" }} />
                       <span style={{ fontSize: 9, color: "var(--mut)", whiteSpace: "nowrap" }}>{ymLbl(k)}</span>
                     </div>
                   ));
@@ -243,7 +252,7 @@ export default function CostPage() {
                           style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
                           <span style={{ width: 10, height: 10, borderRadius: 3, background: ST_COL[it.k] }} />
                           <span style={{ fontSize: 12.5, color: "var(--ink)", flex: 1 }}>{STATUS_LBL[it.k]}</span>
-                          <span style={{ fontSize: 12.5, fontWeight: 700 }}>{fN(it.v)}</span>
+                          <span style={{ fontSize: 12.5, fontWeight: 700 }}>{fN(it.v)} <span style={{ color: "var(--mut)", fontWeight: 600 }}>({((it.v / tot) * 100).toFixed(1)}%)</span></span>
                         </div>
                       ))}
                     </div>
@@ -264,9 +273,9 @@ export default function CostPage() {
                       onMouseEnter={ev => showTip(ev, `<b>${CB.DEPT[k]}</b><br/>Utilized — ${fMoney(e.a)}<br/>Budget — ${fMoney(e.b)} (${e.b > 0 ? ((e.a / e.b) * 100).toFixed(1) : "—"}%)`)}
                       onMouseMove={ev => showTip(ev, `<b>${CB.DEPT[k]}</b><br/>${fMoney(e.a)}`)} onMouseLeave={hideTip}
                       style={{ padding: "4px 0", cursor: "pointer" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CB.DEPT[k]}</span>
-                        <span style={{ color: "var(--mut)" }}>{fMoney(e.a)}</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2, gap: 8 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{CB.DEPT[k]}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700, whiteSpace: "nowrap" }}>{fMoney(e.a)} / {fMoney(e.b)} · {e.b > 0 ? `${((e.a / e.b) * 100).toFixed(0)}%` : "—"}</span>
                       </div>
                       <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${(e.a / mx) * 100}%`, background: GOLD, borderRadius: 5 }} />
@@ -291,7 +300,7 @@ export default function CostPage() {
                       style={{ padding: "3.5px 0", cursor: "pointer" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 2, gap: 8 }}>
                         <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.wbs}</span>
-                        <span style={{ color: "var(--mut)", whiteSpace: "nowrap" }}>{fMoney(w.assigned)}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700, whiteSpace: "nowrap" }}>{fMoney(w.assigned)} of {fMoney(w.budget)}{w.budget > 0 ? ` (${((w.assigned / w.budget) * 100).toFixed(0)}%)` : ""}</span>
                       </div>
                       <div style={{ height: 6, background: "#f0ede5", borderRadius: 4, overflow: "hidden", position: "relative", marginBottom: 2 }}>
                         <div style={{ position: "absolute", inset: 0, width: `${(w.budget / mx) * 100}%`, background: "#c6d3e3", borderRadius: 4 }} />
