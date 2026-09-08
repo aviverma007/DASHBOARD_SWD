@@ -38,8 +38,10 @@ const OPEN_PATHS = ["/", "/settings", "/change-password"];
 /** Does this access list allow a route path? */
 export function canAccess(access: "all" | string[] | null | undefined, path: string): boolean {
   if (OPEN_PATHS.includes(path)) return true;
-  if (!access) return false;
-  if (access === "all") return true;
+  // null/undefined = a session persisted before view rights existed —
+  // those were always full-access logins, so treat as "all". Restricted
+  // accounts always carry an explicit array.
+  if (access == null || access === "all") return true;
   return access.some(p => path === p || path.startsWith(p + "/"));
 }
 
