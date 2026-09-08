@@ -28,6 +28,7 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
     setClosedSections(prev => {
       const next = new Set(prev);
       if (next.has(section)) next.delete(section); else next.add(section);
+      closedSectionsCache = next;
       return next;
     });
   }
