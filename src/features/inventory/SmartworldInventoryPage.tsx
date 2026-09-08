@@ -25,6 +25,7 @@ import { SwDrawer, SwUnitDetail } from "../../components/inventory/SwDrawer";
 import { SwBlkByProjCard } from "../../components/inventory/SwBlkByProjCard";
 import { CollapsibleCard } from "../../components/common/CollapsibleCard";
 import "../../components/inventory/smartworldInventory.css";
+import { PageBanner } from "../../components/layout/PageBanner";
 
 const RD = rawData as unknown as RawInventoryDataset;
 
@@ -150,11 +151,10 @@ export function SmartworldInventoryPage() {
 
   return (
     <div className="sw-inv">
-      <header>
-        <div className="topbar">
-          <SwFilters P={P} CFG={CFG} state={filterState} onChangeState={setFilterState} />
-        </div>
-      </header>
+      <div className="tv-zoom-desktop">
+      <PageBanner title="Inventory" sub={<>{RD.P.length} projects · {RD.U.length.toLocaleString("en-IN")} units · availability, bookings and blocks by tower</>}>
+        <SwFilters P={P} CFG={CFG} state={filterState} onChangeState={setFilterState} />
+      </PageBanner>
 
       <div className="wrap">
         <SwKpis s={s} onAll={handleKAll} onStatus={handleKSt} />
@@ -279,6 +279,7 @@ export function SmartworldInventoryPage() {
             }}
           />
         </CollapsibleCard>
+      </div>
       </div>
 
       {isDrawerOpen && !selectedUnit && (

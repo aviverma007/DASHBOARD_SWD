@@ -269,7 +269,7 @@ function Spark({ items }: { items: { value: number }[] }) {
   );
 }
 
-const SEL: React.CSSProperties = { fontFamily: "inherit", fontSize: 13, padding: "8px 12px", borderRadius: 9, border: "1.5px solid #cfd6e2", background: "#fff", color: "var(--ink)", cursor: "pointer", minWidth: 170 };
+const SEL: React.CSSProperties = { boxSizing: "border-box", height: 34, fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, padding: "0 10px", borderRadius: 8, border: "1px solid #d8d2c4", backgroundColor: "#fff", color: "var(--ink)", cursor: "pointer", minWidth: 170, outline: "none" };
 const SELLBL: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "1.4px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 5 };
 
 /** Momentum & comparison — two periods side by side, Quarter/Year switch. */

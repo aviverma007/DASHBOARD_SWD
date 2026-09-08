@@ -5,6 +5,7 @@ import { ProjectCard } from "../../components/projects/ProjectCard";
 import type { ProjectCardData } from "../../components/projects/ProjectCard";
 import { ProjectDrawer } from "../../components/projects/ProjectDrawer";
 import "../../components/inventory/smartworldInventory.css";
+import { PageBanner } from "../../components/layout/PageBanner";
 
 const RD = rawData as unknown as RawInventoryDataset;
 
@@ -72,30 +73,9 @@ export function ProjectsPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
-      {/* Page header — matches Inventory's own navy header style */}
-      <div
-        style={{
-          background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)",
-          padding: "18px 24px 20px",
-          borderBottom: "3px solid var(--gold)",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "Georgia,serif",
-            fontSize: 20,
-            color: "#fff",
-            fontWeight: 700,
-            marginBottom: 4,
-          }}
-        >
-          Projects
-        </div>
-        <div style={{ fontSize: 12.5, color: "#a9b2c7" }}>
-          {RD.P.length} projects · {RD.U.length.toLocaleString("en-IN")} total units · click a
-          project to see its stack plan
-        </div>
-      </div>
+      <div className="tv-zoom-desktop">
+      <PageBanner title="Projects"
+        sub={<>{RD.P.length} projects · {RD.U.length.toLocaleString("en-IN")} total units · click a project to see its stack plan</>} />
 
       <div className="wrap">
         {/* Summary strip */}
@@ -156,6 +136,7 @@ export function ProjectsPage() {
             <ProjectCard key={project.projectIndex} project={project} onClick={setSelected} />
           ))}
         </div>
+      </div>
       </div>
 
       {/* Stack plan drawer */}

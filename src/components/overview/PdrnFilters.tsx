@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { DATA_AS_ON } from "../../config/dataInfo";
+import { PageBanner, BANNER_LBL, BANNER_CTL } from "../layout/PageBanner";
 
 interface PdrnFiltersProps {
   projects: string[];
@@ -11,25 +12,8 @@ interface PdrnFiltersProps {
   onReset: () => void;
 }
 
-const PILL: React.CSSProperties = {
-  appearance: "none" as const,
-  background: "#1D2A4A",
-  color: "#fff",
-  border: "1px solid #33406B",
-  borderRadius: 7,
-  padding: "8px 13px",
-  fontSize: 13,
-  fontFamily: "inherit",
-  cursor: "pointer",
-};
-const LBL: React.CSSProperties = {
-  display: "block",
-  fontSize: 10,
-  letterSpacing: "1.5px",
-  textTransform: "uppercase" as const,
-  color: "#A9B2C7",
-  marginBottom: 5,
-};
+const PILL: React.CSSProperties = BANNER_CTL;
+const LBL: React.CSSProperties = BANNER_LBL;
 
 export function PdrnFilters({ projects, selectedProjects, onProjectsChange, locations, location, onLocationChange, onReset }: PdrnFiltersProps) {
   const [panelOpen, setPanelOpen] = useState(false);
@@ -58,15 +42,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
     : `${selectedProjects.size} projects`;
 
   return (
-    <div style={{
-      background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)",
-      padding: "12px 22px",
-      borderBottom: "3px solid var(--gold)",
-      display: "flex",
-      flexWrap: "wrap",
-      alignItems: "flex-end",
-      gap: 12,
-    }}>
+    <PageBanner title="Overview" sub={<>Portfolio snapshot across projects and locations · data as on {DATA_AS_ON}</>}>
       {/* Location — single-select, placed before Project since it narrows it */}
       <div>
         <label style={LBL}>Location</label>
@@ -90,7 +66,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
           onClick={() => setPanelOpen(v => !v)}
           style={{ ...PILL, minWidth: 180, textAlign: "left" as const }}
         >
-          {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+          {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
         </button>
         {panelOpen && (
           <div style={{
@@ -132,12 +108,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
         )}
       </div>
 
-      <div style={{ flex: 1 }} />
-      <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 8, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
-      <button onClick={onReset} style={{
-        background:"none", border:"none", color:"#c7cedf",
-        fontSize:12.5, fontFamily:"inherit", cursor:"pointer", paddingBottom:8,
-      }}>Reset</button>
-    </div>
+      <button onClick={onReset} className="pb-btn">⟲ Reset</button>
+    </PageBanner>
   );
 }

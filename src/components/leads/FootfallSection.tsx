@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import {
   FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
@@ -24,7 +25,7 @@ import { VisitRecordPanel } from "./VisitRecordPanel";
 
 const PAGE_SIZE = 10;
 
-export function FootfallSection() {
+export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
   const [filters, setFilters] = useState<FfFilter[]>([]);
   const [page, setPage] = useState(1);
   const [sortDir, setSortDir] = useState<-1 | 1>(-1);
@@ -111,9 +112,9 @@ export function FootfallSection() {
         onClose={() => setDrill(null)}
       />
       {/* Global filter bar — in the navy banner like every other page */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
         <div style={{ position: "relative" }}>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Projects / campaigns</div>
+          <div style={BANNER_LBL}>Projects / campaigns</div>
           <button onClick={() => setProjOpen(v => !v)}
             style={{ ...SEL, minWidth: 220, textAlign: "left", cursor: "pointer" }}>
             {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
@@ -137,7 +138,7 @@ export function FootfallSection() {
           )}
         </div>
         <div>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
+          <div style={BANNER_LBL}>Period</div>
           <select style={SEL} value={perKey} onChange={e => { setPerKey(e.target.value); setPage(1); }}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             <option value="custom">Custom range…</option>
@@ -146,20 +147,20 @@ export function FootfallSection() {
         {per.key === "custom" && (
           <>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
+              <div style={BANNER_LBL}>From</div>
               <input type="date" min="2022-01-01" value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
+              <div style={BANNER_LBL}>To</div>
               <input type="date" min="2022-01-01" value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
             </div>
           </>
         )}
-      </div>
+      </PageBanner>
 
       {/* Momentum & comparison (own periods; respects dimension filters) */}
       <MomentumCard records={dimRows} />

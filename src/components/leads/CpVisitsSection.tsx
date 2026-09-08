@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import { fNum, isoToDay, dayToDate, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
@@ -18,7 +19,7 @@ const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat
  * visit export (48,397 partner gallery visits, 5,421 partners), NOT
  * derived from customer footfall. Booking data intentionally absent:
  * this file tracks partner engagement. */
-export function CpVisitsSection() {
+export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
   const [projFilter, setProjFilter] = useState<CpvChip | null>(null);
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
@@ -136,9 +137,9 @@ export function CpVisitsSection() {
       />
 
       {/* Filter bar — in the navy banner */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
         <div>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Project</div>
+          <div style={BANNER_LBL}>Project</div>
           <select
             style={SEL}
             value={projFilter ? String(projFilter.val) : "all"}
@@ -152,7 +153,7 @@ export function CpVisitsSection() {
           </select>
         </div>
         <div>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
+          <div style={BANNER_LBL}>Period</div>
           <select style={SEL} value={perKey} onChange={e => setPerKey(e.target.value)}>
             {PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             <option value="custom">Custom range…</option>
@@ -161,16 +162,16 @@ export function CpVisitsSection() {
         {per.key === "custom" && (
           <>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
+              <div style={BANNER_LBL}>From</div>
               <input type="date" min="2022-01-01" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
+              <div style={BANNER_LBL}>To</div>
               <input type="date" min="2022-01-01" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...SEL, minWidth: 140 }} />
             </div>
           </>
         )}
-      </div>
+      </PageBanner>
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 4 }}>

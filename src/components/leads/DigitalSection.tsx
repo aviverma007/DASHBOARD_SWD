@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import { dayToDate, fNum, isoToDay, type PeriodPreset } from "../../utils/footfallLogic";
 import {
@@ -23,7 +24,7 @@ import type { DigRec as DigRecT } from "./digitalShared";
  * (names, emails, phones) are deliberately NOT in the app dataset.
  * Click any bar/slice to filter every card at once (chips clear it). */
 
-export function DigitalSection() {
+export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
   const [chips, setChips] = useState<Chip[]>([]);
   const [drill, setDrill] = useState<import("./DigitalDrillDrawer").DigDrillSeed | null>(null);
   const [recDetail, setRecDetail] = useState<DigRecT | null>(null);
@@ -139,13 +140,12 @@ export function DigitalSection() {
       />
 
       {/* Filter bar */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", margin: "-18px -22px 16px", padding: "4px 24px 14px", borderBottom: "3px solid var(--gold)", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
         <div>
-          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period</div>
-          <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+          <div style={BANNER_LBL}>Period</div>
+          <div className="pb-pills">
             {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => { setPerMode(k); setPage(1); }}
-                style={{ border: "none", background: perMode === k ? "#B8893C" : "transparent", color: "#fff", fontWeight: 700, fontSize: 11.5, padding: "6px 13px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+              <button key={k} className={`pb-pill${perMode === k ? " on" : ""}`} onClick={() => { setPerMode(k); setPage(1); }}>
                 {l}
               </button>
             ))}
@@ -153,7 +153,7 @@ export function DigitalSection() {
         </div>
         {["y", "q", "m"].includes(perMode) && (
           <div>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>{perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}</div>
+            <div style={BANNER_LBL}>{perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}</div>
             <select style={SEL} value={perSel} onChange={e => { setPerSel(e.target.value); setPage(1); }}>
               {perOptions.map(k => (
                 <option key={k} value={k}>
@@ -166,13 +166,13 @@ export function DigitalSection() {
         {perMode === "c" && (
           <>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From</div>
+              <div style={BANNER_LBL}>From</div>
               <input type="date" min="2022-01-01" value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
             </div>
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To</div>
+              <div style={BANNER_LBL}>To</div>
               <input type="date" min="2022-01-01" value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
                 style={{ ...SEL, minWidth: 140 }} />
@@ -194,7 +194,7 @@ export function DigitalSection() {
             </button>
           </div>
         )}
-      </div>
+      </PageBanner>
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 4 }}>

@@ -1,0 +1,193 @@
+/**
+ * PageBanner — the single navy header used by every dashboard page.
+ *
+ * One geometry everywhere:
+ *   padding 14px 22px · title row min 42px · filter row 12px below ·
+ *   every control is exactly 34px tall · 3px gold rule underneath.
+ * With one filter row the banner is always 14+42+12+16+34+14 = 132px,
+ * and `min-height` keeps title-only pages (Projects) the same height.
+ */
+.pb {
+  background: linear-gradient(115deg, #111c36 0%, #1e3163 55%, #2a4488 100%);
+  border-bottom: 3px solid var(--gold, #b8893c);
+  padding: 14px 22px;
+  min-height: 132px;
+  box-sizing: border-box;
+  color: #fff;
+}
+.pb-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+}
+.pb-title {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+.pb-sub {
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+}
+.pb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+.pb-lbl {
+  display: block;
+  font-size: 9.5px;
+  line-height: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 4px;
+}
+
+/* Controls — white on navy, all 34px tall so rows line up across pages.
+   Specificity is raised (.sw-inv .pb …) so these beat the verbatim
+   Inventory port's dark `.sw-inv select` / `.msbtn` rules. */
+.pb .pb-ctl,
+.sw-inv .pb .pb-ctl,
+.sw-inv .pb select,
+.sw-inv .pb input:not([type="checkbox"]):not([type="radio"]),
+.sw-inv .pb .msbtn {
+  box-sizing: border-box;
+  height: 34px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ink, #14213d);
+  background-color: #fff;
+  border: 1px solid #d8d2c4;
+  border-radius: 8px;
+  padding: 0 10px;
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+}
+/* Arrow is applied as background-image only, so an inline
+   `backgroundColor` (BANNER_CTL) still keeps it. */
+.sw-inv .pb select {
+  appearance: none;
+  padding-right: 26px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238a93a6' d='M5 6 0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.sw-inv .pb input:not([type="checkbox"]):not([type="radio"]) {
+  cursor: text;
+}
+.sw-inv .pb select:focus,
+.sw-inv .pb input:focus,
+.pb .pb-ctl:focus {
+  outline: none;
+  border-color: #0e7490;
+}
+.sw-inv .pb .msbtn:hover,
+.pb .pb-ctl:hover {
+  border-color: #0e7490;
+}
+/* Inventory's filter group inherits the shared label + spacing */
+.sw-inv .pb .filters {
+  gap: 12px;
+}
+.sw-inv .pb .filt > label {
+  font-size: 9.5px;
+  line-height: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 4px;
+}
+
+/* Segmented period pills — one look everywhere */
+.pb-pills {
+  display: inline-flex;
+  box-sizing: border-box;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.pb-pill {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 11.5px;
+  font-family: inherit;
+  padding: 0 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pb-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.pb-pill.on,
+.pb-pill.on:hover {
+  background: var(--gold, #b8893c);
+}
+
+/* Page tabs (right of the title) share the pill look, slightly larger */
+.pb-tabs {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.pb-tab {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pb-tab.on {
+  background: var(--gold, #b8893c);
+}
+
+/* Ghost button (Reset etc.) */
+.pb-btn {
+  box-sizing: border-box;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 0 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pb-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 640px) {
+  .pb {
+    padding: 12px 14px;
+    min-height: 0;
+  }
+}

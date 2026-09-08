@@ -17,6 +17,7 @@ import { RateTrendOverTimeCard } from "../../components/target/RateTrendOverTime
 import { TypeWiseSaleCard } from "../../components/target/TypeWiseSaleCard";
 import { MonthDrillDrawer } from "../../components/target/MonthDrillDrawer";
 import { ScopeDrawer } from "../../components/target/ScopeDrawer";
+import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 interface MonthMeta { year: number; month: number; label: string; }
 interface ProjectTarget { name: string; units: number[]; area: number[]; rate: number[]; sale_value: number[]; }
@@ -145,14 +146,14 @@ function TvaSummaryCard({ title, rows }: { title: string; rows: SummaryCardRows 
 }
 
 // ── Filter controls ───────────────────────────────────────────────────────────
-const FILTER_LBL: React.CSSProperties = { display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 };
-const FILTER_PILL: React.CSSProperties = { background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" };
+const FILTER_LBL: React.CSSProperties = BANNER_LBL;
+const FILTER_PILL: React.CSSProperties = BANNER_CTL;
 
 function LocationSelect({ locations, value, onChange }: { locations: string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div>
       <label style={FILTER_LBL}>Location</label>
-      <select value={value} onChange={e => onChange(e.target.value)} style={{ ...FILTER_PILL, minWidth: 140, padding: "9px 28px 9px 13px" }}>
+      <select value={value} onChange={e => onChange(e.target.value)} style={{ ...FILTER_PILL, minWidth: 140 }}>
         <option value="">All locations</option>
         {locations.map(l => <option key={l} value={l}>{l}</option>)}
       </select>
@@ -190,7 +191,7 @@ function ProjectMultiSelect({ projects, selected, onChange }: { projects: string
     <div ref={ref} style={{ position: "relative" }}>
       <label style={FILTER_LBL}>Project</label>
       <button type="button" onClick={() => setOpen(v => !v)} style={{ ...FILTER_PILL, minWidth: 200, textAlign: "left" }}>
-        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+        {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
       </button>
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
@@ -837,20 +838,15 @@ export function TargetActualPage() {
           of staying pinned to the real viewport. */}
       <div className="tv-zoom-desktop" style={{ overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px 14px", borderBottom: "3px solid var(--gold)" }}>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Target vs Actual</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>AOP targets against achieved units, value and rates</div>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
+      <PageBanner title="Target vs Actual" sub={<>AOP targets against achieved units, value and rates · data as on {DATA_AS_ON}</>}>
         <LocationSelect locations={LOCATIONS} value={location} onChange={handleLocationChange} />
         <ProjectMultiSelect projects={availableNames} selected={selectedProjects} onChange={setSelectedProjects} />
 
         <div>
-          <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
-          <div style={{ display: "flex", gap: 5 }}>
+          <label style={BANNER_LBL}>Period</label>
+          <div className="pb-pills">
             {(["all", "year", "quarter", "month", "custom"] as PeriodType[]).map(t => (
-              <button key={t} onClick={() => setPeriodType(t)} style={{ background: periodType === t ? "#B8893C" : "#1D2A4A", color: "#fff", border: `1px solid ${periodType === t ? "#B8893C" : "#33406B"}`, borderRadius: 7, padding: "9px 14px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <button key={t} className={`pb-pill${periodType === t ? " on" : ""}`} onClick={() => setPeriodType(t)}>
                 {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -859,24 +855,24 @@ export function TargetActualPage() {
 
         {(periodType === "year" || periodType === "quarter" || periodType === "month") && (
           <div>
-            <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
-            <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value))} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <label style={BANNER_LBL}>Year</label>
+            <select value={yearIdx} onChange={e => setYearIdx(Number(e.target.value))} style={BANNER_CTL}>
               {YEAR_OPTIONS.map((y, i) => <option key={y.label} value={i}>{y.label}</option>)}
             </select>
           </div>
         )}
         {periodType === "quarter" && (
           <div>
-            <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Quarter</label>
-            <select value={quarter} onChange={e => setQuarter(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <label style={BANNER_LBL}>Quarter</label>
+            <select value={quarter} onChange={e => setQuarter(+e.target.value)} style={BANNER_CTL}>
               {QUARTER_LABELS.map((q, i) => <option key={q} value={i + 1}>{q}</option>)}
             </select>
           </div>
         )}
         {periodType === "month" && (
           <div>
-            <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Month</label>
-            <select value={month} onChange={e => setMonth(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <label style={BANNER_LBL}>Month</label>
+            <select value={month} onChange={e => setMonth(+e.target.value)} style={BANNER_CTL}>
               {(() => {
                 const yr = YEAR_OPTIONS[yearIdx];
                 const len = yr.end - yr.start + 1;
@@ -889,25 +885,22 @@ export function TargetActualPage() {
         {periodType === "custom" && (
           <>
             <div>
-              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>From</label>
-              <select value={customFrom} onChange={e => setCustomFrom(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <label style={BANNER_LBL}>From</label>
+              <select value={customFrom} onChange={e => setCustomFrom(+e.target.value)} style={BANNER_CTL}>
                 {TIMELINE.map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>To</label>
-              <select value={customTo} onChange={e => setCustomTo(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <label style={BANNER_LBL}>To</label>
+              <select value={customTo} onChange={e => setCustomTo(+e.target.value)} style={BANNER_CTL}>
                 {TIMELINE.map((m, i) => <option key={m.label} value={i}>{m.label}</option>)}
               </select>
             </div>
           </>
         )}
 
-        <div style={{ flex: 1 }} />
-        <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 9, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
-        <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
-        </div>
-      </div>
+        <button onClick={handleReset} className="pb-btn">⟲ Reset</button>
+      </PageBanner>
 
       <div className="wrap">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>

@@ -15,8 +15,9 @@ import {
 } from "../../components/leads/footfallCharts";
 import { AnimatePresence, motion } from "framer-motion";
 import "../../components/inventory/smartworldInventory.css";
+import { PageBanner, BANNER_LBL } from "../../components/layout/PageBanner";
 
-const SELLBL: React.CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 };
+const SELLBL: React.CSSProperties = BANNER_LBL;
 
 /** BOOKINGS — modelled on the reference suite's Bookings tab, driven
  * by the PDRN export we already ship (active bookings). The HTML's
@@ -184,13 +185,7 @@ export function BookingsPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       <div className="tv-zoom-desktop">
       {/* Header */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "18px 24px 16px", borderBottom: "3px solid var(--gold)" }}>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Bookings</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 3 }}>
-          {fN(ROWS.length)} active bookings · data as on {AS_ON}
-        </div>
-        {/* Filters: multi-project + period pills — in the banner like every other page */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, alignItems: "flex-end" }}>
+      <PageBanner title="Bookings" sub={<>{fN(ROWS.length)} active bookings · data as on {AS_ON}</>}>
           <div ref={projRef} style={{ position: "relative" }}>
             <div style={SELLBL}>Projects</div>
             <button onClick={() => setProjOpen(v => !v)}
@@ -216,11 +211,9 @@ export function BookingsPage() {
           </div>
           <div>
             <div style={SELLBL}>Period</div>
-            <div style={{ display: "inline-flex", background: "#14213d", borderRadius: 12, padding: 4, gap: 4 }}>
+            <div className="pb-pills">
               {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([m, l]) => (
-                <button key={m} onClick={() => { setPerMode(m); setPerKey(""); setPage(1); }}
-                  style={{ border: "none", borderRadius: 9, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                    background: perMode === m ? "#B8893C" : "transparent", color: "#fff" }}>
+                <button key={m} className={`pb-pill${perMode === m ? " on" : ""}`} onClick={() => { setPerMode(m); setPerKey(""); setPage(1); }}>
                   {l}
                 </button>
               ))}
@@ -254,8 +247,7 @@ export function BookingsPage() {
               </select>
             </div>
           )}
-        </div>
-      </div>
+      </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
 

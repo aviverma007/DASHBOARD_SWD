@@ -13,6 +13,7 @@ import { CancelledRebookingCard } from "../../components/channelpartner/Cancelle
 import { CpDrillDrawer } from "../../components/channelpartner/CpDrillDrawer";
 import { CpMonthDrawer } from "../../components/channelpartner/CpMonthDrawer";
 import "../../components/inventory/smartworldInventory.css";
+import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 const TOP_N = 12;
 type PeriodType = PeriodScope["type"];
@@ -46,9 +47,9 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Project</label>
-      <button type="button" onClick={() => setOpen(v => !v)} style={{ minWidth: 200, textAlign: "left", background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+      <label style={BANNER_LBL}>Project</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...BANNER_CTL, minWidth: 200, textAlign: "left" }}>
+        {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
       </button>
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
@@ -104,9 +105,9 @@ function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; on
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Channel partner</label>
-      <button type="button" onClick={() => setOpen(v => !v)} style={{ minWidth: 180, maxWidth: 240, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
-        {label} <span style={{ color: "#B8893C", marginLeft: 6 }}>▾</span>
+      <label style={BANNER_LBL}>Channel partner</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...BANNER_CTL, minWidth: 180, maxWidth: 240, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
       </button>
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 300, maxHeight: 360, display: "flex", flexDirection: "column" }}>
@@ -207,21 +208,17 @@ export function ChannelPartnerPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
+      <div className="tv-zoom-desktop">
       {/* Header + filter bar */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px 14px", borderBottom: "3px solid var(--gold)" }}>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Channel Partners</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>Broker performance, trends and cancellations</div>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 14 }}>
+      <PageBanner title="Channel Partners" sub={<>Broker performance, trends and cancellations · data as on {DATA_AS_ON}</>}>
         <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
         <CpSearchMultiSelect selected={selectedCps} onChange={setSelectedCps} />
 
         <div>
-          <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Period</label>
-          <div style={{ display: "flex", gap: 5 }}>
+          <label style={BANNER_LBL}>Period</label>
+          <div className="pb-pills">
             {(["all", "year", "quarter", "month"] as PeriodType[]).map(t => (
-              <button key={t} onClick={() => setPeriodType(t)} style={{ background: periodType === t ? "#B8893C" : "#1D2A4A", color: "#fff", border: `1px solid ${periodType === t ? "#B8893C" : "#33406B"}`, borderRadius: 7, padding: "9px 14px", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <button key={t} className={`pb-pill${periodType === t ? " on" : ""}`} onClick={() => setPeriodType(t)}>
                 {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -230,16 +227,16 @@ export function ChannelPartnerPage() {
 
         {(periodType === "year" || periodType === "quarter") && (
           <div>
-            <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
-            <select value={fyIdx} onChange={e => setFyIdx(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <label style={BANNER_LBL}>Year</label>
+            <select value={fyIdx} onChange={e => setFyIdx(+e.target.value)} style={BANNER_CTL}>
               {CP_YEAR_OPTIONS.map((y, i) => <option key={y.label} value={i}>{y.label}</option>)}
             </select>
           </div>
         )}
         {periodType === "quarter" && (
           <div>
-            <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Quarter</label>
-            <select value={quarter} onChange={e => setQuarter(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+            <label style={BANNER_LBL}>Quarter</label>
+            <select value={quarter} onChange={e => setQuarter(+e.target.value)} style={BANNER_CTL}>
               {QUARTER_LABELS.map((q, i) => <option key={q} value={i}>{q}</option>)}
             </select>
           </div>
@@ -247,25 +244,22 @@ export function ChannelPartnerPage() {
         {periodType === "month" && (
           <>
             <div>
-              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Month</label>
-              <select value={month} onChange={e => setMonth(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <label style={BANNER_LBL}>Month</label>
+              <select value={month} onChange={e => setMonth(+e.target.value)} style={BANNER_CTL}>
                 {MONTHS_LIST.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "#A9B2C7", marginBottom: 5 }}>Year</label>
-              <select value={monthYear} onChange={e => setMonthYear(+e.target.value)} style={{ background: "#1D2A4A", color: "#fff", border: "1px solid #33406B", borderRadius: 7, padding: "9px 28px 9px 13px", fontSize: 13.5, fontFamily: "inherit", cursor: "pointer" }}>
+              <label style={BANNER_LBL}>Year</label>
+              <select value={monthYear} onChange={e => setMonthYear(+e.target.value)} style={BANNER_CTL}>
                 {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           </>
         )}
 
-        <div style={{ flex: 1 }} />
-        <span style={{ color: "#c7cedf", fontSize: 12.5, paddingBottom: 8, marginRight: 14 }}>Data as on <strong style={{ color: "#fff", fontWeight: 600 }}>{DATA_AS_ON}</strong></span>
-        <button onClick={handleReset} style={{ background: "none", border: "none", color: "#c7cedf", fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", paddingBottom: 9 }}>Reset</button>
-        </div>
-      </div>
+        <button onClick={handleReset} className="pb-btn">⟲ Reset</button>
+      </PageBanner>
 
       <div className="wrap">
         <div style={{ marginBottom: 12, fontSize: 12.5, color: "var(--mut)" }}>
@@ -416,6 +410,7 @@ export function ChannelPartnerPage() {
           </div>
         )}
 
+      </div>
       </div>
 
       {drillMonth !== null && drillCpIdx === null && (

@@ -7,6 +7,7 @@ import {
   fmtDay, ymOf, ymLbl, fN, fyOf, fyLbl, EPOCH_MS, AGE_BANDS, ageBand,
 } from "../../components/cases/caseShared";
 import { CaseDrillDrawer, type CaseDrillSeed, type CaseChip } from "../../components/cases/CaseDrillDrawer";
+import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 /* House tokens — identical family to Bookings. Structure mirrors the
  * reference CRM app: page tabs, applicability toggle, stat tickets,
@@ -43,9 +44,9 @@ function SFilter({ label, value, onChange, options }: { label: string; value: nu
   const shown = q ? list.filter(o => o.n.toLowerCase().includes(q.toLowerCase())) : list;
   return (
     <div ref={ref} style={{ position: "relative", minWidth: 150 }}>
-      <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>{label}</div>
+      <div style={BANNER_LBL}>{label}</div>
       <div onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: 12.5, fontWeight: 600, color: value < 0 ? "var(--mut)" : "var(--ink)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, boxSizing: "border-box", height: 34, fontSize: 12.5, fontWeight: 600, color: value < 0 ? "var(--mut)" : "var(--ink)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value < 0 ? "All" : options[value]}</span>
         <span style={{ fontSize: 9, color: "var(--mut)", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
       </div>
@@ -233,27 +234,20 @@ export default function CaseManagementPage() {
       `}</style>
       <div className="tv-zoom-desktop">
       {/* ── Header: title + the 4 reference page tabs ── */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px", borderBottom: "3px solid var(--gold)" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Case Management</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</div>
-          </div>
-          <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+      <PageBanner title="Case Management" sub={<>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</>}
+        right={
+          <div className="pb-tabs">
             {TABS.map(t => (
-              <button key={t.k} className={`cm-btn${tab === t.k ? " cm-btn-on" : ""}`} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}
-                style={{ border: "none", background: tab === t.k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 12, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+              <button key={t.k} className={`pb-tab cm-btn${tab === t.k ? " on cm-btn-on" : ""}`} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}>
                 {t.l}
               </button>
             ))}
           </div>
-        </div>
-        {/* Filter bar — same placement pattern as every other page */}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12, marginTop: 12 }}>
+        }>
           <div style={{ minWidth: 180 }}>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Search</div>
+            <div style={BANNER_LBL}>Search</div>
             <input value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="Case number / account…"
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit", outline: "none" }} />
+              style={{ ...BANNER_CTL, width: "100%", cursor: "text" }} />
           </div>
           <SFilter label="Category" value={fArea} onChange={setFArea} options={CM.AREA} />
           <SFilter label="Sub Category" value={fSubA} onChange={setFSubA} options={CM.SUBA} />
@@ -263,11 +257,10 @@ export default function CaseManagementPage() {
           <SFilter label="Case Origin" value={fOrg} onChange={setFOrg} options={CM.ORG} />
           <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
           <div>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>Period (opened)</div>
-            <div style={{ display: "inline-flex", background: "rgba(255,255,255,.12)", borderRadius: 999, padding: 3, gap: 2 }}>
+            <div style={BANNER_LBL}>Period (opened)</div>
+            <div className="pb-pills">
               {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
-                <button key={k} className={`cm-btn${perMode === k ? " cm-btn-on" : ""}`} onClick={() => setPerMode(k)}
-                  style={{ border: "none", background: perMode === k ? GOLD : "transparent", color: "#fff", fontWeight: 700, fontSize: 11.5, padding: "6px 13px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                <button key={k} className={`pb-pill cm-btn${perMode === k ? " on cm-btn-on" : ""}`} onClick={() => setPerMode(k)}>
                   {l}
                 </button>
               ))}
@@ -275,11 +268,11 @@ export default function CaseManagementPage() {
           </div>
           {["y", "q", "m"].includes(perMode) && (
             <div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>
+              <div style={BANNER_LBL}>
                 {perMode === "y" ? "Financial year" : perMode === "q" ? "Quarter" : "Month"}
               </div>
               <select value={perSel} onChange={e => setPerSel(e.target.value)}
-                style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                style={BANNER_CTL}>
                 {perOptions.map(k => (
                   <option key={k} value={k}>
                     {perMode === "y" ? fyLbl(Number(k)) : perMode === "q" ? `Q${k.split("-Q")[1]} · ${fyLbl(Number(k.split("-Q")[0]))}` : ymLbl(k)}
@@ -291,23 +284,21 @@ export default function CaseManagementPage() {
           {perMode === "c" && (
             <>
               <div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>From date</div>
+                <div style={BANNER_LBL}>From date</div>
                 <input type="date" min="2025-04-01" value={cFrom} onChange={e => setCFrom(e.target.value)}
-                  style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "6px 10px", fontFamily: "inherit" }} />
+                  style={BANNER_CTL} />
               </div>
               <div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 }}>To date</div>
+                <div style={BANNER_LBL}>To date</div>
                 <input type="date" min={cFrom || "2025-04-01"} value={cTo} onChange={e => setCTo(e.target.value)}
-                  style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "6px 10px", fontFamily: "inherit" }} />
+                  style={BANNER_CTL} />
               </div>
             </>
           )}
-          <button className="cm-btn" onClick={resetAll}
-            style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
+          <button className="pb-btn cm-btn" onClick={resetAll}>
             ⟲ Reset
           </button>
-        </div>
-      </div>
+      </PageBanner>
 
       {/* ── Body ── */}
       <div style={{ padding: "16px 20px 40px" }}>

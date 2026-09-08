@@ -5,13 +5,14 @@ import {
   CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, TYPE_LBL, projLbl, ymOf, ymLbl, fMoney, fN,
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
+import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)" };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 16.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11.5, color: "#b8893c", marginBottom: 12 };
-const SEL: React.CSSProperties = { fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontFamily: "inherit", maxWidth: 220 };
-const WLBL: React.CSSProperties = { fontSize: 9.5, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.75)", marginBottom: 4 };
+const SEL: React.CSSProperties = { ...BANNER_CTL, maxWidth: 220 };
+const WLBL: React.CSSProperties = BANNER_LBL;
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
 const fShort = (v: number) => (Math.abs(v) >= 1e7 ? `${(v / 1e7).toFixed(1)}Cr` : Math.abs(v) >= 1e5 ? `${(v / 1e5).toFixed(0)}L` : `${Math.round(v / 1000)}k`);
 const ST_COL = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8d99ae" } as const;
@@ -37,7 +38,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
     <div ref={ref} style={{ position: "relative", width }}>
       <div style={WLBL}>{label}</div>
       <div onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: 12.5, fontWeight: 600, color: sel.length ? "var(--ink)" : "var(--mut)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, boxSizing: "border-box", height: 34, fontSize: 12.5, fontWeight: 600, color: sel.length ? "var(--ink)" : "var(--mut)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {sel.length === 0 ? "All" : sel.length === 1 ? (options.find(o => o.k === sel[0])?.l ?? "1 selected") : `${sel.length} selected`}
         </span>
@@ -180,12 +181,8 @@ export default function CostPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
-      <div style={{ background: "linear-gradient(115deg,#111C36 0%,#1E3163 55%,#2A4488 100%)", padding: "14px 22px", borderBottom: "3px solid var(--gold)" }}>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: "#fff", fontWeight: 700 }}>Cost — Budget Control</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)", marginTop: 2 }}>
-          {fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12, marginTop: 12 }}>
+      <PageBanner title="Cost — Budget Control"
+        sub={<>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
           <div>
             <div style={WLBL}>Budget type</div>
             <select style={SEL} value={typF} onChange={e => setTypF(Number(e.target.value))}>
@@ -202,7 +199,7 @@ export default function CostPage() {
           <div ref={qRef} style={{ position: "relative", minWidth: 200 }}>
             <div style={WLBL}>Search WBS / description</div>
             <input value={q} onChange={e => { setQ(e.target.value); setQOpen(true); }} onFocus={() => setQOpen(true)} placeholder="Type to search…"
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit", outline: "none" }} />
+              style={{ ...BANNER_CTL, width: "100%", cursor: "text" }} />
             {qOpen && qMatches.length > 0 && (
               <div style={{ position: "absolute", top: "100%", left: 0, right: 0, minWidth: 320, marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", maxHeight: 260, overflowY: "auto" }}>
                 {qMatches.map(w => (
@@ -218,11 +215,10 @@ export default function CostPage() {
             )}
           </div>
           <button onClick={() => { setTypF(-1); setDepts([]); setProjs([]); setPlants([]); setStats([]); setDescs([]); setQ(""); }}
-            style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
+            className="pb-btn">
             ⟲ Reset
           </button>
-        </div>
-      </div>
+      </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
         {/* KPI tickets — reference set */}
