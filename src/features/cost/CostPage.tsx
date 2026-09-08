@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
-  CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, TYPE_LBL, ymOf, ymLbl, fMoney, fN,
+  CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, TYPE_LBL, projLbl, ymOf, ymLbl, fMoney, fN,
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 
@@ -16,21 +16,96 @@ const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", R
 const fShort = (v: number) => (Math.abs(v) >= 1e7 ? `${(v / 1e7).toFixed(1)}Cr` : Math.abs(v) >= 1e5 ? `${(v / 1e5).toFixed(0)}L` : `${Math.round(v / 1000)}k`);
 const ST_COL = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8d99ae" } as const;
 
-export default function CostPage() {
-  const [typF, setTypF] = useState(0); // -1 all · 0 non-project (reference parity) · 1 project
-  const [dept, setDept] = useState(-1);
-  const [proj, setProj] = useState("");
-  const [staF, setStaF] = useState<"" | "healthy" | "watch" | "critical" | "nobudget">("");
+
+/** Searchable multi-select dropdown (house style, white-on-navy label). */
+function MSFilter({ label, options, sel, onChange, width = 190 }: {
+  label: string; options: { k: number | string; l: string }[];
+  sel: (number | string)[]; onChange: (v: (number | string)[]) => void; width?: number;
+}) {
+  const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setQ(""); } };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const shown = q ? options.filter(o => o.l.toLowerCase().includes(q.toLowerCase())) : options;
+  const toggle = (k: number | string) => onChange(sel.includes(k) ? sel.filter(x => x !== k) : [...sel, k]);
+  return (
+    <div ref={ref} style={{ position: "relative", width }}>
+      <div style={WLBL}>{label}</div>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: 12.5, fontWeight: 600, color: sel.length ? "var(--ink)" : "var(--mut)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {sel.length === 0 ? "All" : sel.length === 1 ? (options.find(o => o.k === sel[0])?.l ?? "1 selected") : `${sel.length} selected`}
+        </span>
+        <span style={{ fontSize: 9, color: "var(--mut)", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: 0, minWidth: "100%", width: Math.max(width, 250), marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", overflow: "hidden" }}>
+          <div style={{ padding: 6, borderBottom: "1px solid #f0ede5", display: "flex", gap: 6 }}>
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search…"
+              style={{ flex: 1, boxSizing: "border-box", fontSize: 12, fontWeight: 600, color: "var(--ink)", background: "#faf8f2", border: "1px solid #eae6da", borderRadius: 6, padding: "5px 8px", outline: "none", fontFamily: "inherit" }} />
+            {sel.length > 0 && (
+              <button onClick={() => onChange([])} style={{ border: "1px solid #eae6da", background: "#faf8f2", borderRadius: 6, fontSize: 11, fontWeight: 700, color: "var(--mut)", cursor: "pointer", padding: "0 8px", fontFamily: "inherit" }}>Clear</button>
+            )}
+          </div>
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            {shown.length ? shown.slice(0, 300).map(o => {
+              const on = sel.includes(o.k);
+              return (
+                <div key={String(o.k)} onClick={() => toggle(o.k)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 12, fontWeight: on ? 800 : 600, cursor: "pointer", color: on ? TEAL : "var(--ink)", background: on ? "rgba(14,116,144,.08)" : "transparent" }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, border: `1.5px solid ${on ? TEAL : "#c9c3b4"}`, background: on ? TEAL : "#fff", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on ? "✓" : ""}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.l}</span>
+                </div>
+              );
+            }) : <div style={{ padding: "8px 10px", fontSize: 11.5, color: "var(--mut)" }}>No matches</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function CostPage() {
+  const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
+  const [depts, setDepts] = useState<(number | string)[]>([]);
+  const [projs, setProjs] = useState<(number | string)[]>([]);
+  const [plants, setPlants] = useState<(number | string)[]>([]);
+  const [stats, setStats] = useState<(number | string)[]>([]);
+  const [descs, setDescs] = useState<(number | string)[]>([]);
+  const [q, setQ] = useState("");
+  const [qOpen, setQOpen] = useState(false);
+  const qRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!qOpen) return;
+    const h = (e: MouseEvent) => { if (qRef.current && !qRef.current.contains(e.target as Node)) setQOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [qOpen]);
   const [drill, setDrill] = useState<CostDrillSeed | null>(null);
   const [tblSort, setTblSort] = useState<{ k: "budget" | "assigned" | "available" | "pct"; d: boolean }>({ k: "assigned", d: true });
 
   const projects = useMemo(() => [...new Set(WBS_ROWS.map(w => w.proj))].sort(), []);
+  const descriptions = useMemo(() => [...new Set(WBS_ROWS.map(w => w.desc).filter(Boolean))].sort(), []);
+  const qMatches = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return [];
+    return WBS_ROWS.filter(w => w.wbs.toLowerCase().includes(t) || w.desc.toLowerCase().includes(t)).slice(0, 12);
+  }, [q]);
 
   const rows = useMemo(() => WBS_ROWS.filter(w =>
-    (typF < 0 || w.typ === typF) && (dept < 0 || w.dept === dept) && (!proj || w.proj === proj) && (!staF || statusOf(w) === staF) &&
+    (typF < 0 || w.typ === typF) &&
+    (depts.length === 0 || depts.includes(w.dept)) &&
+    (projs.length === 0 || projs.includes(w.proj)) &&
+    (plants.length === 0 || plants.includes(w.plant)) &&
+    (stats.length === 0 || stats.includes(statusOf(w))) &&
+    (descs.length === 0 || descs.includes(w.desc)) &&
     (!q.trim() || w.wbs.toLowerCase().includes(q.trim().toLowerCase()) || w.desc.toLowerCase().includes(q.trim().toLowerCase()))
-  ), [typF, dept, proj, staF, q]);
+  ), [typF, depts, projs, plants, stats, descs, q]);
   const wSet = useMemo(() => new Set(rows.map(w => w.i)), [rows]);
   const poRows = useMemo(() => PO_ROWS.filter(p => (typF < 0 || p.typ === typF) && p.w >= 0 && wSet.has(p.w)), [wSet, typF]);
 
@@ -39,14 +114,19 @@ export default function CostPage() {
   const available = rows.reduce((s, w) => s + w.available, 0);
   const util = budget > 0 ? (assigned / budget) * 100 : 0;
   const critWbs = rows.filter(w => statusOf(w) === "critical").length;
-  const scopeLabel = [typF >= 0 ? TYPE_LBL[typF] : "All budgets", dept >= 0 ? CB.DEPT[dept] : "All departments", proj || null].filter(Boolean).join(" · ");
+  const scopeLabel = [
+    typF >= 0 ? TYPE_LBL[typF] : "All budgets",
+    depts.length ? `${depts.length} dept${depts.length > 1 ? "s" : ""}` : "All departments",
+    projs.length === 1 ? projLbl(String(projs[0])) : projs.length ? `${projs.length} projects` : null,
+    plants.length ? `${plants.length} plant${plants.length > 1 ? "s" : ""}` : null,
+  ].filter(Boolean).join(" · ");
 
   const open = (chips: CostChip[]) => {
     const pre: CostChip[] = [];
     if (typF >= 0 && !chips.some(c => c.dim === "typ")) pre.push({ dim: "typ", val: typF, label: TYPE_LBL[typF] });
-    if (dept >= 0 && !chips.some(c => c.dim === "dept")) pre.push({ dim: "dept", val: dept, label: CB.DEPT[dept] });
-    if (proj && !chips.some(c => c.dim === "proj")) pre.push({ dim: "proj", val: proj, label: proj });
-    if (staF && !chips.some(c => c.dim === "status")) pre.push({ dim: "status", val: staF, label: STATUS_LBL[staF] });
+    if (depts.length === 1 && !chips.some(c => c.dim === "dept")) pre.push({ dim: "dept", val: depts[0] as number, label: CB.DEPT[depts[0] as number] });
+    if (projs.length === 1 && !chips.some(c => c.dim === "proj")) pre.push({ dim: "proj", val: projs[0], label: projLbl(String(projs[0])) });
+    if (stats.length === 1 && !chips.some(c => c.dim === "status")) pre.push({ dim: "status", val: stats[0], label: STATUS_LBL[stats[0] as keyof typeof STATUS_LBL] });
     setDrill({ chips: [...pre, ...chips] });
   };
 
@@ -114,33 +194,30 @@ export default function CostPage() {
               <option value={1}>Project</option>
             </select>
           </div>
-          <div>
-            <div style={WLBL}>Department</div>
-            <select style={SEL} value={dept} onChange={e => setDept(Number(e.target.value))}>
-              <option value={-1}>All departments</option>
-              {CB.DEPT.map((d, i) => <option key={i} value={i}>{d}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={WLBL}>Project</div>
-            <select style={SEL} value={proj} onChange={e => setProj(e.target.value)}>
-              <option value="">All projects</option>
-              {projects.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={WLBL}>Budget status</div>
-            <select style={SEL} value={staF} onChange={e => setStaF(e.target.value as typeof staF)}>
-              <option value="">All statuses</option>
-              {(Object.keys(STATUS_LBL) as (keyof typeof STATUS_LBL)[]).map(k => <option key={k} value={k}>{STATUS_LBL[k]}</option>)}
-            </select>
-          </div>
-          <div style={{ minWidth: 190 }}>
-            <div style={WLBL}>Search WBS</div>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="WBS code / description…"
+          <MSFilter label="Department" options={CB.DEPT.map((d, i) => ({ k: i, l: d }))} sel={depts} onChange={setDepts} width={170} />
+          <MSFilter label="Project" options={projects.map(p => ({ k: p, l: projLbl(p) }))} sel={projs} onChange={setProjs} width={210} />
+          <MSFilter label="Plant" options={CB.PLANT.map((p, i) => ({ k: i, l: p }))} sel={plants} onChange={setPlants} width={190} />
+          <MSFilter label="Budget status" options={(Object.keys(STATUS_LBL) as (keyof typeof STATUS_LBL)[]).map(k => ({ k, l: STATUS_LBL[k] }))} sel={stats} onChange={setStats} width={150} />
+          <MSFilter label="Description" options={descriptions.map(d => ({ k: d, l: d }))} sel={descs} onChange={setDescs} width={190} />
+          <div ref={qRef} style={{ position: "relative", minWidth: 200 }}>
+            <div style={WLBL}>Search WBS / description</div>
+            <input value={q} onChange={e => { setQ(e.target.value); setQOpen(true); }} onFocus={() => setQOpen(true)} placeholder="Type to search…"
               style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit", outline: "none" }} />
+            {qOpen && qMatches.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, minWidth: 320, marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", maxHeight: 260, overflowY: "auto" }}>
+                {qMatches.map(w => (
+                  <div key={w.i} onClick={() => { setQ(w.wbs); setQOpen(false); }}
+                    style={{ padding: "7px 10px", borderBottom: "1px solid #f6f3ea", cursor: "pointer" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(14,116,144,.06)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: TEAL }}>{w.wbs}</div>
+                    <div style={{ fontSize: 11, color: "var(--mut)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.desc || "—"} · {projLbl(w.proj)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <button onClick={() => { setTypF(0); setDept(-1); setProj(""); setStaF(""); setQ(""); }}
+          <button onClick={() => { setTypF(-1); setDepts([]); setProjs([]); setPlants([]); setStats([]); setDescs([]); setQ(""); }}
             style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
             ⟲ Reset
           </button>
@@ -173,7 +250,7 @@ export default function CostPage() {
                       onMouseMove={ev => showTip(ev, `<b>${p}</b><br/>Budget ${fMoney(e.b)} · Utilized ${fMoney(e.a)}`)} onMouseLeave={hideTip}
                       style={{ padding: "4px 0", cursor: "pointer" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 700 }}>{p}</span>
+                        <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{projLbl(p)}</span>
                         <span style={{ color: "var(--mut)", fontWeight: 700 }}>Utilized {fMoney(e.a)} / Budget {fMoney(e.b)} · {e.b > 0 ? `${((e.a / e.b) * 100).toFixed(1)}%` : "—"}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
@@ -341,7 +418,7 @@ export default function CostPage() {
                         style={{ borderBottom: "1px solid #f0ede5", cursor: "pointer" }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                        <td style={{ padding: "7px 8px 7px 0", fontWeight: 700, color: "var(--ink)" }}>{r.p}</td>
+                        <td style={{ padding: "7px 8px 7px 0", fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>{projLbl(r.p)}</td>
                         <td style={{ padding: "7px 8px", textAlign: "right" }}>{fMoney(r.b)}</td>
                         <td style={{ padding: "7px 8px", textAlign: "right" }}>{fMoney(r.a)}</td>
                         <td style={{ padding: "7px 8px", textAlign: "right" }}>{fMoney(r.av)}</td>
@@ -382,7 +459,7 @@ export default function CostPage() {
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                         <td style={{ padding: "6px 8px 6px 0", whiteSpace: "nowrap" }}>{CB.DEPT[w.dept]}</td>
-                        <td style={{ padding: "6px 8px 6px 0", whiteSpace: "nowrap", fontWeight: 600 }}>{w.proj}</td>
+                        <td style={{ padding: "6px 8px 6px 0", whiteSpace: "nowrap", fontWeight: 600 }}>{projLbl(w.proj)}</td>
                         <td style={{ padding: "6px 8px 6px 0", whiteSpace: "nowrap", color: TEAL, fontWeight: 700 }}>{w.wbs}</td>
                         <td style={{ padding: "6px 8px 6px 0", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.desc}</td>
                         <td style={{ padding: "6px 8px 6px 0", textAlign: "right", whiteSpace: "nowrap" }}>{fMoney(w.budget)}</td>

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
-import { CB, WBS_ROWS, PO_ROWS, type WbsRow, statusOf, fmtDay, ymOf, ymLbl, fMoney, fN } from "./costShared";
+import { CB, WBS_ROWS, PO_ROWS, type WbsRow, statusOf, projLbl, fmtDay, ymOf, ymLbl, fMoney, fN } from "./costShared";
 
 export type CostDim = "typ" | "dept" | "proj" | "status" | "wbs" | "vendor" | "mon";
 export interface CostChip { dim: CostDim; val: number | string; label: string }
@@ -75,7 +75,7 @@ export function CostDrillDrawer({ seed, baseLabel, onClose, onAddChip }: {
   const projItems = useMemo(() => {
     const m = new Map<string, number>();
     wbsRows.forEach(w => m.set(w.proj, (m.get(w.proj) ?? 0) + w.assigned));
-    return [...m.entries()].map(([k, v]) => ({ k, label: k, v })).sort((a, b) => b.v - a.v);
+    return [...m.entries()].map(([k, v]) => ({ k, label: projLbl(k), v })).sort((a, b) => b.v - a.v);
   }, [wbsRows]);
   const wbsItems = useMemo(() =>
     [...wbsRows].sort((a, b) => b.assigned - a.assigned).slice(0, 10)
