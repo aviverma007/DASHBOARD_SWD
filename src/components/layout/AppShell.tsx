@@ -32,7 +32,7 @@ export function AppShell() {
             nav list ever grows taller than the viewport. */}
         <aside
           className={clsx(
-            "hidden shrink-0 self-start border-r border-border-subtle bg-white transition-all duration-200 lg:block",
+            "hidden shrink-0 self-start border-r border-border-subtle bg-white transition-[width] duration-200 lg:block",
             "sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto",
             sidebarCollapsed ? "w-16" : "w-56"
           )}
@@ -62,7 +62,7 @@ export function AppShell() {
           </div>
         )}
 
-        <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1 overflow-x-clip">
           {/* Route transition. Two things matter here:
               1. useOutlet() snapshots the CURRENT page element — a plain
                  <Outlet/> inside the exiting wrapper would re-render to

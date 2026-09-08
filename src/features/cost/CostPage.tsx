@@ -236,11 +236,11 @@ export default function CostPage() {
           <Zoomable title="Approved vs utilized by project">
             <div style={{ ...CARD, height: "100%", display: "flex", flexDirection: "column" }}>
               <h3 style={H3}>Approved vs Utilized — by Project</h3>
-              <div style={CAP}>navy = budget · teal = utilized · click a project → drill</div>
+              <div style={CAP}>navy = budget · teal = utilized · click a project → drill{byProj.length > 60 ? ` · top 60 of ${byProj.length}` : ""}</div>
               <div style={{ flex: 1, minHeight: 0, maxHeight: 330, overflowY: "auto", paddingRight: 6 }}>
                 {(() => {
                   const mx = Math.max(...byProj.map(([, e]) => e.b), 1);
-                  return byProj.map(([p, e]) => (
+                  return byProj.slice(0, 60).map(([p, e]) => (
                     <div key={p} className="barrow" onClick={() => open([{ dim: "proj", val: p, label: p }])}
                       onMouseEnter={ev => showTip(ev, `<b>${p}</b><br/>Budget — ${fMoney(e.b)}<br/>Utilized — ${fMoney(e.a)} (${e.b > 0 ? ((e.a / e.b) * 100).toFixed(1) : "—"}%)<br/>${fN(e.n)} WBS`)}
                       onMouseMove={ev => showTip(ev, `<b>${p}</b><br/>Budget ${fMoney(e.b)} · Utilized ${fMoney(e.a)}`)} onMouseLeave={hideTip}
@@ -446,7 +446,11 @@ export default function CostPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...rows].sort((a, b) => b.assigned - a.assigned).map(w => {
+                  {/* Rendering all 4.6k WBS rows froze layout (the sidebar
+                      collapse animation reflows this table every frame) —
+                      cap at the top 400 by utilized; filters/search/drill
+                      still cover the full set. */}
+                  {[...rows].sort((a, b) => b.assigned - a.assigned).slice(0, 400).map(w => {
                     const st = statusOf(w);
                     const pct = w.budget > 0 ? (w.assigned / w.budget) * 100 : null;
                     return (
@@ -469,6 +473,11 @@ export default function CostPage() {
                   })}
                 </tbody>
               </table>
+              {rows.length > 400 && (
+                <div style={{ fontSize: 11.5, color: "var(--mut)", padding: "8px 2px 2px" }}>
+                  Showing top 400 of {rows.length.toLocaleString("en-IN")} WBS by utilized — narrow the filters or search to see the rest.
+                </div>
+              )}
             </div>
           </div>
         </Zoomable>
