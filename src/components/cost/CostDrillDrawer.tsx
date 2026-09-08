@@ -3,14 +3,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { CB, WBS_ROWS, PO_ROWS, type WbsRow, statusOf, fmtDay, ymOf, ymLbl, fMoney, fN } from "./costShared";
 
-export type CostDim = "dept" | "proj" | "status" | "wbs" | "vendor" | "mon";
+export type CostDim = "typ" | "dept" | "proj" | "status" | "wbs" | "vendor" | "mon";
 export interface CostChip { dim: CostDim; val: number | string; label: string }
 export interface CostDrillSeed { chips: CostChip[] }
 
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, padding: "13px 15px", marginBottom: 12 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 8px" };
-const DIMN: Record<CostDim, string> = { dept: "Department", proj: "Project", status: "Status", wbs: "WBS", vendor: "Vendor", mon: "Month" };
+const DIMN: Record<CostDim, string> = { typ: "Budget type", dept: "Department", proj: "Project", status: "Status", wbs: "WBS", vendor: "Vendor", mon: "Month" };
 
 export function CostDrillDrawer({ seed, baseLabel, onClose, onAddChip }: {
   seed: CostDrillSeed | null; baseLabel: string; onClose: () => void; onAddChip: (c: CostChip) => void;
@@ -20,6 +20,7 @@ export function CostDrillDrawer({ seed, baseLabel, onClose, onAddChip }: {
 
   const wbsMatch = (w: WbsRow, ch: CostChip): boolean => {
     switch (ch.dim) {
+      case "typ": return w.typ === ch.val;
       case "dept": return w.dept === ch.val;
       case "proj": return w.proj === ch.val;
       case "status": return statusOf(w) === ch.val;
@@ -32,7 +33,7 @@ export function CostDrillDrawer({ seed, baseLabel, onClose, onAddChip }: {
     [seed]);
   const wSet = useMemo(() => new Set(wbsRows.map(w => w.i)), [wbsRows]);
   const poRows = useMemo(() => PO_ROWS.filter(p => (p.w >= 0 ? wSet.has(p.w) : chips.every(c => c.dim !== "wbs")) &&
-    chips.every(ch => ch.dim === "vendor" ? p.vendor === ch.val : ch.dim === "mon" ? (p.day >= 0 && ymOf(p.day) === ch.val) : true)),
+    chips.every(ch => ch.dim === "vendor" ? p.vendor === ch.val : ch.dim === "mon" ? (p.day >= 0 && ymOf(p.day) === ch.val) : ch.dim === "typ" ? p.typ === ch.val : true)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [wSet, seed]);
 

@@ -2,9 +2,9 @@ import raw from "../../data/costBudget.json";
 
 /** Cost / budget-control dataset (SAP ZALR non-project).
  * W row: [0 dept, 1 projCode, 2 wbs, 3 desc, 4 budget, 5 assigned(=Utilized),
- *         6 actual, 7 commitment, 8 available, 9 pgrp]
+ *         6 actual, 7 commitment, 8 available, 9 pgrp, 10 type(0 non-project/1 project)]
  * P row: [0 wIdx, 1 day, 2 vendor, 3 ordered, 4 orderedGST, 5 delivered,
- *         6 docNo, 7 glDesc, 8 shortText]  — day offset from 2022-01-01. */
+ *         6 docNo, 7 glDesc, 8 shortText, 9 type]  — day offset from 2022-01-01. */
 export interface CostDataset {
   DEPT: string[]; PGRP: string[]; VEND: string[]; GL: string[];
   W: (number | string)[][]; P: (number | string)[][];
@@ -15,21 +15,24 @@ export const CB = raw as unknown as CostDataset;
 export interface WbsRow {
   i: number; dept: number; proj: string; wbs: string; desc: string;
   budget: number; assigned: number; actual: number; commitment: number; available: number; pgrp: number;
+  /** 0 = non-project opex · 1 = project WBS (merged ZALR) */
+  typ: number;
 }
 export const WBS_ROWS: WbsRow[] = CB.W.map((w, i) => ({
   i, dept: w[0] as number, proj: String(w[1]), wbs: String(w[2]), desc: String(w[3]),
   budget: w[4] as number, assigned: w[5] as number, actual: w[6] as number,
   commitment: w[7] as number, available: w[8] as number, pgrp: w[9] as number,
+  typ: (w[10] as number) ?? 0,
 }));
 
 export interface PoRow {
   w: number; day: number; vendor: number; ordered: number; orderedGST: number;
-  delivered: number; docNo: string; gl: number; text: string;
+  delivered: number; docNo: string; gl: number; text: string; typ: number;
 }
 export const PO_ROWS: PoRow[] = CB.P.map(p => ({
   w: p[0] as number, day: p[1] as number, vendor: p[2] as number,
   ordered: p[3] as number, orderedGST: p[4] as number, delivered: p[5] as number,
-  docNo: String(p[6]), gl: p[7] as number, text: String(p[8]),
+  docNo: String(p[6]), gl: p[7] as number, text: String(p[8]), typ: (p[9] as number) ?? 0,
 }));
 
 /** Utilization status thresholds — same as the reference dashboard. */
@@ -54,3 +57,5 @@ export const fMoney = (v: number) => {
   if (a >= 1e5) return `₹${(v / 1e5).toFixed(1)} L`;
   return `₹${Math.round(v).toLocaleString("en-IN")}`;
 };
+
+export const TYPE_LBL = ["Non-project", "Project"] as const;

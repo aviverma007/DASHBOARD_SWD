@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
-  CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, ymOf, ymLbl, fMoney, fN,
+  CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, TYPE_LBL, ymOf, ymLbl, fMoney, fN,
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 
@@ -16,6 +16,7 @@ const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", R
 const ST_COL = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8d99ae" } as const;
 
 export default function CostPage() {
+  const [typF, setTypF] = useState(0); // -1 all · 0 non-project (reference parity) · 1 project
   const [dept, setDept] = useState(-1);
   const [proj, setProj] = useState("");
   const [staF, setStaF] = useState<"" | "healthy" | "watch" | "critical" | "nobudget">("");
@@ -26,20 +27,27 @@ export default function CostPage() {
   const projects = useMemo(() => [...new Set(WBS_ROWS.map(w => w.proj))].sort(), []);
 
   const rows = useMemo(() => WBS_ROWS.filter(w =>
-    (dept < 0 || w.dept === dept) && (!proj || w.proj === proj) && (!staF || statusOf(w) === staF) &&
+    (typF < 0 || w.typ === typF) && (dept < 0 || w.dept === dept) && (!proj || w.proj === proj) && (!staF || statusOf(w) === staF) &&
     (!q.trim() || w.wbs.toLowerCase().includes(q.trim().toLowerCase()) || w.desc.toLowerCase().includes(q.trim().toLowerCase()))
-  ), [dept, proj, staF, q]);
+  ), [typF, dept, proj, staF, q]);
   const wSet = useMemo(() => new Set(rows.map(w => w.i)), [rows]);
-  const poRows = useMemo(() => PO_ROWS.filter(p => p.w >= 0 && wSet.has(p.w)), [wSet]);
+  const poRows = useMemo(() => PO_ROWS.filter(p => (typF < 0 || p.typ === typF) && p.w >= 0 && wSet.has(p.w)), [wSet, typF]);
 
   const budget = rows.reduce((s, w) => s + w.budget, 0);
   const assigned = rows.reduce((s, w) => s + w.assigned, 0);
   const available = rows.reduce((s, w) => s + w.available, 0);
   const util = budget > 0 ? (assigned / budget) * 100 : 0;
   const critWbs = rows.filter(w => statusOf(w) === "critical").length;
-  const scopeLabel = [dept >= 0 ? CB.DEPT[dept] : "All departments", proj || null].filter(Boolean).join(" · ");
+  const scopeLabel = [typF >= 0 ? TYPE_LBL[typF] : "All budgets", dept >= 0 ? CB.DEPT[dept] : "All departments", proj || null].filter(Boolean).join(" · ");
 
-  const open = (chips: CostChip[]) => setDrill({ chips });
+  const open = (chips: CostChip[]) => {
+    const pre: CostChip[] = [];
+    if (typF >= 0 && !chips.some(c => c.dim === "typ")) pre.push({ dim: "typ", val: typF, label: TYPE_LBL[typF] });
+    if (dept >= 0 && !chips.some(c => c.dim === "dept")) pre.push({ dim: "dept", val: dept, label: CB.DEPT[dept] });
+    if (proj && !chips.some(c => c.dim === "proj")) pre.push({ dim: "proj", val: proj, label: proj });
+    if (staF && !chips.some(c => c.dim === "status")) pre.push({ dim: "status", val: staF, label: STATUS_LBL[staF] });
+    setDrill({ chips: [...pre, ...chips] });
+  };
 
   // by project (budget vs utilized)
   const byProj = useMemo(() => {
@@ -97,6 +105,14 @@ export default function CostPage() {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12, marginTop: 12 }}>
           <div>
+            <div style={WLBL}>Budget type</div>
+            <select style={SEL} value={typF} onChange={e => setTypF(Number(e.target.value))}>
+              <option value={-1}>All budgets</option>
+              <option value={0}>Non-project (opex)</option>
+              <option value={1}>Project</option>
+            </select>
+          </div>
+          <div>
             <div style={WLBL}>Department</div>
             <select style={SEL} value={dept} onChange={e => setDept(Number(e.target.value))}>
               <option value={-1}>All departments</option>
@@ -122,7 +138,7 @@ export default function CostPage() {
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="WBS code / description…"
               style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", padding: "8px 10px", border: "1px solid #d8d2c4", borderRadius: 8, fontFamily: "inherit", outline: "none" }} />
           </div>
-          <button onClick={() => { setDept(-1); setProj(""); setStaF(""); setQ(""); }}
+          <button onClick={() => { setTypF(0); setDept(-1); setProj(""); setStaF(""); setQ(""); }}
             style={{ border: "1px solid rgba(255,255,255,.4)", background: "rgba(255,255,255,.12)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
             ⟲ Reset
           </button>
