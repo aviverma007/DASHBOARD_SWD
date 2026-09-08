@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOutlet, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Header } from "./Header";
 import clsx from "clsx";
@@ -14,6 +13,7 @@ export function AppShell() {
   const location = useLocation();
   const outlet = useOutlet();
   useIdleLogout(); // 30-min inactivity → sign out (AppShell only renders when authenticated)
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
   // Both Overview (/) and Inventory (/inventory) now ship their own
   // navy filter bar and full-bleed layout (redesigned to match
   // Inventory's design system) — the generic FilterBar and content
@@ -71,22 +71,14 @@ export function AppShell() {
               2. y animates back to 0, and Framer clears the transform to
                  `none` at rest — so the pages' position:fixed drawers
                  are unaffected once the entrance settles. */}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              /* Static-shell navigation: header + sidebar never move;
-                 only the dashboard content swaps with a barely-there
-                 crossfade — no scale/slide, so switching tabs reads as
-                 the content changing, never the app refreshing. */
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.08 } }}
-              transition={{ duration: 0.14, ease: "easeOut" }}
-              className={managesOwnChrome ? "" : "p-4 md:p-6"}
-            >
-              {outlet}
-            </motion.div>
-          </AnimatePresence>
+          {/* Static-shell navigation: no route animation at all — the
+              outlet swaps in place instantly. Header and sidebar stay
+              mounted; even a brief exit/enter fade read as a "page
+              refresh" on the full-bleed dashboards, so content now
+              just replaces content, like switching tabs should. */}
+          <div className={managesOwnChrome ? "" : "p-4 md:p-6"}>
+            {outlet}
+          </div>
         </main>
       </div>
 
