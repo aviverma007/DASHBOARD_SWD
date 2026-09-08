@@ -25,6 +25,7 @@ export const APP_USERS: AppUser[] = [
   { id: "sales",       password: "sales@123",    displayName: "Sales Team",  role: "sales",      access: "all" },
   { id: "finance",     password: "finance@123",  displayName: "Finance Team", role: "finance",   access: "all" },
   { id: "management",  password: "mgmt@123",     displayName: "Management",  role: "management", access: "all" },
+  { id: "amit.sharma@smartworlddevelopers.com", password: "Swd@2026", displayName: "Amit Sharma", role: "management", access: "all" },
   // ── view-restricted logins ──
   { id: "sales@smartworlddevelopers.com", password: "Swd@2026", displayName: "Sales",  role: "sales", access: SALES_PATHS },
   { id: "crm@smartworlddevelopers.com",   password: "Swd@2026", displayName: "CRM",    role: "crm",   access: ["/overview", "/case-management"] },
