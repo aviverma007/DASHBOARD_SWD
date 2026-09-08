@@ -13,7 +13,7 @@ const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 16.5, f
 const CAP: React.CSSProperties = { fontSize: 11.5, color: "#b8893c", marginBottom: 12 };
 const SEL: React.CSSProperties = { ...BANNER_CTL, maxWidth: 220 };
 const WLBL: React.CSSProperties = BANNER_LBL;
-const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
+const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100", PURPLE = "#6D5BD0";
 const fShort = (v: number) => (Math.abs(v) >= 1e7 ? `${(v / 1e7).toFixed(1)}Cr` : Math.abs(v) >= 1e5 ? `${(v / 1e5).toFixed(0)}L` : `${Math.round(v / 1000)}k`);
 const ST_COL = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8d99ae" } as const;
 
@@ -72,6 +72,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
 }
 
 export default function CostPage() {
+  const [view, setView] = useState<"budget" | "po">("budget"); // Budget Control vs Actual-vs-Commitment (PO) view
   const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
   const [depts, setDepts] = useState<(number | string)[]>([]);
   const [projs, setProjs] = useState<(number | string)[]>([]);
@@ -112,6 +113,8 @@ export default function CostPage() {
 
   const budget = rows.reduce((s, w) => s + w.budget, 0);
   const assigned = rows.reduce((s, w) => s + w.assigned, 0);
+  const actual = rows.reduce((s, w) => s + w.actual, 0);
+  const commitment = rows.reduce((s, w) => s + w.commitment, 0);
   const available = rows.reduce((s, w) => s + w.available, 0);
   const util = budget > 0 ? (assigned / budget) * 100 : 0;
   const critWbs = rows.filter(w => statusOf(w) === "critical").length;
@@ -142,6 +145,30 @@ export default function CostPage() {
     rows.forEach(w => { if (!m.has(w.dept)) m.set(w.dept, { b: 0, a: 0 }); const e = m.get(w.dept)!; e.b += w.budget; e.a += w.assigned; });
     return [...m.entries()].sort((x, y) => y[1].a - x[1].a);
   }, [rows]);
+  // ----- Actual vs Commitment (PO) view aggregates — same `rows`/`poRows` scope -----
+  const byProjAC = useMemo(() => {
+    const m = new Map<string, { a: number; c: number; n: number }>();
+    rows.forEach(w => { if (!m.has(w.proj)) m.set(w.proj, { a: 0, c: 0, n: 0 }); const e = m.get(w.proj)!; e.a += w.actual; e.c += w.commitment; e.n++; });
+    return [...m.entries()].sort((x, y) => (y[1].a + y[1].c) - (x[1].a + x[1].c));
+  }, [rows]);
+  const byDeptAC = useMemo(() => {
+    const m = new Map<number, { a: number; c: number }>();
+    rows.forEach(w => { if (!m.has(w.dept)) m.set(w.dept, { a: 0, c: 0 }); const e = m.get(w.dept)!; e.a += w.actual; e.c += w.commitment; });
+    return [...m.entries()].sort((x, y) => (y[1].a + y[1].c) - (x[1].a + x[1].c));
+  }, [rows]);
+  /* Monthly PO ordered split into delivered (≈ actual/GR) vs open (≈ commitment). */
+  const trendAC = useMemo(() => {
+    const m = new Map<string, { d: number; o: number }>();
+    poRows.forEach(p => {
+      if (p.day < 0) return; const k = ymOf(p.day);
+      if (!m.has(k)) m.set(k, { d: 0, o: 0 });
+      const e = m.get(k)!; e.d += Math.min(p.delivered, p.ordered); e.o += Math.max(p.ordered - p.delivered, 0);
+    });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [poRows]);
+  const topWbsCommit = useMemo(() => [...rows].sort((a, b) => b.commitment - a.commitment).slice(0, 10), [rows]);
+  const openPo = useMemo(() => poRows.reduce((s, p) => s + Math.max(p.ordered - p.delivered, 0), 0), [poRows]);
+
   const health = useMemo(() => {
     const m = { healthy: 0, watch: 0, critical: 0, nobudget: 0 };
     rows.forEach(w => { m[statusOf(w)]++; });
@@ -218,6 +245,14 @@ export default function CostPage() {
             className="pb-btn">
             ⟲ Reset
           </button>
+          <div style={{ marginLeft: "auto" }}>
+            <div style={BANNER_LBL as React.CSSProperties}>View</div>
+            <div className="pb-pills">
+              {([["budget", "Budget Control"], ["po", "Actual vs Commitment"]] as const).map(([k, l]) => (
+                <button key={k} className={`pb-pill${view === k ? " on" : ""}`} onClick={() => setView(k)}>{l}</button>
+              ))}
+            </div>
+          </div>
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
@@ -225,12 +260,18 @@ export default function CostPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
           <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
+          <KPI k="Actual" v={fMoney(actual)} s={`booked (GR/IR) · ${assigned > 0 ? ((actual / assigned) * 100).toFixed(1) : "—"}% of utilized`} col={PURPLE} />
+          <KPI k="Commitment" v={fMoney(commitment)} s={`open POs · ${assigned > 0 ? ((commitment / assigned) * 100).toFixed(1) : "—"}% of utilized`} col={AMBER} />
           <KPI k="Balance available" v={fMoney(available)} s={`${(100 - util).toFixed(1)}% of ${fMoney(budget)} unspent`} col={GREEN} />
           <KPI k="Utilization" v={`${util.toFixed(1)}%`} s={`${fMoney(assigned)} used vs ${fMoney(budget)} total`} col={util > 95 ? RED : util > 80 ? AMBER : GOLD} />
           <KPI k="WBS at risk" v={fN(critWbs)} s={`critical of ${fN(rows.length)} in scope`} col={RED}
             onClick={() => open([{ dim: "status", val: "critical", label: "Critical (>95%)" }])} />
+          {view === "po" && (
+            <KPI k="Open PO value" v={fMoney(openPo)} s={`ordered − delivered across ${fN(poRows.length)} PO lines`} col={GOLD} />
+          )}
         </div>
 
+        {view === "budget" ? (<>
         {/* Row 1: Approved vs Utilized by project · Monthly PO trend */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
           <Zoomable title="Approved vs utilized by project">
@@ -481,6 +522,168 @@ export default function CostPage() {
             </div>
           </div>
         </Zoomable>
+        </>) : (<>
+        {/* ================= Actual vs Commitment (PO) view ================= */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
+          <Zoomable title="Actual vs commitment by project">
+            <div style={{ ...CARD, height: "100%", display: "flex", flexDirection: "column" }}>
+              <h3 style={H3}>Actual vs Commitment — by Project</h3>
+              <div style={CAP}>purple = actual (booked) · amber = commitment (open POs) · click a project → drill{byProjAC.length > 60 ? ` · top 60 of ${byProjAC.length}` : ""}</div>
+              <div style={{ flex: 1, minHeight: 0, maxHeight: 330, overflowY: "auto", paddingRight: 6 }}>
+                {(() => {
+                  const mx = Math.max(...byProjAC.map(([, e]) => Math.max(e.a, e.c)), 1);
+                  return byProjAC.slice(0, 60).map(([p, e]) => (
+                    <div key={p} className="barrow" onClick={() => open([{ dim: "proj", val: p, label: p }])}
+                      onMouseEnter={ev => showTip(ev, `<b>${projLbl(p)}</b><br/>Actual — ${fMoney(e.a)}<br/>Commitment — ${fMoney(e.c)}<br/>${fN(e.n)} WBS`)}
+                      onMouseMove={ev => showTip(ev, `<b>${projLbl(p)}</b><br/>A ${fMoney(e.a)} · C ${fMoney(e.c)}`)} onMouseLeave={hideTip}
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{projLbl(p)}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700 }}>A {fMoney(e.a)} · C {fMoney(e.c)}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <div style={{ flex: 1, height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.a / mx) * 100}%`, background: PURPLE, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: PURPLE, width: 52, textAlign: "right", flexShrink: 0 }}>{fShort(e.a)}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ flex: 1, height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.c / mx) * 100}%`, background: AMBER, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, width: 52, textAlign: "right", flexShrink: 0 }}>{fShort(e.c)}</span>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+          <Zoomable title="Monthly delivered vs open">
+            <div style={{ ...CARD, height: "100%", display: "flex", flexDirection: "column" }}>
+              <h3 style={H3}>Monthly PO — Delivered vs Open</h3>
+              <div style={CAP}>purple = delivered value (≈ actual) · amber = open value (≈ commitment) · stacked per month</div>
+              <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 3, minHeight: 220, overflowX: "auto", overflowY: "hidden", paddingTop: 8 }}>
+                {(() => {
+                  const mx = Math.max(...trendAC.map(([, e]) => e.d + e.o), 1);
+                  return trendAC.map(([k, e]) => (
+                    <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: "1 0 26px", minWidth: 26, height: "100%", justifyContent: "flex-end" }}
+                      onMouseEnter={ev => showTip(ev, `<b>${ymLbl(k)}</b><br/>Delivered — ${fMoney(e.d)}<br/>Open — ${fMoney(e.o)}<br/>Total — ${fMoney(e.d + e.o)}`)}
+                      onMouseMove={ev => showTip(ev, `<b>${ymLbl(k)}</b> ${fMoney(e.d + e.o)}`)} onMouseLeave={hideTip}>
+                      <div style={{ width: "70%", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "85%" }}>
+                        <div style={{ width: "100%", height: `${(e.o / mx) * 100}%`, background: AMBER, borderRadius: "3px 3px 0 0", minHeight: e.o > 0 ? 2 : 0 }} />
+                        <div style={{ width: "100%", height: `${(e.d / mx) * 100}%`, background: PURPLE, borderRadius: e.o > 0 ? 0 : "3px 3px 0 0", minHeight: e.d > 0 ? 2 : 0 }} />
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--mut)", whiteSpace: "nowrap", transform: "rotate(-45deg)", transformOrigin: "top center", marginTop: 4 }}>{ymLbl(k)}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 14 }}>
+          <Zoomable title="Department actual vs commitment">
+            <div style={{ ...CARD, height: "100%" }}>
+              <h3 style={H3}>Actual vs Commitment — by Department</h3>
+              <div style={CAP}>sorted by utilized · click a department → drill</div>
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                {(() => {
+                  const mx = Math.max(...byDeptAC.map(([, e]) => Math.max(e.a, e.c)), 1);
+                  return byDeptAC.map(([d, e]) => (
+                    <div key={d} className="barrow" onClick={() => open([{ dim: "dept", val: d, label: CB.DEPT[d] }])}
+                      onMouseEnter={ev => showTip(ev, `<b>${CB.DEPT[d]}</b><br/>Actual — ${fMoney(e.a)}<br/>Commitment — ${fMoney(e.c)}`)}
+                      onMouseMove={ev => showTip(ev, `<b>${CB.DEPT[d]}</b>`)} onMouseLeave={hideTip}
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 700 }}>{CB.DEPT[d]}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700 }}>A {fMoney(e.a)} · C {fMoney(e.c)}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <div style={{ flex: 1, height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.a / mx) * 100}%`, background: PURPLE, borderRadius: 4 }} />
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ flex: 1, height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(e.c / mx) * 100}%`, background: AMBER, borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+          <Zoomable title="Top WBS by commitment">
+            <div style={{ ...CARD, height: "100%" }}>
+              <h3 style={H3}>Top 10 WBS by Open Commitment</h3>
+              <div style={CAP}>largest open-PO exposure · click a WBS → drill</div>
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                {(() => {
+                  const mx = Math.max(...topWbsCommit.map(w => w.commitment), 1);
+                  return topWbsCommit.map(w => (
+                    <div key={w.i} className="barrow" onClick={() => open([{ dim: "wbs", val: w.i, label: w.wbs }])}
+                      onMouseEnter={ev => showTip(ev, `<b>${w.wbs}</b><br/>${w.desc}<br/>Commitment — ${fMoney(w.commitment)}<br/>Actual — ${fMoney(w.actual)}`)}
+                      onMouseMove={ev => showTip(ev, `<b>${w.wbs}</b> ${fMoney(w.commitment)}`)} onMouseLeave={hideTip}
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{w.wbs}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fMoney(w.commitment)}</span>
+                      </div>
+                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(w.commitment / mx) * 100}%`, background: AMBER, borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+        </div>
+
+        {/* Project-wise Actual vs Commitment table */}
+        <Zoomable title="Project-wise actual vs commitment">
+          <div style={CARD}>
+            <h3 style={H3}>Project-wise — Actual vs Commitment</h3>
+            <div style={CAP}>{fN(byProjAC.length)} projects in scope · click a row → drill</div>
+            <div style={{ maxHeight: 380, overflowY: "auto", overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 680 }}>
+                <thead>
+                  <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                    {["Project", "Actual", "Commitment", "Utilized", "Actual share"].map(h => (
+                      <th key={h} style={{ textAlign: h === "Project" ? "left" : "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {byProjAC.slice(0, 400).map(([p, e]) => {
+                    const tot = e.a + e.c;
+                    return (
+                      <tr key={p} onClick={() => open([{ dim: "proj", val: p, label: p }])}
+                        style={{ cursor: "pointer", borderBottom: "1px solid #f0ede5" }}
+                        onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                        onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
+                        <td style={{ padding: "7px 10px", fontWeight: 700, color: "var(--ink)" }}>{projLbl(p)}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "right", color: PURPLE, fontWeight: 700 }}>{fMoney(e.a)}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "right", color: AMBER, fontWeight: 700 }}>{fMoney(e.c)}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700 }}>{fMoney(tot)}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "right", color: "var(--mut)", fontWeight: 700 }}>{tot > 0 ? `${((e.a / tot) * 100).toFixed(1)}%` : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {byProjAC.length > 400 && (
+                <div style={{ fontSize: 11.5, color: "var(--mut)", padding: "8px 2px 2px" }}>
+                  Showing top 400 of {byProjAC.length.toLocaleString("en-IN")} projects — narrow the filters to see the rest.
+                </div>
+              )}
+            </div>
+          </div>
+        </Zoomable>
+        </>)}
       </div>
       </div>
 
