@@ -20,12 +20,11 @@ const CAP: React.CSSProperties = { fontSize: 11.5, color: "#b8893c", marginBotto
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
 const PAL = [RED, GOLD, "#546e7a", TEAL, GREEN, "#6a1b9a", "#1565c0", "#e65100"];
 
-type Tab = "overall" | "open" | "closed" | "resolved";
+type Tab = "overall" | "open" | "closed";
 const TABS: { k: Tab; l: string }[] = [
   { k: "overall", l: "Overall Tickets" },
   { k: "open", l: "Open Tickets" },
   { k: "closed", l: "Closed Tickets" },
-  { k: "resolved", l: "Resolved Tickets" },
 ];
 
 
@@ -96,8 +95,6 @@ export default function CaseManagementPage() {
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<CaseRec | null>(null);
 
-  const resolvedIdx = CM.STA.indexOf("Resolved");
-
   const qKeyOf = (d: number) => { const dt = new Date(EPOCH_MS + d * 86400000); const m = dt.getMonth() + 1; const fy = m >= 4 ? dt.getFullYear() + 1 : dt.getFullYear(); const q = m >= 4 ? Math.ceil((m - 3) / 3) : 4; return `${fy}-Q${q}`; };
   const perOptions = useMemo(() => {
     const dated = CASES.filter(c => c.open >= 0);
@@ -133,10 +130,10 @@ export default function CaseManagementPage() {
   const tabScoped = useMemo(() => {
     let r = filtered;
     if (tab === "open") r = r.filter(c => !isClosed(c));
+    // Closed tab = the whole closed group (Closed + Resolved + Close)
     if (tab === "closed") r = r.filter(c => isClosed(c));
-    if (tab === "resolved") r = r.filter(c => c.sta === resolvedIdx);
     return r;
-  }, [filtered, tab, resolvedIdx]);
+  }, [filtered, tab]);
   const pageRows = useMemo(() => {
     let r = tabScoped;
     if (tatChip === "beyond") r = r.filter(c => tatBucket(c) === "overdue");
