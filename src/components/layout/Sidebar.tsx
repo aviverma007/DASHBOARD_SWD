@@ -19,8 +19,11 @@ export function Sidebar({ collapsed, onNavigate, onToggleCollapse }: SidebarProp
   const access = useAuthStore((st: { access: "all" | string[] | null }) => st.access);
   const role = useAuthStore((st: { role: string | null }) => st.role);
   const sectionLabel = (sec: string) => (sec === "Sales" && role === "pl" ? "Profit and Loss" : sec);
-  // Which section groups are folded shut; all open by default.
-  const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
+  // Which section groups are folded shut; all minimized by default
+  // (except Top, which holds Home) — click a header to expand.
+  const [closedSections, setClosedSections] = useState<Set<string>>(
+    () => new Set(NAV_SECTIONS.filter(sec => sec !== "Top"))
+  );
   function toggleSection(section: string) {
     setClosedSections(prev => {
       const next = new Set(prev);
