@@ -20,6 +20,7 @@ const MODULES: { icon: keyof typeof Icons; label: string; desc: string; path: st
   { icon: "ReceiptText",     label: "Bookings",         desc: "Booking value, trend, ticket mix and records",           path: "/bookings" },
   { icon: "Filter",          label: "Gallery Footfall", desc: "Customer footfall and CP gallery visits",                path: "/gallery-footfall" },
   { icon: "Zap",             label: "Digital Leads",    desc: "Digital enquiries, channels and funnels",                path: "/digital-leads" },
+  { icon: "Wallet",          label: "Cost",            desc: "Budget control — approved vs utilized, WBS health, PO spend",  path: "/cost" },
   { icon: "Headset",         label: "Case Management", desc: "CRM tickets — open/closed, TAT, owners and ageing",      path: "/case-management" },
   { icon: "Building2",       label: "Inventory",        desc: "Stock by project, tower, floor and unit status",         path: "/inventory" },
   { icon: "Building",        label: "Projects",         desc: "Project cards with mix, absorption and site plans",      path: "/projects" },

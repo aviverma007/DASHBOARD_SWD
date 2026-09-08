@@ -19,6 +19,7 @@ const load = {
   leads: () => import("./features/leads/LeadConversionPage"),
   bookings: () => import("./features/bookings/BookingsPage"),
   cases: () => import("./features/cases/CaseManagementPage"),
+  cost: () => import("./features/cost/CostPage"),
   settings: () => import("./features/settings/SettingsPage"),
   changePw: () => import("./features/settings/ChangePasswordPage"),
   notes: () => import("./features/workspace/NotesPage"),
@@ -33,6 +34,7 @@ const ChannelPartnerPage = lazy(() => load.cp().then(m => ({ default: m.ChannelP
 const LeadConversionPage = lazy(() => load.leads().then(m => ({ default: m.LeadConversionPage })));
 const BookingsPage = lazy(() => load.bookings().then(m => ({ default: m.BookingsPage })));
 const CaseManagementPage = lazy(load.cases);
+const CostPage = lazy(load.cost);
 const SettingsPage = lazy(() => load.settings().then(m => ({ default: m.SettingsPage })));
 const ChangePasswordPage = lazy(() => load.changePw().then(m => ({ default: m.ChangePasswordPage })));
 const NotesPage = lazy(() => load.notes().then(m => ({ default: m.NotesPage })));
@@ -74,6 +76,7 @@ function App() {
           <Route path="/target" element={<RequireAccess path="/target"><TargetActualPage /></RequireAccess>} />
           <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><ChannelPartnerPage /></RequireAccess>} />
           <Route path="/bookings" element={<RequireAccess path="/bookings"><BookingsPage /></RequireAccess>} />
+          <Route path="/cost" element={<RequireAccess path="/cost"><CostPage /></RequireAccess>} />
           <Route path="/case-management" element={<RequireAccess path="/case-management"><CaseManagementPage /></RequireAccess>} />
           <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><LeadConversionPage mode="footfall" /></RequireAccess>} />
           <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><LeadConversionPage mode="digital" /></RequireAccess>} />
