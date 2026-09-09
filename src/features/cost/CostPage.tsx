@@ -6,6 +6,8 @@ import {
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
+import { VA, VA_ROWS } from "../../components/cost/vendorAgeingShared";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)" };
@@ -72,7 +74,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
 }
 
 export default function CostPage() {
-  const [view, setView] = useState<"budget" | "po">("budget"); // Budget Control vs Actual-vs-Commitment (PO) view
+  const [view, setView] = useState<"budget" | "po" | "ageing">("budget"); // Budget Control vs Actual-vs-Commitment (PO) view
   const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
   const [depts, setDepts] = useState<(number | string)[]>([]);
   const [projs, setProjs] = useState<(number | string)[]>([]);
@@ -80,6 +82,8 @@ export default function CostPage() {
   const [stats, setStats] = useState<(number | string)[]>([]);
   const [descs, setDescs] = useState<(number | string)[]>([]);
   const [q, setQ] = useState("");
+  const [vaQ, setVaQ] = useState("");   // vendor-ageing vendor search
+  const [vaRecon, setVaRecon] = useState<(number | string)[]>([]);
   const [qOpen, setQOpen] = useState(false);
   const qRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -108,6 +112,15 @@ export default function CostPage() {
     (descs.length === 0 || descs.includes(w.desc)) &&
     (!q.trim() || w.wbs.toLowerCase().includes(q.trim().toLowerCase()) || w.desc.toLowerCase().includes(q.trim().toLowerCase()))
   ), [typF, depts, projs, plants, stats, descs, q]);
+  const vaRows = useMemo(() => VA_ROWS.filter(r =>
+    (vaRecon.length === 0 || vaRecon.includes(r.recon)) &&
+    (!vaQ.trim() || VA.VEND[r.vend].toLowerCase().includes(vaQ.trim().toLowerCase()))
+  ), [vaQ, vaRecon]);
+  const vaScopeLabel = [
+    vaRecon.length ? `${vaRecon.length} recon G/L` : "All payables",
+    vaQ.trim() ? `“${vaQ.trim()}”` : null,
+  ].filter(Boolean).join(" · ");
+
   const wSet = useMemo(() => new Set(rows.map(w => w.i)), [rows]);
   const poRows = useMemo(() => PO_ROWS.filter(p => (typF < 0 || p.typ === typF) && p.w >= 0 && wSet.has(p.w)), [wSet, typF]);
 
@@ -209,8 +222,9 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
-        center={<BannerPills size="lg" items={[["budget", "Budget Control"], ["po", "Actual vs Commitment"]] as const} value={view} onChange={setView} />}
+        center={<BannerPills size="lg" items={[["budget", "Budget Control"], ["po", "Actual vs Commitment"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
         sub={<>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
+        {view !== "ageing" ? (<>
           <div>
             <div style={WLBL}>Budget type</div>
             <select style={SEL} value={typF} onChange={e => setTypF(Number(e.target.value))}>
@@ -246,10 +260,20 @@ export default function CostPage() {
             className="pb-btn">
             ⟲ Reset
           </button>
+        </>) : (<>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Vendor search</div>
+            <input value={vaQ} onChange={e => setVaQ(e.target.value)} placeholder="Vendor name…"
+              style={{ ...BANNER_CTL, width: 240, cursor: "text" }} />
+          </div>
+          <MSFilter label="Recon G/L" options={VA.RECON.map((r, i2) => ({ k: i2, l: r }))} sel={vaRecon} onChange={setVaRecon} width={240} />
+          <button onClick={() => { setVaQ(""); setVaRecon([]); }} className="pb-btn">⟲ Reset</button>
+        </>)}
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
-        {/* KPI tickets — reference set */}
+        {/* KPI tickets — reference set (budget/PO views only) */}
+        {view !== "ageing" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
           <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
@@ -263,8 +287,11 @@ export default function CostPage() {
             <KPI k="Open PO value" v={fMoney(openPo)} s={`ordered − delivered across ${fN(poRows.length)} PO lines`} col={GOLD} />
           )}
         </div>
+        )}
 
-        {view === "budget" ? (<>
+        {view === "ageing" ? (
+          <VendorAgeingView rows={vaRows} scopeLabel={vaScopeLabel} />
+        ) : view === "budget" ? (<>
         {/* Row 1: Approved vs Utilized by project · Monthly PO trend */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
           <Zoomable title="Approved vs utilized by project">
