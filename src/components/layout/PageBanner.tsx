@@ -47,7 +47,7 @@ export function BannerPills<K extends string>({ items, value, onChange, size }: 
   useLayoutEffect(() => {
     const measure = () => {
       const el = ref.current?.querySelector<HTMLElement>('[data-on="1"]');
-      if (el) setThumb(t => ({ x: el.offsetLeft, w: el.offsetWidth, ready: t.ready || true }));
+      if (el) setThumb({ x: el.offsetLeft, w: el.offsetWidth, ready: true });
     };
     measure();
     const ro = new ResizeObserver(measure);

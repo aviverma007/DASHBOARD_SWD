@@ -57,13 +57,13 @@ function VaDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip }: {
       </div>
     );
   };
-  const agg = (key: (r: VaRow) => number, names: string[]) => {
+  const aggBy = (key: (r: VaRow) => number, names: string[]) => {
     const m = new Map<number, number>();
     rows.forEach(r => m.set(key(r), (m.get(key(r)) ?? 0) + r.amt));
     return [...m.entries()].map(([k, v]) => ({ k, label: names[k] ?? "—", v })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
   };
-  const vendItems = useMemo(() => agg(r => r.vend, VA.VEND), [rows]);
-  const reconItems = useMemo(() => agg(r => r.recon, VA.RECON), [rows]);
+  const vendItems = aggBy(r => r.vend, VA.VEND);
+  const reconItems = aggBy(r => r.recon, VA.RECON);
   const docLines = useMemo(() => [...rows].sort((a, b) => Math.abs(b.amt) - Math.abs(a.amt)).slice(0, 200), [rows]);
 
   return (
