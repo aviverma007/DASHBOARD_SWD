@@ -200,9 +200,10 @@ export function dayToYear(day: number): string {
 export function periodKeys(records: FfRecord[], mode: "quarter" | "year"): string[] {
   const s = new Set<string>();
   records.forEach(r => { if (r.day >= 0) s.add(mode === "quarter" ? dayToQuarter(r.day) : dayToYear(r.day)); });
-  // Future-dated rows exist (scheduled site visits) but a period that
-  // hasn't begun yet is meaningless for momentum comparison — cap the
-  // options at today's quarter/year.
+  // Cap the options at today's quarter/year — a period that hasn't
+  // begun yet is meaningless for momentum comparison. (The "future
+  // visits" this used to guard against were mm-dd/dd-mm swapped
+  // dates in the old export, fixed 09-Sep-2026.)
   const cur = mode === "quarter" ? dayToQuarter(todayDay()) : dayToYear(todayDay());
   return [...s].sort().filter(k => k <= cur);
 }
