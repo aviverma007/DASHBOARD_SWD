@@ -179,6 +179,12 @@ export default function CaseManagementPage() {
     pageRows.forEach(c => { if (c.org >= 0) m.set(c.org, (m.get(c.org) ?? 0) + 1); });
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [pageRows]);
+  /* Category = the CRM "Case Area" field (Payment & Receipts, Possessions…). */
+  const categoryList = useMemo(() => {
+    const m = new Map<number, number>();
+    pageRows.forEach(c => { if (c.area >= 0) m.set(c.area, (m.get(c.area) ?? 0) + 1); });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [pageRows]);
 
   const byOwner = useMemo(() => {
     const names = ownerMode === "owner" ? CM.OWN : CM.TL;
@@ -342,6 +348,25 @@ export default function CaseManagementPage() {
             ))}
           </div>
 
+          {/* Category cards — top 5 case areas, click → drill */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
+            {categoryList.slice(0, 5).map(([k, v], i) => {
+              const tot = Math.max(pageRows.length, 1);
+              const cols = [TEAL, NAVY, GOLD, GREEN, AMBER];
+              const col = cols[i % cols.length];
+              return (
+                <div key={k} onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
+                  onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(1)}% of ${pageLabel.toLowerCase()})<br/>click → drill`)}
+                  onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)}`)} onMouseLeave={hideTip}
+                  style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${col}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 14px", cursor: "pointer" }}>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(v)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{CM.AREA[k]}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "#8a8474", marginTop: 2 }}>{((v / tot) * 100).toFixed(1)}% of {pageLabel.toLowerCase()}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* TAT / HNI toggles — reference pages */}
           {tab !== "overall" && (
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -366,6 +391,34 @@ export default function CaseManagementPage() {
               )}
             </div>
           )}
+
+          {/* Cases by Category — full-width, all case areas */}
+          <Zoomable title="Cases by category">
+            <div style={{ ...CARD, marginBottom: 14 }}>
+              <h3 style={H3}>Cases by Category</h3>
+              <div style={CAP}>share of {pageLabel.toLowerCase()} · click a category → drill</div>
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6, columnGap: 24 }}>
+                {(() => {
+                  const tot = Math.max(pageRows.length, 1);
+                  const mx = Math.max(...categoryList.map(([, v]) => v), 1);
+                  return categoryList.map(([k, v]) => (
+                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
+                      onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
+                      onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
+                      style={{ padding: "3.5px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{CM.AREA[k]}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fN(v)} · {((v / tot) * 100).toFixed(2)}%</span>
+                      </div>
+                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: NAVY, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
 
           {/* Panel row: Case Type / Status / Case Origin */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>

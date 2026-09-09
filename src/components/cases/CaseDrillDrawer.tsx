@@ -4,14 +4,14 @@ import { showTip, hideTip } from "../common/hoverTip";
 import { CM, type CaseRec, isClosed, tatBucket, ymOf, ymLbl, fmtDay, fN, AGE_BANDS, ageBand } from "./caseShared";
 
 /** Drill dimensions. "stg" = open/closed group; "age" = ageing band. */
-export type CaseDim = "typ" | "sta" | "stg" | "org" | "own" | "tl" | "age" | "mon";
+export type CaseDim = "typ" | "sta" | "stg" | "org" | "own" | "tl" | "age" | "mon" | "area";
 export interface CaseChip { dim: CaseDim; val: number | string; label: string }
 export interface CaseDrillSeed { chips: CaseChip[] }
 
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, padding: "13px 15px", marginBottom: 12 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 8px" };
-const DIMN: Record<CaseDim, string> = { typ: "Case type", sta: "Status", stg: "State", org: "Origin", own: "Owner", tl: "Team leader", age: "Ageing", mon: "Month" };
+const DIMN: Record<CaseDim, string> = { typ: "Case type", sta: "Status", stg: "State", org: "Origin", own: "Owner", tl: "Team leader", age: "Ageing", mon: "Month", area: "Category" };
 
 
 export function CaseDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip, onRecord }: {
@@ -35,6 +35,7 @@ export function CaseDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip,
       case "tl": return c.tl === ch.val;
       case "age": return !isClosed(c) && ageBand(c.age) === ch.val;
       case "mon": return c.open >= 0 && ymOf(c.open) === ch.val;
+      case "area": return c.area === ch.val;
     }
   };
   const rows = useMemo(() => baseRows.filter(c => chips.every(ch => match(c, ch))),
