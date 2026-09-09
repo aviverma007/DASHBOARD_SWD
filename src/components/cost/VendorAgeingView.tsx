@@ -179,7 +179,6 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
     return m;
   }, [rows]);
   const over180 = byBucket.get(6)?.v ?? 0;
-  const notDue = byBucket.get(0)?.v ?? 0;
   const blockedAmt = rows.filter(r => r.blocked === 1).reduce((s, r) => s + r.amt, 0);
   const vendors = new Set(rows.map(r => r.vend)).size;
 
@@ -222,8 +221,6 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
         <KPI k="Net outstanding" v={fMoney(total)} s={`${fN(rows.length)} open items · ${fN(vendors)} vendors`} col={NAVY} />
         <KPI k="Overdue > 180 days" v={fMoney(over180)} s={`${total !== 0 ? ((over180 / total) * 100).toFixed(1) : "—"}% of outstanding`} col={RED}
           onClick={() => open([{ dim: "bucket", val: 6, label: "> 180 days" }])} />
-        <KPI k="Not yet due" v={fMoney(notDue)} s={`${byBucket.get(0)?.n ?? 0} items`} col={GREEN}
-          onClick={() => open([{ dim: "bucket", val: 0, label: "Not Due" }])} />
         <KPI k="Payment blocked" v={fMoney(blockedAmt)} s={`${fN(rows.filter(r => r.blocked === 1).length)} items with block flag`} col={GOLD}
           onClick={() => open([{ dim: "blocked", val: 1, label: "Blocked" }])} />
       </div>
