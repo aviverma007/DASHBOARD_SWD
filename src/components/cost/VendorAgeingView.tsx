@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
-import { VA, BUCKET_COLS, fmtDue, fN, fMoney, type VaRow } from "./vendorAgeingShared";
+import { VA, BUCKET_COLS, fmtDay, fN, fMoney, type VaRow } from "./vendorAgeingShared";
 
+const AS_ON_DAY = Math.round((Date.UTC(2026, 8, 9) - Date.UTC(2022, 0, 1)) / 86400000);
 const NAVY = "#14213D", TEAL = "#0E7490", GREEN = "#1BAF7A", RED = "#c0392b", GOLD = "#B8893C";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
@@ -135,11 +136,11 @@ function VaDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip }: {
                 <h3 style={H3}>Open items</h3>
                 <div style={CAP}>top {Math.min(docLines.length, 200)} of {fN(rows.length)} by value</div>
                 <div style={{ maxHeight: 320, overflowY: "auto", overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 460 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 620 }}>
                     <thead>
                       <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                        {["Doc no.", "Vendor", "Due", "Bucket", "Amount"].map(h => (
-                          <th key={h} style={{ textAlign: h === "Amount" ? "right" : "left", fontSize: 9.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "6px 8px", borderBottom: "2px solid #eae6da" }}>{h}</th>
+                        {["Doc no.", "Vendor", "Doc date", "Due date", "Overdue", "Bucket", "Amount"].map(h => (
+                          <th key={h} style={{ textAlign: h === "Amount" || h === "Overdue" ? "right" : "left", fontSize: 9.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "6px 8px", borderBottom: "2px solid #eae6da" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -147,8 +148,12 @@ function VaDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip }: {
                       {docLines.map(r => (
                         <tr key={r.i} style={{ borderBottom: "1px solid #f0ede5" }}>
                           <td style={{ padding: "5px 8px", fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>{r.doc}</td>
-                          <td style={{ padding: "5px 8px", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{VA.VEND[r.vend]}</td>
-                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap", color: "var(--mut)" }}>{fmtDue(r.due)}</td>
+                          <td style={{ padding: "5px 8px", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{VA.VEND[r.vend]}</td>
+                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap", color: "var(--mut)" }}>{fmtDay(r.docDay)}</td>
+                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap", fontWeight: 700, color: "var(--ink)" }}>{fmtDay(r.due)}</td>
+                          <td style={{ padding: "5px 8px", whiteSpace: "nowrap", textAlign: "right", fontWeight: 700, color: r.due >= 0 && AS_ON_DAY - r.due > 0 ? (AS_ON_DAY - r.due > 180 ? "#8B1E12" : "#C0392B") : "var(--mut)" }}>
+                            {r.due >= 0 && AS_ON_DAY - r.due > 0 ? `${fN(AS_ON_DAY - r.due)} d` : "—"}
+                          </td>
                           <td style={{ padding: "5px 8px", whiteSpace: "nowrap" }}>
                             <span style={{ background: `${BUCKET_COLS[r.bucket]}22`, color: BUCKET_COLS[r.bucket], fontWeight: 800, fontSize: 11, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{bLbl(r.bucket)}</span>
                           </td>
