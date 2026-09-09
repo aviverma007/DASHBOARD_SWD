@@ -11,6 +11,7 @@ const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBott
 
 export type VaDim = "vend" | "recon" | "dtyp" | "spgl" | "bucket" | "blocked";
 export interface VaChip { dim: VaDim; val: number; label: string }
+export const bLbl = (k: number) => (k === 0 ? "Not due" : `${VA.BUCKET[k]} days`);
 const DIMN: Record<VaDim, string> = { vend: "Vendor", recon: "Recon G/L", dtyp: "Doc type", spgl: "Sp. G/L", bucket: "Bucket", blocked: "Payment" };
 
 const matches = (r: VaRow, ch: VaChip): boolean => {
@@ -110,14 +111,14 @@ function VaDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip }: {
                 {(() => {
                   const m = new Map<number, number>(); rows.forEach(r => m.set(r.bucket, (m.get(r.bucket) ?? 0) + r.amt));
                   const mx = Math.max(...[...m.values()].map(Math.abs), 1);
-                  return VA.BUCKET.map((b, k) => {
+                  return VA.BUCKET.map((_b, k) => {
                     const v = m.get(k) ?? 0;
                     return (
-                      <div key={k} className="barrow" onClick={() => onAddChip({ dim: "bucket", val: k, label: b })}
-                        onMouseEnter={e => showTip(e, `<b>${b}</b><br/>${fMoney(v)}`)} onMouseMove={e => showTip(e, `<b>${b}</b> ${fMoney(v)}`)} onMouseLeave={hideTip}
+                      <div key={k} className="barrow" onClick={() => onAddChip({ dim: "bucket", val: k, label: bLbl(k) })}
+                        onMouseEnter={e => showTip(e, `<b>${bLbl(k)}</b><br/>${fMoney(v)}`)} onMouseMove={e => showTip(e, `<b>${bLbl(k)}</b> ${fMoney(v)}`)} onMouseLeave={hideTip}
                         style={{ padding: "3px 0", cursor: "pointer" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{b}</span>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 2 }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 700 }}>{bLbl(k)}</span>
                           <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fMoney(v)}</span>
                         </div>
                         <div style={{ height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
@@ -149,7 +150,7 @@ function VaDrillDrawer({ seed, baseRows, baseLabel, onClose, onAddChip }: {
                           <td style={{ padding: "5px 8px", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{VA.VEND[r.vend]}</td>
                           <td style={{ padding: "5px 8px", whiteSpace: "nowrap", color: "var(--mut)" }}>{fmtDue(r.due)}</td>
                           <td style={{ padding: "5px 8px", whiteSpace: "nowrap" }}>
-                            <span style={{ background: `${BUCKET_COLS[r.bucket]}22`, color: BUCKET_COLS[r.bucket], fontWeight: 800, fontSize: 10, borderRadius: 999, padding: "2px 8px" }}>{VA.BUCKET[r.bucket]}</span>
+                            <span style={{ background: `${BUCKET_COLS[r.bucket]}22`, color: BUCKET_COLS[r.bucket], fontWeight: 800, fontSize: 11, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{bLbl(r.bucket)}</span>
                           </td>
                           <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 700, color: r.amt < 0 ? GREEN : "var(--ink)" }}>{fMoney(r.amt)}</td>
                         </tr>
@@ -220,28 +221,11 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
         <KPI k="Net outstanding" v={fMoney(total)} s={`${fN(rows.length)} open items · ${fN(vendors)} vendors`} col={NAVY} />
         <KPI k="Overdue > 180 days" v={fMoney(over180)} s={`${total !== 0 ? ((over180 / total) * 100).toFixed(1) : "—"}% of outstanding`} col={RED}
-          onClick={() => open([{ dim: "bucket", val: 6, label: "> 180" }])} />
+          onClick={() => open([{ dim: "bucket", val: 6, label: "> 180 days" }])} />
         <KPI k="Not yet due" v={fMoney(notDue)} s={`${byBucket.get(0)?.n ?? 0} items`} col={GREEN}
           onClick={() => open([{ dim: "bucket", val: 0, label: "Not Due" }])} />
         <KPI k="Payment blocked" v={fMoney(blockedAmt)} s={`${fN(rows.filter(r => r.blocked === 1).length)} items with block flag`} col={GOLD}
           onClick={() => open([{ dim: "blocked", val: 1, label: "Blocked" }])} />
-      </div>
-
-      {/* Bucket cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 14 }}>
-        {VA.BUCKET.map((b, k) => {
-          const e = byBucket.get(k) ?? { v: 0, n: 0 };
-          return (
-            <div key={k} onClick={() => open([{ dim: "bucket", val: k, label: b }])}
-              onMouseEnter={ev => showTip(ev, `<b>${b}</b><br/>${fMoney(e.v)} · ${fN(e.n)} items<br/>click → drill`)}
-              onMouseMove={ev => showTip(ev, `<b>${b}</b> ${fMoney(e.v)}`)} onMouseLeave={hideTip}
-              style={{ background: "#fff", border: "1px solid #eae6da", borderTop: `4px solid ${BUCKET_COLS[k]}`, borderRadius: 10, boxShadow: "0 2px 4px rgba(20,33,61,.05)", padding: "10px 12px", cursor: "pointer" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: BUCKET_COLS[k] }}>{b}</div>
-              <div style={{ fontFamily: "Georgia,serif", fontSize: 18, fontWeight: 700, color: "var(--ink)", marginTop: 4, whiteSpace: "nowrap" }}>{fMoney(e.v)}</div>
-              <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 2 }}>{fN(e.n)} items · {total !== 0 ? ((e.v / total) * 100).toFixed(1) : "—"}%</div>
-            </div>
-          );
-        })}
       </div>
 
       {/* Charts */}
@@ -249,7 +233,7 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
         <Zoomable title="Top vendors by outstanding">
           <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Top Vendors by Outstanding</h3>
-            <div style={CAP}>navy = total outstanding · red = &gt;180 days portion · click a vendor → drill · top 60 of {fN(byVend.length)}</div>
+            <div style={CAP}>navy = total outstanding · red = &gt; 180 days portion · click a vendor → drill · top 60 of {fN(byVend.length)}</div>
             <div style={{ flex: 1, minHeight: 0, maxHeight: 330, overflowY: "auto", paddingRight: 6 }}>
               {(() => {
                 const mx = Math.max(...byVend.map(([, e]) => Math.abs(e.v)), 1);
@@ -330,17 +314,18 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
             <h3 style={H3}>Ageing Distribution</h3>
             <div style={CAP}>value share per bucket · click → drill</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 220, paddingTop: 8 }}>
-              {VA.BUCKET.map((b, k) => {
+              {VA.BUCKET.map((_b, k) => {
                 const e = byBucket.get(k) ?? { v: 0, n: 0 };
                 const mx = Math.max(...VA.BUCKET.map((_, i) => Math.abs(byBucket.get(i)?.v ?? 0)), 1);
                 return (
-                  <div key={k} onClick={() => open([{ dim: "bucket", val: k, label: b }])}
-                    onMouseEnter={ev => showTip(ev, `<b>${b}</b><br/>${fMoney(e.v)} · ${fN(e.n)} items`)}
-                    onMouseMove={ev => showTip(ev, `<b>${b}</b> ${fMoney(e.v)}`)} onMouseLeave={hideTip}
+                  <div key={k} onClick={() => open([{ dim: "bucket", val: k, label: bLbl(k) }])}
+                    onMouseEnter={ev => showTip(ev, `<b>${bLbl(k)}</b><br/>${fMoney(e.v)} · ${fN(e.n)} items`)}
+                    onMouseMove={ev => showTip(ev, `<b>${bLbl(k)}</b> ${fMoney(e.v)}`)} onMouseLeave={hideTip}
                     style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", cursor: "pointer" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--mut)", marginBottom: 3 }}>{fMoney(e.v)}</span>
-                    <div style={{ width: "72%", height: `${Math.max((Math.abs(e.v) / mx) * 78, e.v !== 0 ? 2 : 0)}%`, background: BUCKET_COLS[k], borderRadius: "5px 5px 0 0" }} />
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--mut)", marginTop: 5, whiteSpace: "nowrap" }}>{b}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", marginBottom: 4, whiteSpace: "nowrap" }}>{fMoney(e.v)}</span>
+                    <div style={{ width: "72%", height: `${Math.max((Math.abs(e.v) / mx) * 74, e.v !== 0 ? 2 : 0)}%`, background: BUCKET_COLS[k], borderRadius: "5px 5px 0 0" }} />
+                    <span style={{ fontSize: 12, fontWeight: 800, color: BUCKET_COLS[k], marginTop: 6, whiteSpace: "nowrap" }}>{bLbl(k)}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--mut)", marginTop: 1, whiteSpace: "nowrap" }}>{fN(e.n)} items</span>
                   </div>
                 );
               })}
@@ -358,7 +343,7 @@ export function VendorAgeingView({ rows, scopeLabel }: { rows: VaRow[]; scopeLab
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
               <thead>
                 <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  {["Vendor", "Items", "Not due", "0–90", "91–180", "> 180", "Total"].map(h => (
+                  {["Vendor", "Items", "Not due", "0–90 days", "91–180 days", "> 180 days", "Total"].map(h => (
                     <th key={h} style={{ textAlign: h === "Vendor" ? "left" : "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da" }}>{h}</th>
                   ))}
                 </tr>
