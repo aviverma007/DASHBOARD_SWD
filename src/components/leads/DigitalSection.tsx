@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import { dayToDate, fNum, isoToDay, type PeriodPreset } from "../../utils/footfallLogic";
 import {
@@ -24,7 +24,7 @@ import type { DigRec as DigRecT } from "./digitalShared";
  * (names, emails, phones) are deliberately NOT in the app dataset.
  * Click any bar/slice to filter every card at once (chips clear it). */
 
-export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
+export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode; center?: ReactNode } }) {
   const [chips, setChips] = useState<Chip[]>([]);
   const [drill, setDrill] = useState<import("./DigitalDrillDrawer").DigDrillSeed | null>(null);
   const [recDetail, setRecDetail] = useState<DigRecT | null>(null);
@@ -140,16 +140,11 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
       />
 
       {/* Filter bar */}
-      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
         <div>
           <div style={BANNER_LBL}>Period</div>
-          <div className="pb-pills">
-            {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
-              <button key={k} className={`pb-pill${perMode === k ? " on" : ""}`} onClick={() => { setPerMode(k); setPage(1); }}>
-                {l}
-              </button>
-            ))}
-          </div>
+          <BannerPills items={[["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const} value={perMode}
+            onChange={k => { setPerMode(k); setPage(1); }} />
         </div>
         {["y", "q", "m"].includes(perMode) && (
           <div>

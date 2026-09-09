@@ -7,7 +7,7 @@ import {
   fmtDay, ymOf, ymLbl, fN, fyOf, fyLbl, EPOCH_MS, AGE_BANDS, ageBand,
 } from "../../components/cases/caseShared";
 import { CaseDrillDrawer, type CaseDrillSeed, type CaseChip } from "../../components/cases/CaseDrillDrawer";
-import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 /* House tokens — identical family to Bookings. Structure mirrors the
  * reference CRM app: page tabs, applicability toggle, stat tickets,
@@ -238,14 +238,9 @@ export default function CaseManagementPage() {
       <div className="tv-zoom-desktop">
       {/* ── Header: title + the 4 reference page tabs ── */}
       <PageBanner title="Case Management" sub={<>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</>}
-        right={
-          <div className="pb-tabs">
-            {TABS.map(t => (
-              <button key={t.k} className={`pb-tab cm-btn${tab === t.k ? " on cm-btn-on" : ""}`} onClick={() => { setTab(t.k); setTatChip(""); setHniChip(false); setAgeF(-1); }}>
-                {t.l}
-              </button>
-            ))}
-          </div>
+        center={
+          <BannerPills size="lg" items={TABS.map(t => [t.k, t.l] as const)} value={tab}
+            onChange={k => { setTab(k); setTatChip(""); setHniChip(false); setAgeF(-1); }} />
         }>
           <div style={{ minWidth: 180 }}>
             <div style={BANNER_LBL}>Search</div>
@@ -261,13 +256,7 @@ export default function CaseManagementPage() {
           <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
           <div>
             <div style={BANNER_LBL}>Period (opened)</div>
-            <div className="pb-pills">
-              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([k, l]) => (
-                <button key={k} className={`pb-pill cm-btn${perMode === k ? " on cm-btn-on" : ""}`} onClick={() => setPerMode(k)}>
-                  {l}
-                </button>
-              ))}
-            </div>
+            <BannerPills items={[["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const} value={perMode} onChange={setPerMode} />
           </div>
           {["y", "q", "m"].includes(perMode) && (
             <div>

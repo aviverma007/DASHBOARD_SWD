@@ -15,7 +15,7 @@ import {
 } from "../../components/leads/footfallCharts";
 import { AnimatePresence, motion } from "framer-motion";
 import "../../components/inventory/smartworldInventory.css";
-import { PageBanner, BANNER_LBL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL } from "../../components/layout/PageBanner";
 
 const SELLBL: React.CSSProperties = BANNER_LBL;
 
@@ -211,13 +211,8 @@ export function BookingsPage() {
           </div>
           <div>
             <div style={SELLBL}>Period</div>
-            <div className="pb-pills">
-              {([["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const).map(([m, l]) => (
-                <button key={m} className={`pb-pill${perMode === m ? " on" : ""}`} onClick={() => { setPerMode(m); setPerKey(""); setPage(1); }}>
-                  {l}
-                </button>
-              ))}
-            </div>
+            <BannerPills items={[["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const} value={perMode}
+              onChange={m => { setPerMode(m); setPerKey(""); setPage(1); }} />
           </div>
           {perMode === "c" && (
             <>

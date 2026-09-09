@@ -3,6 +3,7 @@ import { FootfallSection } from "../../components/leads/FootfallSection";
 import { CpVisitsSection } from "../../components/leads/CpVisitsSection";
 import { DigitalSection } from "../../components/leads/DigitalSection";
 import "../../components/inventory/smartworldInventory.css";
+import { BannerPills } from "../../components/layout/PageBanner";
 
 type Tab = "footfall" | "cpvisits" | "digital";
 
@@ -19,12 +20,8 @@ export function LeadConversionPage({ mode = "footfall" }: { mode?: "footfall" | 
   const banner = {
     title: mode === "digital" ? "Digital Leads" : "Gallery Footfall",
     sub: mode === "digital" ? "Enquiries by source, campaign and conversion" : "Site-visit footfall and channel-partner visits",
-    right: TABS.length > 0 ? (
-      <div className="pb-tabs">
-        {TABS.map(t => (
-          <button key={t.key} className={`pb-tab${tab === t.key ? " on" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
-        ))}
-      </div>
+    center: TABS.length > 0 ? (
+      <BannerPills size="lg" items={TABS.map(t => [t.key, t.label] as const)} value={tab} onChange={setTab} />
     ) : undefined,
   };
 

@@ -17,7 +17,7 @@ import { RateTrendOverTimeCard } from "../../components/target/RateTrendOverTime
 import { TypeWiseSaleCard } from "../../components/target/TypeWiseSaleCard";
 import { MonthDrillDrawer } from "../../components/target/MonthDrillDrawer";
 import { ScopeDrawer } from "../../components/target/ScopeDrawer";
-import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 interface MonthMeta { year: number; month: number; label: string; }
 interface ProjectTarget { name: string; units: number[]; area: number[]; rate: number[]; sale_value: number[]; }
@@ -844,13 +844,8 @@ export function TargetActualPage() {
 
         <div>
           <label style={BANNER_LBL}>Period</label>
-          <div className="pb-pills">
-            {(["all", "year", "quarter", "month", "custom"] as PeriodType[]).map(t => (
-              <button key={t} className={`pb-pill${periodType === t ? " on" : ""}`} onClick={() => setPeriodType(t)}>
-                {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
+          <BannerPills items={(["all", "year", "quarter", "month", "custom"] as PeriodType[]).map(t => [t, t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)] as const)}
+            value={periodType} onChange={setPeriodType} />
         </div>
 
         {(periodType === "year" || periodType === "quarter" || periodType === "month") && (

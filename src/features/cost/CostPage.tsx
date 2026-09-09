@@ -5,7 +5,7 @@ import {
   CB, WBS_ROWS, PO_ROWS, statusOf, STATUS_LBL, TYPE_LBL, projLbl, ymOf, ymLbl, fMoney, fN,
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
-import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)" };
@@ -209,6 +209,7 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
+        center={<BannerPills size="lg" items={[["budget", "Budget Control"], ["po", "Actual vs Commitment"]] as const} value={view} onChange={setView} />}
         sub={<>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
           <div>
             <div style={WLBL}>Budget type</div>
@@ -245,14 +246,6 @@ export default function CostPage() {
             className="pb-btn">
             ⟲ Reset
           </button>
-          <div style={{ marginLeft: "auto" }}>
-            <div style={BANNER_LBL as React.CSSProperties}>View</div>
-            <div className="pb-pills">
-              {([["budget", "Budget Control"], ["po", "Actual vs Commitment"]] as const).map(([k, l]) => (
-                <button key={k} className={`pb-pill${view === k ? " on" : ""}`} onClick={() => setView(k)}>{l}</button>
-              ))}
-            </div>
-          </div>
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>

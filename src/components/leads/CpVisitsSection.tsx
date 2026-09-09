@@ -19,7 +19,7 @@ const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat
  * visit export (48,397 partner gallery visits, 5,421 partners), NOT
  * derived from customer footfall. Booking data intentionally absent:
  * this file tracks partner engagement. */
-export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
+export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode; center?: ReactNode } }) {
   const [projFilter, setProjFilter] = useState<CpvChip | null>(null);
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
@@ -137,7 +137,7 @@ export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: 
       />
 
       {/* Filter bar — in the navy banner */}
-      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
         <div>
           <div style={BANNER_LBL}>Project</div>
           <select

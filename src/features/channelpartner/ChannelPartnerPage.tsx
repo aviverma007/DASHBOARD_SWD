@@ -13,7 +13,7 @@ import { CancelledRebookingCard } from "../../components/channelpartner/Cancelle
 import { CpDrillDrawer } from "../../components/channelpartner/CpDrillDrawer";
 import { CpMonthDrawer } from "../../components/channelpartner/CpMonthDrawer";
 import "../../components/inventory/smartworldInventory.css";
-import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 
 const TOP_N = 12;
 type PeriodType = PeriodScope["type"];
@@ -216,13 +216,8 @@ export function ChannelPartnerPage() {
 
         <div>
           <label style={BANNER_LBL}>Period</label>
-          <div className="pb-pills">
-            {(["all", "year", "quarter", "month"] as PeriodType[]).map(t => (
-              <button key={t} className={`pb-pill${periodType === t ? " on" : ""}`} onClick={() => setPeriodType(t)}>
-                {t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
+          <BannerPills items={(["all", "year", "quarter", "month"] as PeriodType[]).map(t => [t, t === "all" ? "All time" : t.charAt(0).toUpperCase() + t.slice(1)] as const)}
+            value={periodType} onChange={setPeriodType} />
         </div>
 
         {(periodType === "year" || periodType === "quarter") && (

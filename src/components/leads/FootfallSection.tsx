@@ -25,7 +25,7 @@ import { VisitRecordPanel } from "./VisitRecordPanel";
 
 const PAGE_SIZE = 10;
 
-export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode } }) {
+export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode; center?: ReactNode } }) {
   const [filters, setFilters] = useState<FfFilter[]>([]);
   const [page, setPage] = useState(1);
   const [sortDir, setSortDir] = useState<-1 | 1>(-1);
@@ -112,7 +112,7 @@ export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: 
         onClose={() => setDrill(null)}
       />
       {/* Global filter bar — in the navy banner like every other page */}
-      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right}>
+      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
         <div style={{ position: "relative" }}>
           <div style={BANNER_LBL}>Projects / campaigns</div>
           <button onClick={() => setProjOpen(v => !v)}

@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import "./pageBanner.css";
 
 /**
@@ -7,10 +7,12 @@ import "./pageBanner.css";
  * page. Put page filters in `children` (they land in the filter row);
  * put page tabs / actions in `right` (they sit beside the title).
  */
-export function PageBanner({ title, sub, right, children, bleed, style, className }: {
+export function PageBanner({ title, sub, right, center, children, bleed, style, className }: {
   title: ReactNode;
   sub?: ReactNode;
   right?: ReactNode;
+  /** Centered at the top of the banner — the home for view/tab toggles. */
+  center?: ReactNode;
   children?: ReactNode;
   /** Render inside a `.wrap` (18px 22px padding) and bleed to the edges. */
   bleed?: boolean;
@@ -25,6 +27,7 @@ export function PageBanner({ title, sub, right, children, bleed, style, classNam
           <div className="pb-title">{title}</div>
           {sub && <div className="pb-sub">{sub}</div>}
         </div>
+        {center && <div className="pb-center">{center}</div>}
         {right}
       </div>
       {children && <div className="pb-filters">{children}</div>}
@@ -32,14 +35,32 @@ export function PageBanner({ title, sub, right, children, bleed, style, classNam
   );
 }
 
-/** Segmented pills (period modes, view toggles). */
-export function BannerPills<K extends string>({ items, value, onChange }: {
-  items: readonly (readonly [K, string])[]; value: K; onChange: (k: K) => void;
+/** Segmented pills with an iOS-style sliding "liquid glass" thumb.
+ * The gold thumb is one absolutely-positioned element that glides
+ * (slight overshoot) to whichever segment is active, so every toggle
+ * on every page animates identically. `size="lg"` = page tabs. */
+export function BannerPills<K extends string>({ items, value, onChange, size }: {
+  items: readonly (readonly [K, string])[]; value: K; onChange: (k: K) => void; size?: "lg";
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ x: number; w: number; ready: boolean }>({ x: 0, w: 0, ready: false });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = ref.current?.querySelector<HTMLElement>('[data-on="1"]');
+      if (el) setThumb(t => ({ x: el.offsetLeft, w: el.offsetWidth, ready: t.ready || true }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (ref.current) ro.observe(ref.current);
+    document.fonts?.ready.then(measure);
+    return () => ro.disconnect();
+  }, [value, items]);
   return (
-    <div className="pb-pills">
+    <div ref={ref} className={`pb-pills${size === "lg" ? " pb-pills-lg" : ""}`}>
+      <span className="pb-thumb" style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w, opacity: thumb.ready ? 1 : 0 }} aria-hidden />
       {items.map(([k, l]) => (
-        <button key={k} type="button" className={`pb-pill${value === k ? " on" : ""}`} onClick={() => onChange(k)}>{l}</button>
+        <button key={k} type="button" data-on={value === k ? "1" : undefined}
+          className={`pb-pill${value === k ? " on" : ""}`} onClick={() => onChange(k)}>{l}</button>
       ))}
     </div>
   );
