@@ -39,22 +39,36 @@ export function PageBanner({ title, sub, right, center, children, bleed, style, 
  * The gold thumb is one absolutely-positioned element that glides
  * (slight overshoot) to whichever segment is active, so every toggle
  * on every page animates identically. `size="lg"` = page tabs. */
+/* The Leads page re-mounts its banner when switching sections (each
+ * section renders the banner so its filters live inside it). A fresh
+ * mount used to reset the thumb to x:0/opacity:0, which flashed and
+ * killed the slide. Cache the last thumb rect per pill-group so a
+ * remounted control starts where its predecessor ended and glides. */
+const thumbCache = new Map<string, { x: number; w: number }>();
+
 export function BannerPills<K extends string>({ items, value, onChange, size }: {
   items: readonly (readonly [K, string])[]; value: K; onChange: (k: K) => void; size?: "lg";
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [thumb, setThumb] = useState<{ x: number; w: number; ready: boolean }>({ x: 0, w: 0, ready: false });
+  const cacheKey = items.map(i => i[0]).join("|");
+  const [thumb, setThumb] = useState<{ x: number; w: number; ready: boolean }>(() => {
+    const c = thumbCache.get(cacheKey);
+    return c ? { ...c, ready: true } : { x: 0, w: 0, ready: false };
+  });
   useLayoutEffect(() => {
     const measure = () => {
       const el = ref.current?.querySelector<HTMLElement>('[data-on="1"]');
-      if (el) setThumb({ x: el.offsetLeft, w: el.offsetWidth, ready: true });
+      if (!el) return;
+      const next = { x: el.offsetLeft, w: el.offsetWidth };
+      thumbCache.set(cacheKey, next);
+      setThumb(t => (t.x === next.x && t.w === next.w && t.ready ? t : { ...next, ready: true }));
     };
     measure();
     const ro = new ResizeObserver(measure);
     if (ref.current) ro.observe(ref.current);
     document.fonts?.ready.then(measure);
     return () => ro.disconnect();
-  }, [value, items]);
+  }, [value, items, cacheKey]);
   return (
     <div ref={ref} className={`pb-pills${size === "lg" ? " pb-pills-lg" : ""}`}>
       <span className="pb-thumb" style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w, opacity: thumb.ready ? 1 : 0 }} aria-hidden />
