@@ -83,6 +83,7 @@ export default function CaseManagementPage() {
   const [fSta, setFSta] = useState(-1);
   const [fOrg, setFOrg] = useState(-1);
   const [fOwn, setFOwn] = useState(-1);
+  const [fPrj, setFPrj] = useState(-1);
   const [applic, setApplic] = useState(-1); // Inclusion/Exclusion toggle
   const [tatChip, setTatChip] = useState<"" | "within" | "beyond">("");
   const [hniChip, setHniChip] = useState(false);
@@ -121,11 +122,12 @@ export default function CaseManagementPage() {
     (fArea < 0 || c.area === fArea) && (fSubA < 0 || c.subArea === fSubA) &&
     (fTyp < 0 || c.typ === fTyp) && (fPri < 0 || c.pri === fPri) &&
     (fSta < 0 || c.sta === fSta) && (fOrg < 0 || c.org === fOrg) &&
-    (fOwn < 0 || c.own === fOwn) && (applic < 0 || c.app === applic) &&
+    (fOwn < 0 || c.own === fOwn) && (fPrj < 0 || c.prj === fPrj) &&
+    (applic < 0 || c.app === applic) &&
     (!searchNo.trim() || c.caseNo.includes(searchNo.trim()) || c.account.toLowerCase().includes(searchNo.trim().toLowerCase())) &&
     inPeriod(c)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [fArea, fSubA, fTyp, fPri, fSta, fOrg, fOwn, applic, searchNo, perMode, perSel, cFrom, cTo]);
+  ), [fArea, fSubA, fTyp, fPri, fSta, fOrg, fOwn, fPrj, applic, searchNo, perMode, perSel, cFrom, cTo]);
 
   // page scope per top tab (reference semantics)
   const tabScoped = useMemo(() => {
@@ -151,7 +153,7 @@ export default function CaseManagementPage() {
   useEffect(() => { setPage(1); }, [pageRows]);
 
   const resetAll = () => {
-    setFArea(-1); setFSubA(-1); setFTyp(-1); setFPri(-1); setFSta(-1); setFOrg(-1); setFOwn(-1);
+    setFArea(-1); setFSubA(-1); setFTyp(-1); setFPri(-1); setFSta(-1); setFOrg(-1); setFOwn(-1); setFPrj(-1);
     setApplic(-1); setTatChip(""); setHniChip(false); setAgeF(-1); setSearchNo("");
     setPerMode("all"); setPerSel(""); setCFrom(""); setCTo("");
   };
@@ -259,6 +261,7 @@ export default function CaseManagementPage() {
           <SFilter label="Case Status" value={fSta} onChange={setFSta} options={CM.STA} />
           <SFilter label="Case Origin" value={fOrg} onChange={setFOrg} options={CM.ORG} />
           <SFilter label="Case Owner" value={fOwn} onChange={setFOwn} options={CM.OWN} />
+          <SFilter label="Project" value={fPrj} onChange={setFPrj} options={CM.PRJ} />
           <div>
             <div style={BANNER_LBL}>Period (opened)</div>
             <BannerPills items={[["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const} value={perMode} onChange={setPerMode} />
