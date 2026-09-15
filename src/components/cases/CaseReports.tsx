@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
 import { CM, isClosed, type CaseRec } from "./caseShared";
 
@@ -8,7 +7,7 @@ import { CM, isClosed, type CaseRec } from "./caseShared";
  * rebuilt live from the case dataset. Ageing buckets follow the MIS:
  * 24 Hrs · 48 Hrs · 96 Hrs · 5-8 d · 9-15 d · 16-30 d · >30 d. */
 
-const NAVY = "#14213D", TEAL = "#0E7490", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
+const NAVY = "#14213D", TEAL = "#0E7490", GREEN = "#1BAF7A", RED = "#c0392b";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBottom: 10 };
@@ -89,6 +88,7 @@ function BucketTable({ title, cap, rows, nameOf, onRow, extra }: {
 }
 
 export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: DrillOpen }) {
+  const [grp, setGrp] = useState<"own" | "tl">("own"); // merged ageing table grouping
   const [pendScope, setPendScope] = useState<"all" | 0 | 1>("all"); // applicability filter for pending summary
   const openCases = useMemo(() => rows.filter(c => !isClosed(c)), [rows]);
   const exclIdx = CM.APP.indexOf("Exclusion");
@@ -101,7 +101,7 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
   };
 
   /* 1 — RM Wise Open Ticket, Ageing Wise */
-  const rmAgeing = useMemo(() => groupBy(openCases, c => c.own), [openCases]);
+  const rmAgeing = useMemo(() => groupBy(openCases.filter(c => pendScope === "all" || c.app === pendScope), c => c.own), [openCases, pendScope]);
 
   /* 2 — Pending Ticket Summary — TL wise (HOD grouped), scoped by applicability */
   const pendScoped = useMemo(() => openCases.filter(c => pendScope === "all" || c.app === pendScope), [openCases, pendScope]);
@@ -113,10 +113,6 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
   /* 3 — Inclusion / Exclusion — RM wise, with avg ageing of exclusions */
   const rmApp = useMemo(() => groupBy(rows, c => c.own), [rows]);
 
-  /* 4 — Exclusion, Category wise */
-  const exclByArea = useMemo(() => groupBy(rows.filter(c => c.app === exclIdx), c => c.area), [rows, exclIdx]);
-  const exclTotal = exclByArea.reduce((s, [, cs]) => s + cs.length, 0);
-
   /* 5 — Resolved summary (day-approximation: same/next day ≈ within 24 hrs) */
   const resolved = useMemo(() => rows.filter(c => isClosed(c) && c.closed >= 0 && c.open >= 0), [rows]);
   const tlResolved = useMemo(() => groupBy(resolved, c => c.tl), [resolved]);
@@ -126,13 +122,16 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
 
   return (
     <>
-      <BucketTable title="RM Wise Open Tickets — Ageing Wise"
-        cap="open tickets in the current filter scope · buckets on ticket age · click an RM → drill"
-        rows={rmAgeing} nameOf={k => CM.OWN[k]}
-        onRow={k => openDrill([{ dim: "own", val: k, label: CM.OWN[k] }])} />
-
-      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px" }}>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)" }}>Pending summary scope</span>
+      {/* One ageing table, RM | TL grouping + applicability scope — merged
+          from the two separate MIS sheets so nothing is duplicated. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px", flexWrap: "wrap" }}>
+        {(["own", "tl"] as const).map(k => (
+          <button key={k} onClick={() => setGrp(k)}
+            style={{ border: "1px solid #d8d2c4", background: grp === k ? NAVY : "#fff", color: grp === k ? "#fff" : "var(--ink)", fontWeight: 700, fontSize: 11.5, borderRadius: 999, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit" }}>
+            {k === "own" ? "By RM (Case Owner)" : "By TL (HOD-wise)"}
+          </button>
+        ))}
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", marginLeft: 8 }}>Scope</span>
         {(["all", inclIdx, exclIdx] as const).map(k => (
           <button key={String(k)} onClick={() => setPendScope(k as typeof pendScope)}
             style={{ border: "1px solid #d8d2c4", background: pendScope === k ? NAVY : "#fff", color: pendScope === k ? "#fff" : "var(--ink)", fontWeight: 700, fontSize: 11.5, borderRadius: 999, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit" }}>
@@ -140,11 +139,19 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
           </button>
         ))}
       </div>
-      <BucketTable title="Pending Ticket Summary — TL wise"
-        cap="open tickets grouped by team leader (sorted by HOD: Raghav · Sonia · Vineet Kumar · other) · click a TL → drill"
-        rows={tlPending} nameOf={k => `${HOD_OF[CM.TL[k]] ?? "Other"} — ${CM.TL[k]}`}
-        onRow={k => openDrill([{ dim: "tl", val: k, label: CM.TL[k] }])}
-        extra={[{ h: "Exclusion", f: cs => String(exclCount(cs) || "") }]} />
+      {grp === "own" ? (
+        <BucketTable title="Open Tickets — Ageing Wise (RM)"
+          cap="open tickets in the current filter scope · buckets on ticket age · click an RM → drill"
+          rows={rmAgeing} nameOf={k => CM.OWN[k]}
+          onRow={k => openDrill([{ dim: "own", val: k, label: CM.OWN[k] }])}
+          extra={[{ h: "Exclusion", f: cs => String(exclCount(cs) || "") }]} />
+      ) : (
+        <BucketTable title="Open Tickets — Ageing Wise (TL, HOD grouped)"
+          cap="open tickets grouped by team leader (sorted by HOD: Raghav · Sonia · Vineet Kumar · other) · click a TL → drill"
+          rows={tlPending} nameOf={k => `${HOD_OF[CM.TL[k]] ?? "Other"} — ${CM.TL[k]}`}
+          onRow={k => openDrill([{ dim: "tl", val: k, label: CM.TL[k] }])}
+          extra={[{ h: "Exclusion", f: cs => String(exclCount(cs) || "") }]} />
+      )}
 
       <Zoomable title="Inclusion exclusion RM wise">
         <div style={CARD}>
@@ -189,29 +196,7 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
         </div>
       </Zoomable>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
-        <Zoomable title="Exclusion category wise">
-          <div style={{ ...CARD, marginBottom: 14 }}>
-            <h3 style={H3}>Exclusion — Category wise</h3>
-            <div style={CAP}>{fN(exclTotal)} exclusion tickets · click a category → drill</div>
-            <div style={{ maxHeight: 380, overflowY: "auto", paddingRight: 6 }}>
-              {exclByArea.map(([k, cs]) => (
-                <div key={k} className="barrow" onClick={() => openDrill([{ dim: "area", val: k, label: CM.AREA[k] }])}
-                  onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(cs.length)} exclusions (${((cs.length / Math.max(exclTotal, 1)) * 100).toFixed(0)}%)`)}
-                  onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b> ${fN(cs.length)}`)} onMouseLeave={hideTip}
-                  style={{ padding: "3.5px 0", cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 2 }}>
-                    <span style={{ color: "var(--ink)", fontWeight: 700 }}>{CM.AREA[k]}</span>
-                    <span style={{ color: "var(--mut)", fontWeight: 800 }}>{fN(cs.length)} · {((cs.length / Math.max(exclTotal, 1)) * 100).toFixed(0)}%</span>
-                  </div>
-                  <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(cs.length / Math.max(exclByArea[0]?.[1].length ?? 1, 1)) * 100}%`, background: AMBER, borderRadius: 5 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Zoomable>
+      <div>
         <Zoomable title="Resolved summary TL wise">
           <div style={{ ...CARD, marginBottom: 14 }}>
             <h3 style={H3}>Resolved Summary — TL wise</h3>

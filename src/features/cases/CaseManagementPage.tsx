@@ -228,6 +228,7 @@ export default function CaseManagementPage() {
   const pages = Math.max(Math.ceil(pageRows.length / PER), 1);
   const shown = pageRows.slice((page - 1) * PER, page * PER);
 
+  const maxOpenDay = useMemo(() => CASES.reduce((m, c) => Math.max(m, c.open), 0), []);
   const pageLabel = TABS.find(t => t.k === tab)!.l;
 
   return (
@@ -339,6 +340,25 @@ export default function CaseManagementPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Recency cards — opened in the last 24h / 7d / 30d · click → drill */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
+            {([["Opened — last 24 hrs", 1, TEAL], ["Opened — last 7 days", 7, GOLD], ["Opened — last 30 days", 30, NAVY]] as const).map(([label, days, col]) => {
+              const since = maxOpenDay - days + 1;
+              const inWin = pageRows.filter(c => c.open >= since);
+              const stillOpen = inWin.filter(c => !isClosed(c)).length;
+              return (
+                <div key={label} onClick={() => setDrill({ chips: [{ dim: "since", val: since, label }] })}
+                  onMouseEnter={e => showTip(e, `<b>${label}</b><br/>${fN(inWin.length)} tickets opened · ${fN(stillOpen)} still open<br/>click → drill`)}
+                  onMouseMove={e => showTip(e, `<b>${label}</b><br/>${fN(inWin.length)}`)} onMouseLeave={hideTip}
+                  style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${col}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 14px", cursor: "pointer" }}>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(inWin.length)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4 }}>{label}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "#8a8474", marginTop: 2 }}>{fN(stillOpen)} still open</div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Category cards — top 5 case areas, click → drill */}
