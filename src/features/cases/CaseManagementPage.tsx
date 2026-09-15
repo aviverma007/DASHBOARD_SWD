@@ -229,6 +229,16 @@ export default function CaseManagementPage() {
   const shown = pageRows.slice((page - 1) * PER, page * PER);
 
   const maxOpenDay = useMemo(() => CASES.reduce((m, c) => Math.max(m, c.open), 0), []);
+  const projSplit = useMemo(() => {
+    const m = new Map<number, { tot: number; open: number; tat: number }>();
+    pageRows.forEach(c => {
+      if (c.prj < 0) return;
+      if (!m.has(c.prj)) m.set(c.prj, { tot: 0, open: 0, tat: 0 });
+      const e = m.get(c.prj)!; e.tot++;
+      if (!isClosed(c)) { e.open++; if (tatBucket(c) === "overdue") e.tat++; }
+    });
+    return [...m.entries()].sort((a, b) => b[1].tot - a[1].tot);
+  }, [pageRows]);
   const pageLabel = TABS.find(t => t.k === tab)!.l;
 
   return (
@@ -701,6 +711,112 @@ export default function CaseManagementPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Cases by Project: donut + bars + table ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
+            <Zoomable title="Project share donut">
+              <div style={{ ...CARD, height: "100%" }}>
+                <h3 style={H3}>Cases by Project — Share</h3>
+                <div style={CAP}>{pageLabel.toLowerCase()} · top 8 projects, rest grouped · click a slice → drill</div>
+                {(() => {
+                  const top = projSplit.slice(0, 8);
+                  const restV = projSplit.slice(8).reduce((s2, [, e]) => s2 + e.tot, 0);
+                  const items = [...top.map(([k, e]) => ({ k, label: CM.PRJ[k], v: e.tot })), ...(restV > 0 ? [{ k: -1, label: "Others", v: restV }] : [])];
+                  const tot = Math.max(items.reduce((s2, i) => s2 + i.v, 0), 1);
+                  const R = 70, C = 2 * Math.PI * R; let off = 0;
+                  return (
+                    <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center", height: "calc(100% - 48px)", minHeight: 200 }}>
+                      <svg width={190} height={190} viewBox="0 0 190 190" style={{ flexShrink: 0 }}>
+                        {items.map((it, i) => {
+                          const frac = it.v / tot, dash = frac * C, o = off; off += dash;
+                          return (
+                            <circle key={it.label} cx={95} cy={95} r={R} fill="none" stroke={PAL[i % PAL.length]} strokeWidth={28}
+                              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 95 95)"
+                              style={{ cursor: it.k >= 0 ? "pointer" : "default" }}
+                              onClick={() => { if (it.k >= 0) setDrill({ chips: [{ dim: "prj", val: it.k, label: it.label }] }); }}
+                              onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
+                              onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)}`)} onMouseLeave={hideTip} />
+                          );
+                        })}
+                        <text x={95} y={91} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
+                        <text x={95} y={108} textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--mut)", letterSpacing: 1 }}>CASES</text>
+                      </svg>
+                      <div style={{ flex: 1, minWidth: 130 }}>
+                        {items.map((it, i) => (
+                          <div key={it.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", cursor: it.k >= 0 ? "pointer" : "default" }}
+                            onClick={() => { if (it.k >= 0) setDrill({ chips: [{ dim: "prj", val: it.k, label: it.label }] }); }}>
+                            <span style={{ width: 10, height: 10, borderRadius: "50%", background: PAL[i % PAL.length], flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, color: "var(--ink)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700 }}>{fN(it.v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </Zoomable>
+            <Zoomable title="Project open bars">
+              <div style={{ ...CARD, height: "100%" }}>
+                <h3 style={H3}>Cases by Project — Open vs Total</h3>
+                <div style={CAP}>green = total · gold = open portion · click a project → drill</div>
+                <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                  {(() => {
+                    const mx = Math.max(...projSplit.map(([, e]) => e.tot), 1);
+                    return projSplit.map(([k, e]) => (
+                      <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "prj", val: k, label: CM.PRJ[k] }] })}
+                        onMouseEnter={ev => showTip(ev, `<b>${CM.PRJ[k]}</b><br/>${fN(e.tot)} total · ${fN(e.open)} open · ${fN(e.tat)} beyond TAT`)}
+                        onMouseMove={ev => showTip(ev, `<b>${CM.PRJ[k]}</b> ${fN(e.tot)}`)} onMouseLeave={hideTip}
+                        style={{ padding: "4px 0", cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{CM.PRJ[k]}</span>
+                          <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fN(e.tot)} ({fN(e.open)} open)</span>
+                        </div>
+                        <div style={{ position: "relative", height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ position: "absolute", inset: 0, width: `${(e.tot / mx) * 100}%`, background: GREEN, borderRadius: 4 }} />
+                          <div style={{ position: "absolute", inset: 0, width: `${(e.open / mx) * 100}%`, background: GOLD, borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </Zoomable>
+          </div>
+          <Zoomable title="Project wise table">
+            <div style={CARD}>
+              <h3 style={H3}>Project-wise Summary</h3>
+              <div style={CAP}>{fN(projSplit.length)} projects in scope · click a row → drill</div>
+              <div style={{ maxHeight: 360, overflow: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 620 }}>
+                  <thead>
+                    <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                      {["Project", "Open", "Beyond TAT", "Closed", "Total", "% of cases"].map(h => (
+                        <th key={h} style={{ textAlign: h === "Project" ? "left" : "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const grand = Math.max(projSplit.reduce((s2, [, e]) => s2 + e.tot, 0), 1);
+                      return projSplit.map(([k, e]) => (
+                        <tr key={k} onClick={() => setDrill({ chips: [{ dim: "prj", val: k, label: CM.PRJ[k] }] })} style={{ cursor: "pointer" }}
+                          onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 700, color: "var(--ink)", borderBottom: "1px solid #f0ede5" }}>{CM.PRJ[k]}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "right", color: GOLD, fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{fN(e.open)}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "right", color: e.tat ? RED : "var(--mut)", fontWeight: e.tat ? 800 : 500, borderBottom: "1px solid #f0ede5" }}>{e.tat || ""}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "right", color: GREEN, borderBottom: "1px solid #f0ede5" }}>{fN(e.tot - e.open)}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 800, borderBottom: "1px solid #f0ede5" }}>{fN(e.tot)}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "right", color: "var(--mut)", borderBottom: "1px solid #f0ede5" }}>{((e.tot / grand) * 100).toFixed(1)}%</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Zoomable>
 
           {/* ── MIS reports — inline, same scope as every chart above
               (tab + all banner filters + TAT/HNI/ageing chips) ── */}
