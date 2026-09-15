@@ -37,7 +37,7 @@ const TABS: { k: Tab; l: string }[] = [
 
 
 /** Reference SFilter — searchable dropdown, restyled to the house look. */
-function SFilter({ label, value, onChange, options }: { label: string; value: number; onChange: (v: number) => void; options: string[] }) {
+function SFilter({ label, value, onChange, options }: { label: string; value: number[]; onChange: (v: number[]) => void; options: string[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement | null>(null);
@@ -47,31 +47,41 @@ function SFilter({ label, value, onChange, options }: { label: string; value: nu
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const list = [{ i: -1, n: "All" }, ...options.map((n, i) => ({ i, n }))];
+  const list = options.map((n, i) => ({ i, n }));
   const shown = q ? list.filter(o => o.n.toLowerCase().includes(q.toLowerCase())) : list;
+  const toggle = (i: number) => onChange(value.includes(i) ? value.filter(v => v !== i) : [...value, i]);
+  const summary = value.length === 0 ? "All" : value.length === 1 ? options[value[0]] : `${value.length} selected`;
   return (
     <div ref={ref} style={{ position: "relative", minWidth: 150 }}>
       <div style={BANNER_LBL}>{label}</div>
       <div onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, boxSizing: "border-box", height: 34, fontSize: 12.5, fontWeight: 600, color: value < 0 ? "var(--mut)" : "var(--ink)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer" }}>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value < 0 ? "All" : options[value]}</span>
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, boxSizing: "border-box", height: 34, fontSize: 12.5, fontWeight: 600, color: value.length ? "var(--ink)" : "var(--mut)", background: "#fff", border: `1px solid ${open ? TEAL : "#d8d2c4"}`, borderRadius: 8, padding: "0 10px", cursor: "pointer", userSelect: "none" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary}</span>
         <span style={{ fontSize: 9, color: "var(--mut)", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▼</span>
       </div>
       {open && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", overflow: "hidden" }}>
-          <div style={{ padding: 6, borderBottom: "1px solid #f0ede5" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, minWidth: 210, marginTop: 5, zIndex: 40, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 10, boxShadow: "0 12px 30px rgba(20,33,61,.18)", overflow: "hidden" }}>
+          <div style={{ padding: 6, borderBottom: "1px solid #f0ede5", display: "flex", gap: 6 }}>
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} onClick={e => e.stopPropagation()} placeholder="Search…"
-              style={{ width: "100%", boxSizing: "border-box", fontSize: 12, fontWeight: 600, color: "var(--ink)", background: "#faf8f2", border: "1px solid #eae6da", borderRadius: 6, padding: "5px 8px", outline: "none", fontFamily: "inherit" }} />
+              style={{ flex: 1, boxSizing: "border-box", fontSize: 12, fontWeight: 600, color: "var(--ink)", background: "#faf8f2", border: "1px solid #eae6da", borderRadius: 7, padding: "6px 8px", outline: "none", fontFamily: "inherit" }} />
+            {value.length > 0 && (
+              <button onClick={e => { e.stopPropagation(); onChange([]); }}
+                style={{ border: "none", background: "transparent", color: TEAL, fontWeight: 800, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Clear</button>
+            )}
           </div>
-          <div style={{ maxHeight: 180, overflowY: "auto" }}>
-            {shown.length ? shown.map(o => (
-              <div key={o.i} onClick={() => { onChange(o.i); setOpen(false); setQ(""); }}
-                style={{ padding: "6px 10px", fontSize: 12, fontWeight: o.i === value ? 800 : 600, cursor: "pointer", color: o.i === value ? TEAL : "var(--ink)", background: o.i === value ? "rgba(14,116,144,.08)" : "transparent" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(14,116,144,.06)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = o.i === value ? "rgba(14,116,144,.08)" : "transparent"; }}>
-                {o.n}
-              </div>
-            )) : <div style={{ padding: "8px 10px", fontSize: 11.5, color: "var(--mut)" }}>No matches</div>}
+          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+            {shown.length ? shown.map(o => {
+              const on = value.includes(o.i);
+              return (
+                <div key={o.i} onClick={() => toggle(o.i)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 12, fontWeight: on ? 800 : 600, cursor: "pointer", color: on ? TEAL : "var(--ink)", background: on ? "rgba(14,116,144,.08)" : "transparent", userSelect: "none" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(14,116,144,.06)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = on ? "rgba(14,116,144,.08)" : "transparent"; }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, border: `1.5px solid ${on ? TEAL : "#c9c2b2"}`, background: on ? TEAL : "#fff", color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center", flexShrink: 0 }}>{on ? "✓" : ""}</span>
+                  {o.n}
+                </div>
+              );
+            }) : <div style={{ padding: "8px 10px", fontSize: 11.5, color: "var(--mut)" }}>No matches</div>}
           </div>
         </div>
       )}
@@ -83,14 +93,14 @@ export default function CaseManagementPage() {
   const [tab, setTab] = useState<Tab>("overall");
   // sidebar filters — same set as the reference (Category = Area)
   const [searchNo, setSearchNo] = useState("");
-  const [fArea, setFArea] = useState(-1);
-  const [fSubA, setFSubA] = useState(-1);
-  const [fTyp, setFTyp] = useState(-1);
-  const [fPri, setFPri] = useState(-1);
-  const [fSta, setFSta] = useState(-1);
-  const [fOrg, setFOrg] = useState(-1);
-  const [fOwn, setFOwn] = useState(-1);
-  const [fPrj, setFPrj] = useState(-1);
+  const [fArea, setFArea] = useState<number[]>([]);
+  const [fSubA, setFSubA] = useState<number[]>([]);
+  const [fTyp, setFTyp] = useState<number[]>([]);
+  const [fPri, setFPri] = useState<number[]>([]);
+  const [fSta, setFSta] = useState<number[]>([]);
+  const [fOrg, setFOrg] = useState<number[]>([]);
+  const [fOwn, setFOwn] = useState<number[]>([]);
+  const [fPrj, setFPrj] = useState<number[]>([]);
   const [applic, setApplic] = useState(-1); // Inclusion/Exclusion toggle
   const [tatChip, setTatChip] = useState<"" | "within" | "beyond">("");
   const [hniChip, setHniChip] = useState(false);
@@ -126,10 +136,10 @@ export default function CaseManagementPage() {
   };
 
   const filtered = useMemo(() => CASES.filter(c =>
-    (fArea < 0 || c.area === fArea) && (fSubA < 0 || c.subArea === fSubA) &&
-    (fTyp < 0 || c.typ === fTyp) && (fPri < 0 || c.pri === fPri) &&
-    (fSta < 0 || c.sta === fSta) && (fOrg < 0 || c.org === fOrg) &&
-    (fOwn < 0 || c.own === fOwn) && (fPrj < 0 || c.prj === fPrj) &&
+    (fArea.length === 0 || fArea.includes(c.area)) && (fSubA.length === 0 || fSubA.includes(c.subArea)) &&
+    (fTyp.length === 0 || fTyp.includes(c.typ)) && (fPri.length === 0 || fPri.includes(c.pri)) &&
+    (fSta.length === 0 || fSta.includes(c.sta)) && (fOrg.length === 0 || fOrg.includes(c.org)) &&
+    (fOwn.length === 0 || fOwn.includes(c.own)) && (fPrj.length === 0 || fPrj.includes(c.prj)) &&
     (applic < 0 || c.app === applic) &&
     (!searchNo.trim() || c.caseNo.includes(searchNo.trim()) || c.account.toLowerCase().includes(searchNo.trim().toLowerCase())) &&
     inPeriod(c)
@@ -160,7 +170,7 @@ export default function CaseManagementPage() {
   useEffect(() => { setPage(1); }, [pageRows]);
 
   const resetAll = () => {
-    setFArea(-1); setFSubA(-1); setFTyp(-1); setFPri(-1); setFSta(-1); setFOrg(-1); setFOwn(-1); setFPrj(-1);
+    setFArea([]); setFSubA([]); setFTyp([]); setFPri([]); setFSta([]); setFOrg([]); setFOwn([]); setFPrj([]);
     setApplic(-1); setTatChip(""); setHniChip(false); setAgeF(-1); setSearchNo("");
     setPerMode("all"); setPerSel(""); setCFrom(""); setCTo("");
   };
@@ -636,9 +646,9 @@ export default function CaseManagementPage() {
                           const idx = CM.TYP.indexOf(it.label);
                           return (
                             <circle key={it.label} cx={95} cy={95} r={R} fill="none" stroke={PAL[i % PAL.length]}
-                              strokeWidth={fTyp >= 0 && fTyp === idx ? 34 : 28}
+                              strokeWidth={fTyp.length > 0 && fTyp.includes(idx) ? 34 : 28}
                               strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 95 95)"
-                              style={{ cursor: "pointer", opacity: fTyp >= 0 && fTyp !== idx ? 0.35 : 1 }}
+                              style={{ cursor: "pointer", opacity: fTyp.length > 0 && !fTyp.includes(idx) ? 0.35 : 1 }}
                               onClick={() => setDrill({ chips: [{ dim: "typ", val: idx, label: it.label }] })}
                               onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
                               onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
@@ -702,7 +712,7 @@ export default function CaseManagementPage() {
                     <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "org", val: k, label: CM.ORG[k] }] })}
                       onMouseEnter={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
                       onMouseMove={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
-                      style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOrg >= 0 && fOrg !== k ? 0.45 : 1 }}>
+                      style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOrg.length > 0 && !fOrg.includes(k) ? 0.45 : 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
                         <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CM.ORG[k]}</span>
                         <span style={{ color: "var(--mut)", fontWeight: 700 }}>{((v / tot) * 100).toFixed(2)}%</span>
@@ -744,7 +754,7 @@ export default function CaseManagementPage() {
                     onMouseEnter={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)}<br/>Open — ${fN(e.o)} · Closed — ${fN(e.t - e.o)}`)}
                     onMouseMove={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)} · Open — ${fN(e.o)}`)}
                     onMouseLeave={hideTip}
-                    style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOwn >= 0 && ownerMode === "owner" && fOwn !== k ? 0.45 : 1 }}>
+                    style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOwn.length > 0 && ownerMode === "owner" && !fOwn.includes(k) ? 0.45 : 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ width: 170, fontSize: 12, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right", flexShrink: 0 }}>{byOwner.names[k]}</span>
                       <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 6, overflow: "hidden", position: "relative" }}>
