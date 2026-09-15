@@ -8,6 +8,7 @@ import {
 } from "../../components/cases/caseShared";
 import { CaseDrillDrawer, type CaseDrillSeed, type CaseChip } from "../../components/cases/CaseDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { CaseReports } from "../../components/cases/CaseReports";
 
 /* House tokens — identical family to Bookings. Structure mirrors the
  * reference CRM app: page tabs, applicability toggle, stat tickets,
@@ -226,6 +227,7 @@ export default function CaseManagementPage() {
   const shown = pageRows.slice((page - 1) * PER, page * PER);
 
   const pageLabel = TABS.find(t => t.k === tab)!.l;
+  const [pageView, setPageView] = useState<"dash" | "mis">("dash");
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
@@ -239,8 +241,11 @@ export default function CaseManagementPage() {
       {/* ── Header: title + the 4 reference page tabs ── */}
       <PageBanner title="Case Management" sub={<>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</>}
         center={
-          <BannerPills size="lg" items={TABS.map(t => [t.k, t.l] as const)} value={tab}
-            onChange={k => { setTab(k); setTatChip(""); setHniChip(false); setAgeF(-1); }} />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <BannerPills size="lg" items={TABS.map(t => [t.k, t.l] as const)} value={tab}
+              onChange={k => { setTab(k); setTatChip(""); setHniChip(false); setAgeF(-1); }} />
+            <BannerPills items={[["dash", "Dashboard"], ["mis", "MIS Reports"]] as const} value={pageView} onChange={setPageView} />
+          </div>
         }>
           <div style={{ minWidth: 180 }}>
             <div style={BANNER_LBL}>Search</div>
@@ -311,7 +316,10 @@ export default function CaseManagementPage() {
             {applic >= 0 && <span style={{ fontSize: 11.5, color: "var(--mut)" }}>showing {CM.APP[applic]} only · click again to clear</span>}
           </div>
 
-          {/* Stat tickets — per active tab, like the reference pages */}
+          {pageView === "mis" ? (
+          <CaseReports rows={tabScoped} openDrill={chips => setDrill({ chips })} />
+        ) : (<>
+        {/* Stat tickets — per active tab, like the reference pages */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 14 }}>
             {(tab === "overall" ? [
               { v: totalT, l: "Total tickets", c: TEAL },
@@ -677,6 +685,7 @@ export default function CaseManagementPage() {
               </div>
             </div>
           </div>
+        </>)}
         </div>
       </div>
       </div>
