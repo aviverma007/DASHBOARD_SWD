@@ -378,7 +378,7 @@ export default function CaseManagementPage() {
             })}
           </div>
 
-          <SectionHead n="1" t="Ageing & TAT" sub="how old the tickets are · within vs beyond TAT" />
+          {tab !== "closed" && <SectionHead n="1" t="Ageing & TAT" sub="open tickets — how old they are · within vs beyond TAT" />}
           {/* TAT / HNI toggles — reference pages */}
           {tab !== "overall" && (
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -405,7 +405,7 @@ export default function CaseManagementPage() {
           )}
 
           {/* Open view extras: TAT split by owner + Ageing (reference open page) */}
-          {tab === "open" && (
+          {tab !== "closed" && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14 }}>
               <Zoomable title="TAT by owner">
                 <div style={{ ...CARD, height: "100%" }}>
