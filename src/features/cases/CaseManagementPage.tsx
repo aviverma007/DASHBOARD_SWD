@@ -16,6 +16,13 @@ import { CaseReports } from "../../components/cases/CaseReports";
  * with By Case Owner / By Team Leader toggle, TAT + ageing on the
  * open view, and the records table. */
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)" };
+const SectionHead = ({ n, t, sub }: { n: string; t: string; sub?: string }) => (
+  <div style={{ margin: "26px 0 12px", display: "flex", alignItems: "baseline", gap: 12, borderBottom: "2px solid var(--gold)", paddingBottom: 6 }}>
+    <span style={{ fontFamily: "Georgia,serif", fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>{n}</span>
+    <span style={{ fontFamily: "Georgia,serif", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>{t}</span>
+    {sub && <span style={{ fontSize: 11.5, color: "var(--mut)" }}>{sub}</span>}
+  </div>
+);
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 16.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11.5, color: "#b8893c", marginBottom: 12 };
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
@@ -371,25 +378,7 @@ export default function CaseManagementPage() {
             })}
           </div>
 
-          {/* Category cards — top 5 case areas, click → drill */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
-            {categoryList.slice(0, 5).map(([k, v], i) => {
-              const tot = Math.max(pageRows.length, 1);
-              const cols = [TEAL, NAVY, GOLD, GREEN, AMBER];
-              const col = cols[i % cols.length];
-              return (
-                <div key={k} onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
-                  onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(1)}% of ${pageLabel.toLowerCase()})<br/>click → drill`)}
-                  onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)}`)} onMouseLeave={hideTip}
-                  style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${col}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 14px", cursor: "pointer" }}>
-                  <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(v)}</div>
-                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{CM.AREA[k]}</div>
-                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "#8a8474", marginTop: 2 }}>{((v / tot) * 100).toFixed(1)}% of {pageLabel.toLowerCase()}</div>
-                </div>
-              );
-            })}
-          </div>
-
+          <SectionHead n="1" t="Ageing & TAT" sub="how old the tickets are · within vs beyond TAT" />
           {/* TAT / HNI toggles — reference pages */}
           {tab !== "overall" && (
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -414,178 +403,6 @@ export default function CaseManagementPage() {
               )}
             </div>
           )}
-
-          {/* Cases by Category — full-width, all case areas */}
-          <Zoomable title="Cases by category">
-            <div style={{ ...CARD, marginBottom: 14 }}>
-              <h3 style={H3}>Cases by Category</h3>
-              <div style={CAP}>share of {pageLabel.toLowerCase()} · click a category → drill</div>
-              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6, columnGap: 24 }}>
-                {(() => {
-                  const tot = Math.max(pageRows.length, 1);
-                  const mx = Math.max(...categoryList.map(([, v]) => v), 1);
-                  return categoryList.map(([k, v]) => (
-                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
-                      onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
-                      onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
-                      style={{ padding: "3.5px 0", cursor: "pointer" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{CM.AREA[k]}</span>
-                        <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fN(v)} · {((v / tot) * 100).toFixed(2)}%</span>
-                      </div>
-                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: NAVY, borderRadius: 5 }} />
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          </Zoomable>
-
-          {/* Panel row: Case Type / Status / Case Origin */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
-            <Zoomable title="Case type">
-              <div style={{ ...CARD, height: "100%" }}>
-                <h3 style={H3}>Case Type</h3>
-                <div style={CAP}>{pageLabel.toLowerCase()} · click a slice → filter</div>
-                {(() => {
-                  const tot = Math.max(typeDonut.reduce((s, i) => s + i.v, 0), 1);
-                  const R = 70, C = 2 * Math.PI * R;
-                  let off = 0;
-                  return (
-                    <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center", height: "calc(100% - 48px)", minHeight: 200 }}>
-                      <svg width={190} height={190} viewBox="0 0 190 190" style={{ flexShrink: 0 }}>
-                        {typeDonut.map((it, i) => {
-                          const frac = it.v / tot, dash = frac * C, o = off; off += dash;
-                          const idx = CM.TYP.indexOf(it.label);
-                          return (
-                            <circle key={it.label} cx={95} cy={95} r={R} fill="none" stroke={PAL[i % PAL.length]}
-                              strokeWidth={fTyp >= 0 && fTyp === idx ? 34 : 28}
-                              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 95 95)"
-                              style={{ cursor: "pointer", opacity: fTyp >= 0 && fTyp !== idx ? 0.35 : 1 }}
-                              onClick={() => setDrill({ chips: [{ dim: "typ", val: idx, label: it.label }] })}
-                              onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
-                              onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
-                              onMouseLeave={hideTip} />
-                          );
-                        })}
-                        <text x={95} y={91} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
-                        <text x={95} y={108} textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--mut)", letterSpacing: 1 }}>CASES</text>
-                      </svg>
-                      <div style={{ flex: 1, minWidth: 120 }}>
-                        {typeDonut.map((it, i) => (
-                          <div key={it.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0" }}>
-                            <span style={{ width: 10, height: 10, borderRadius: "50%", background: PAL[i % PAL.length] }} />
-                            <span style={{ fontSize: 12.5, color: "var(--ink)", flex: 1 }}>{it.label}</span>
-                            <span style={{ fontSize: 12.5, fontWeight: 700 }}>{fN(it.v)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </Zoomable>
-
-            <Zoomable title="Status">
-              <div style={{ ...CARD, height: "100%" }}>
-                <h3 style={H3}>Status</h3>
-                <div style={CAP}>Closed groups Closed/Resolved/Close · click → filter</div>
-                {(() => {
-                  const mx = Math.max(...statusList.map(([, v]) => v), 1);
-                  return statusList.map(([label, v]) => {
-                    const idx = CM.STA.indexOf(label);
-                    return (
-                      <div key={label} className="barrow"
-                        onClick={() => setDrill({ chips: [label === "Closed" ? { dim: "stg", val: "closed", label: "Closed" } : { dim: "sta", val: idx, label }] })}
-                        onMouseEnter={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)}
-                        onMouseMove={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)} onMouseLeave={hideTip}
-                        style={{ padding: "4.5px 0", cursor: "pointer" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
-                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{label}</span>
-                          <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fN(v)}</span>
-                        </div>
-                        <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: label === "Closed" ? GREEN : label === "Re-Open" ? RED : AMBER, borderRadius: 5 }} />
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </Zoomable>
-
-            <Zoomable title="Case origin">
-              <div style={{ ...CARD, height: "100%" }}>
-                <h3 style={H3}>Case Origin</h3>
-                <div style={CAP}>share of {pageLabel.toLowerCase()} · click → filter</div>
-                {(() => {
-                  const tot = Math.max(pageRows.length, 1);
-                  const mx = Math.max(...originList.map(([, v]) => v), 1);
-                  return originList.map(([k, v]) => (
-                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "org", val: k, label: CM.ORG[k] }] })}
-                      onMouseEnter={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
-                      onMouseMove={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
-                      style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOrg >= 0 && fOrg !== k ? 0.45 : 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CM.ORG[k]}</span>
-                        <span style={{ color: "var(--mut)", fontWeight: 700 }}>{((v / tot) * 100).toFixed(2)}%</span>
-                      </div>
-                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: TEAL, borderRadius: 5 }} />
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </Zoomable>
-          </div>
-
-          {/* Number of Cases by Case Owner — with By Case Owner / By Team Leader toggle */}
-          <Zoomable title="Cases by owner">
-            <div style={{ ...CARD, marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                <div>
-                  <h3 style={H3}>Number of Cases by Case Owner</h3>
-                  <div style={{ ...CAP, marginBottom: 8 }}>green = total · gold = open portion · label shows total (open) · click → filter owner</div>
-                </div>
-                <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3, gap: 2 }}>
-                  {([["owner", "By Case Owner"], ["tl", "By Team Leader"]] as const).map(([k, l]) => (
-                    <button key={k} className={`cm-btn${ownerMode === k ? " cm-btn-on" : ""}`} onClick={() => setOwnerMode(k)}
-                      style={{ border: "none", background: ownerMode === k ? NAVY : "transparent", color: ownerMode === k ? "#fff" : "var(--mut)", fontWeight: 700, fontSize: 11.5, padding: "6px 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ maxHeight: 345, overflowY: "auto", paddingRight: 6 }}>
-              {(() => {
-                const mx = Math.max(...byOwner.items.map(([, e]) => e.t), 1);
-                return byOwner.items.map(([k, e]) => (
-                  <div key={k} className="barrow"
-                    onClick={() => setDrill({ chips: [ownerMode === "owner" ? { dim: "own", val: k, label: byOwner.names[k] } : { dim: "tl", val: k, label: byOwner.names[k] }] })}
-                    onMouseEnter={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)}<br/>Open — ${fN(e.o)} · Closed — ${fN(e.t - e.o)}`)}
-                    onMouseMove={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)} · Open — ${fN(e.o)}`)}
-                    onMouseLeave={hideTip}
-                    style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOwn >= 0 && ownerMode === "owner" && fOwn !== k ? 0.45 : 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ width: 170, fontSize: 12, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right", flexShrink: 0 }}>{byOwner.names[k]}</span>
-                      <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 6, overflow: "hidden", position: "relative" }}>
-                        <div style={{ position: "absolute", inset: 0, width: `${(e.t / mx) * 100}%`, background: GREEN, borderRadius: 6 }} />
-                        <div style={{ position: "absolute", inset: 0, width: `${(e.o / mx) * 100}%`, background: GOLD, borderRadius: 6 }} />
-                      </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {fN(e.t)} <span style={{ color: AMBER }}>({fN(e.o)} open)</span>
-                      </span>
-                    </div>
-                  </div>
-                ));
-              })()}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 8 }}>Top 10 visible — scroll for all {fN(byOwner.items.length)}.</div>
-            </div>
-          </Zoomable>
 
           {/* Open view extras: TAT split by owner + Ageing (reference open page) */}
           {tab === "open" && (
@@ -645,73 +462,7 @@ export default function CaseManagementPage() {
             </div>
           )}
 
-          {/* Monthly trend */}
-          <Zoomable title="Monthly opened vs closed">
-            <div style={{ ...CARD, marginBottom: 14 }}>
-              <h3 style={H3}>Monthly opened vs closed</h3>
-              <div style={CAP}>teal = opened · green = closed in month · scoped to {pageLabel.toLowerCase()}</div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 165, overflowX: "auto", overflowY: "hidden", paddingBottom: 6, width: "100%", boxSizing: "border-box" }}>
-                {(() => {
-                  const mx = Math.max(...trend.map(([, v]) => Math.max(v.o, v.c)), 1);
-                  return trend.map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: "1 0 44px", minWidth: 44 }}
-                      onMouseEnter={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)}<br/>Closed — ${fN(v.c)}`)}
-                      onMouseMove={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)} · Closed — ${fN(v.c)}`)} onMouseLeave={hideTip}>
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 125, width: "100%", justifyContent: "center" }}>
-                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.o / mx) * 100}%`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
-                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.c / mx) * 100}%`, background: GREEN, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
-                      </div>
-                      <span style={{ fontSize: 9.5, color: "var(--mut)", whiteSpace: "nowrap" }}>{ymLbl(k)}</span>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          </Zoomable>
-
-          {/* Records */}
-          <div style={{ ...CARD }}>
-            <h3 style={H3}>{pageLabel} — records</h3>
-            <div style={CAP}>{fN(pageRows.length)} in scope · click a row for full detail</div>
-            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #eae6da", position: "sticky", top: 0, background: "#fff", zIndex: 2 }}>
-                    {["Case no.", "Account", "Opened", "Status", "Type", "Project", "Owner", "Age (d)"].map(h => (
-                      <th key={h} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((c, i) => (
-                    <tr key={`${c.caseNo}-${i}`} onClick={() => setDetail(c)}
-                      style={{ borderBottom: "1px solid #f0ede5", cursor: "pointer" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                      <td style={{ padding: "7px 10px 7px 0", fontWeight: 700, color: TEAL, whiteSpace: "nowrap" }}>{c.caseNo}</td>
-                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.account || "—"}</td>
-                      <td style={{ padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{fmtDay(c.open)}</td>
-                      <td style={{ padding: "7px 10px 7px 0" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 6, padding: "2px 8px", background: isClosed(c) ? "#e2f3ec" : "#fdf1dc", color: isClosed(c) ? "#1a7a4a" : "#b06c00" }}>{statusName(c)}</span>
-                      </td>
-                      <td style={{ padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{c.typ >= 0 ? CM.TYP[c.typ] : "—"}</td>
-                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.prj >= 0 ? CM.PRJ[c.prj] : "—"}</td>
-                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.own >= 0 ? CM.OWN[c.own] : "—"}</td>
-                      <td style={{ padding: "7px 10px 7px 0" }}>{c.age >= 0 ? c.age : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 12.5 }}>
-              <span style={{ color: "var(--mut)" }}>Page {page} of {fN(pages)}</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: page <= 1 ? "default" : "pointer", fontFamily: "inherit", opacity: page <= 1 ? 0.5 : 1 }}>‹ Prev</button>
-                <button disabled={page >= pages} onClick={() => setPage(p => p + 1)} style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: page >= pages ? "default" : "pointer", fontFamily: "inherit", opacity: page >= pages ? 0.5 : 1 }}>Next ›</button>
-              </div>
-            </div>
-          </div>
-
+          <SectionHead n="2" t="Project wise" sub="share, open load and summary per project" />
           {/* ── Cases by Project: donut + bars + table ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
             <Zoomable title="Project share donut">
@@ -818,11 +569,269 @@ export default function CaseManagementPage() {
             </div>
           </Zoomable>
 
-          {/* ── MIS reports — inline, same scope as every chart above
-              (tab + all banner filters + TAT/HNI/ageing chips) ── */}
-          <div style={{ margin: "18px 0 10px", fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>
-            MIS Reports
+          <SectionHead n="3" t="Category wise" sub="case areas — top categories and full split" />
+          {/* Category cards — top 5 case areas, click → drill */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
+            {categoryList.slice(0, 5).map(([k, v], i) => {
+              const tot = Math.max(pageRows.length, 1);
+              const cols = [TEAL, NAVY, GOLD, GREEN, AMBER];
+              const col = cols[i % cols.length];
+              return (
+                <div key={k} onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
+                  onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(1)}% of ${pageLabel.toLowerCase()})<br/>click → drill`)}
+                  onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)}`)} onMouseLeave={hideTip}
+                  style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `6px solid ${col}`, borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "10px 14px", cursor: "pointer" }}>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)", lineHeight: 1 }}>{fN(v)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{CM.AREA[k]}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "#8a8474", marginTop: 2 }}>{((v / tot) * 100).toFixed(1)}% of {pageLabel.toLowerCase()}</div>
+                </div>
+              );
+            })}
           </div>
+
+          {/* Cases by Category — full-width, all case areas */}
+          <Zoomable title="Cases by category">
+            <div style={{ ...CARD, marginBottom: 14 }}>
+              <h3 style={H3}>Cases by Category</h3>
+              <div style={CAP}>share of {pageLabel.toLowerCase()} · click a category → drill</div>
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6, columnGap: 24 }}>
+                {(() => {
+                  const tot = Math.max(pageRows.length, 1);
+                  const mx = Math.max(...categoryList.map(([, v]) => v), 1);
+                  return categoryList.map(([k, v]) => (
+                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
+                      onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
+                      onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
+                      style={{ padding: "3.5px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{CM.AREA[k]}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fN(v)} · {((v / tot) * 100).toFixed(2)}%</span>
+                      </div>
+                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: NAVY, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+
+          <SectionHead n="4" t="Type · Status · Case Origin" />
+          {/* Panel row: Case Type / Status / Case Origin */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
+            <Zoomable title="Case type">
+              <div style={{ ...CARD, height: "100%" }}>
+                <h3 style={H3}>Case Type</h3>
+                <div style={CAP}>{pageLabel.toLowerCase()} · click a slice → filter</div>
+                {(() => {
+                  const tot = Math.max(typeDonut.reduce((s, i) => s + i.v, 0), 1);
+                  const R = 70, C = 2 * Math.PI * R;
+                  let off = 0;
+                  return (
+                    <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center", height: "calc(100% - 48px)", minHeight: 200 }}>
+                      <svg width={190} height={190} viewBox="0 0 190 190" style={{ flexShrink: 0 }}>
+                        {typeDonut.map((it, i) => {
+                          const frac = it.v / tot, dash = frac * C, o = off; off += dash;
+                          const idx = CM.TYP.indexOf(it.label);
+                          return (
+                            <circle key={it.label} cx={95} cy={95} r={R} fill="none" stroke={PAL[i % PAL.length]}
+                              strokeWidth={fTyp >= 0 && fTyp === idx ? 34 : 28}
+                              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 95 95)"
+                              style={{ cursor: "pointer", opacity: fTyp >= 0 && fTyp !== idx ? 0.35 : 1 }}
+                              onClick={() => setDrill({ chips: [{ dim: "typ", val: idx, label: it.label }] })}
+                              onMouseEnter={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
+                              onMouseMove={e => showTip(e, `<b>${it.label}</b><br/>${fN(it.v)} (${((it.v / tot) * 100).toFixed(1)}%)`)}
+                              onMouseLeave={hideTip} />
+                          );
+                        })}
+                        <text x={95} y={91} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
+                        <text x={95} y={108} textAnchor="middle" style={{ fontSize: 9.5, fill: "var(--mut)", letterSpacing: 1 }}>CASES</text>
+                      </svg>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        {typeDonut.map((it, i) => (
+                          <div key={it.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0" }}>
+                            <span style={{ width: 10, height: 10, borderRadius: "50%", background: PAL[i % PAL.length] }} />
+                            <span style={{ fontSize: 12.5, color: "var(--ink)", flex: 1 }}>{it.label}</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 700 }}>{fN(it.v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </Zoomable>
+
+            <Zoomable title="Status">
+              <div style={{ ...CARD, height: "100%" }}>
+                <h3 style={H3}>Status</h3>
+                <div style={CAP}>Closed groups Closed/Resolved/Close · click → filter</div>
+                {(() => {
+                  const mx = Math.max(...statusList.map(([, v]) => v), 1);
+                  return statusList.map(([label, v]) => {
+                    const idx = CM.STA.indexOf(label);
+                    return (
+                      <div key={label} className="barrow"
+                        onClick={() => setDrill({ chips: [label === "Closed" ? { dim: "stg", val: "closed", label: "Closed" } : { dim: "sta", val: idx, label }] })}
+                        onMouseEnter={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)}
+                        onMouseMove={e => showTip(e, `<b>${label}</b><br/>${fN(v)} cases`)} onMouseLeave={hideTip}
+                        style={{ padding: "4.5px 0", cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>{label}</span>
+                          <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fN(v)}</span>
+                        </div>
+                        <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: label === "Closed" ? GREEN : label === "Re-Open" ? RED : AMBER, borderRadius: 5 }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </Zoomable>
+
+            <Zoomable title="Case origin">
+              <div style={{ ...CARD, height: "100%" }}>
+                <h3 style={H3}>Case Origin</h3>
+                <div style={CAP}>share of {pageLabel.toLowerCase()} · click → filter</div>
+                {(() => {
+                  const tot = Math.max(pageRows.length, 1);
+                  const mx = Math.max(...originList.map(([, v]) => v), 1);
+                  return originList.map(([k, v]) => (
+                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "org", val: k, label: CM.ORG[k] }] })}
+                      onMouseEnter={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
+                      onMouseMove={e => showTip(e, `<b>${CM.ORG[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
+                      style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOrg >= 0 && fOrg !== k ? 0.45 : 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 600 }}>{CM.ORG[k]}</span>
+                        <span style={{ color: "var(--mut)", fontWeight: 700 }}>{((v / tot) * 100).toFixed(2)}%</span>
+                      </div>
+                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: TEAL, borderRadius: 5 }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </Zoomable>
+          </div>
+
+          <SectionHead n="5" t="Owner load & trend" sub="cases per owner / team leader · monthly trend" />
+          {/* Number of Cases by Case Owner — with By Case Owner / By Team Leader toggle */}
+          <Zoomable title="Cases by owner">
+            <div style={{ ...CARD, marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div>
+                  <h3 style={H3}>Number of Cases by Case Owner</h3>
+                  <div style={{ ...CAP, marginBottom: 8 }}>green = total · gold = open portion · label shows total (open) · click → filter owner</div>
+                </div>
+                <div style={{ display: "inline-flex", background: "#f0ede5", borderRadius: 999, padding: 3, gap: 2 }}>
+                  {([["owner", "By Case Owner"], ["tl", "By Team Leader"]] as const).map(([k, l]) => (
+                    <button key={k} className={`cm-btn${ownerMode === k ? " cm-btn-on" : ""}`} onClick={() => setOwnerMode(k)}
+                      style={{ border: "none", background: ownerMode === k ? NAVY : "transparent", color: ownerMode === k ? "#fff" : "var(--mut)", fontWeight: 700, fontSize: 11.5, padding: "6px 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit" }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ maxHeight: 345, overflowY: "auto", paddingRight: 6 }}>
+              {(() => {
+                const mx = Math.max(...byOwner.items.map(([, e]) => e.t), 1);
+                return byOwner.items.map(([k, e]) => (
+                  <div key={k} className="barrow"
+                    onClick={() => setDrill({ chips: [ownerMode === "owner" ? { dim: "own", val: k, label: byOwner.names[k] } : { dim: "tl", val: k, label: byOwner.names[k] }] })}
+                    onMouseEnter={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)}<br/>Open — ${fN(e.o)} · Closed — ${fN(e.t - e.o)}`)}
+                    onMouseMove={ev => showTip(ev, `<b>${byOwner.names[k]}</b><br/>Total — ${fN(e.t)} · Open — ${fN(e.o)}`)}
+                    onMouseLeave={hideTip}
+                    style={{ padding: "3.5px 0", cursor: "pointer", opacity: fOwn >= 0 && ownerMode === "owner" && fOwn !== k ? 0.45 : 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ width: 170, fontSize: 12, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right", flexShrink: 0 }}>{byOwner.names[k]}</span>
+                      <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 6, overflow: "hidden", position: "relative" }}>
+                        <div style={{ position: "absolute", inset: 0, width: `${(e.t / mx) * 100}%`, background: GREEN, borderRadius: 6 }} />
+                        <div style={{ position: "absolute", inset: 0, width: `${(e.o / mx) * 100}%`, background: GOLD, borderRadius: 6 }} />
+                      </div>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fN(e.t)} <span style={{ color: AMBER }}>({fN(e.o)} open)</span>
+                      </span>
+                    </div>
+                  </div>
+                ));
+              })()}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 8 }}>Top 10 visible — scroll for all {fN(byOwner.items.length)}.</div>
+            </div>
+          </Zoomable>
+
+          {/* Monthly trend */}
+          <Zoomable title="Monthly opened vs closed">
+            <div style={{ ...CARD, marginBottom: 14 }}>
+              <h3 style={H3}>Monthly opened vs closed</h3>
+              <div style={CAP}>teal = opened · green = closed in month · scoped to {pageLabel.toLowerCase()}</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 165, overflowX: "auto", overflowY: "hidden", paddingBottom: 6, width: "100%", boxSizing: "border-box" }}>
+                {(() => {
+                  const mx = Math.max(...trend.map(([, v]) => Math.max(v.o, v.c)), 1);
+                  return trend.map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: "1 0 44px", minWidth: 44 }}
+                      onMouseEnter={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)}<br/>Closed — ${fN(v.c)}`)}
+                      onMouseMove={e => showTip(e, `<b>${ymLbl(k)}</b><br/>Opened — ${fN(v.o)} · Closed — ${fN(v.c)}`)} onMouseLeave={hideTip}>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 125, width: "100%", justifyContent: "center" }}>
+                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.o / mx) * 100}%`, background: TEAL, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
+                        <div style={{ flex: "0 1 18px", minWidth: 10, height: `${(v.c / mx) * 100}%`, background: GREEN, borderRadius: "3px 3px 0 0", minHeight: 2 }} />
+                      </div>
+                      <span style={{ fontSize: 9.5, color: "var(--mut)", whiteSpace: "nowrap" }}>{ymLbl(k)}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </Zoomable>
+
+          <SectionHead n="6" t="Case records" sub="filtered case list" />
+          {/* Records */}
+          <div style={{ ...CARD }}>
+            <h3 style={H3}>{pageLabel} — records</h3>
+            <div style={CAP}>{fN(pageRows.length)} in scope · click a row for full detail</div>
+            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #eae6da", position: "sticky", top: 0, background: "#fff", zIndex: 2 }}>
+                    {["Case no.", "Account", "Opened", "Status", "Type", "Project", "Owner", "Age (d)"].map(h => (
+                      <th key={h} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((c, i) => (
+                    <tr key={`${c.caseNo}-${i}`} onClick={() => setDetail(c)}
+                      style={{ borderBottom: "1px solid #f0ede5", cursor: "pointer" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                      <td style={{ padding: "7px 10px 7px 0", fontWeight: 700, color: TEAL, whiteSpace: "nowrap" }}>{c.caseNo}</td>
+                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.account || "—"}</td>
+                      <td style={{ padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{fmtDay(c.open)}</td>
+                      <td style={{ padding: "7px 10px 7px 0" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 6, padding: "2px 8px", background: isClosed(c) ? "#e2f3ec" : "#fdf1dc", color: isClosed(c) ? "#1a7a4a" : "#b06c00" }}>{statusName(c)}</span>
+                      </td>
+                      <td style={{ padding: "7px 10px 7px 0", whiteSpace: "nowrap" }}>{c.typ >= 0 ? CM.TYP[c.typ] : "—"}</td>
+                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.prj >= 0 ? CM.PRJ[c.prj] : "—"}</td>
+                      <td style={{ padding: "7px 10px 7px 0", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.own >= 0 ? CM.OWN[c.own] : "—"}</td>
+                      <td style={{ padding: "7px 10px 7px 0" }}>{c.age >= 0 ? c.age : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 12.5 }}>
+              <span style={{ color: "var(--mut)" }}>Page {page} of {fN(pages)}</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: page <= 1 ? "default" : "pointer", fontFamily: "inherit", opacity: page <= 1 ? 0.5 : 1 }}>‹ Prev</button>
+                <button disabled={page >= pages} onClick={() => setPage(p => p + 1)} style={{ padding: "5px 14px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: page >= pages ? "default" : "pointer", fontFamily: "inherit", opacity: page >= pages ? 0.5 : 1 }}>Next ›</button>
+              </div>
+            </div>
+          </div>
+
+          <SectionHead n="7" t="TL wise · RM wise · Inclusion / Exclusion" sub="MIS report tables — ageing per RM/TL, exclusion split, resolved summary" />
           <CaseReports rows={pageRows} openDrill={chips => setDrill({ chips })} />
         </div>
       </div>
