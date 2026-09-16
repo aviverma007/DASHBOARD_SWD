@@ -7,15 +7,31 @@ import { createPortal } from "react-dom";
  * closes it. Content renders twice (inline + enlarged) so charts stay
  * live and interactive in both. Portaled to <body> so page zoom
  * wrappers can't misplace it. */
-export function Zoomable({ children, title, btnTop = 10, btnRight = 10 }: {
+export function Zoomable({ children, title, btnTop = 10, btnRight = 10, collapsible, defaultCollapsed }: {
   children: ReactNode; title?: string;
   /** Button position relative to the wrapper — chart-level wrappers
    * pass negative top so the button floats up into the CARD's
    * top-right corner (above the h3/caption) instead of covering the
    * first bar's value. */
   btnTop?: number; btnRight?: number;
+  /** Adds a −/+ collapse button beside ⛶. Collapsed shows a compact
+   * title bar (uses `title`) instead of the card. */
+  collapsible?: boolean; defaultCollapsed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
+
+  if (collapsible && collapsed) {
+    return (
+      <div onClick={() => setCollapsed(false)}
+        style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05)", padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}>
+        <span style={{ fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color: "var(--ink)" }}>{title ?? "Card"}</span>
+        <button aria-label="Expand" title="Expand"
+          onClick={e => { e.stopPropagation(); setCollapsed(false); }}
+          style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #e4e0d6", background: "rgba(255,255,255,.92)", color: "#8a94a6", fontSize: 15, cursor: "pointer", lineHeight: 1 }}>+</button>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -40,6 +56,20 @@ export function Zoomable({ children, title, btnTop = 10, btnRight = 10 }: {
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#0e7490"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#8a94a6"; }}
       >⛶</button>
+      {collapsible && (
+        <button
+          onClick={() => setCollapsed(true)}
+          aria-label="Collapse" title="Collapse"
+          style={{
+            position: "absolute", top: btnTop, right: btnRight + 32, zIndex: 5,
+            width: 26, height: 26, borderRadius: 7, border: "1px solid #e4e0d6",
+            background: "rgba(255,255,255,.92)", color: "#8a94a6", fontSize: 16,
+            cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#0e7490"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#8a94a6"; }}
+        >−</button>
+      )}
       {children}
       {open && createPortal(
         <div

@@ -153,7 +153,7 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
           extra={[{ h: "Exclusion", f: cs => String(exclCount(cs) || "") }]} />
       )}
 
-      <Zoomable title="Inclusion exclusion RM wise">
+      <Zoomable title="Inclusion exclusion RM wise" collapsible>
         <div style={CARD}>
           <h3 style={H3}>Inclusion / Exclusion — RM wise</h3>
           <div style={CAP}>all tickets in scope · avg ageing computed on exclusion tickets · click an RM → drill</div>
@@ -197,7 +197,7 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
       </Zoomable>
 
       <div>
-        <Zoomable title="Resolved summary TL wise">
+        <Zoomable title="Resolved summary TL wise" collapsible>
           <div style={{ ...CARD, marginBottom: 14 }}>
             <h3 style={H3}>Resolved Summary — TL wise</h3>
             <div style={CAP}>≈ within 24 hrs = closed same/next day (dataset carries dates, not timestamps) · click a TL → drill</div>

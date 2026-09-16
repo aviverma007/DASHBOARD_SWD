@@ -391,7 +391,7 @@ export default function CaseManagementPage() {
           <SectionHead n="1" t="Project wise" sub="share, open load and summary per project" />
           {/* ── Cases by Project: donut + bars + table ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
-            <Zoomable title="Project share donut">
+            <Zoomable title="Project share donut" collapsible defaultCollapsed>
               <div style={{ ...CARD, height: "100%" }}>
                 <h3 style={H3}>Cases by Project — Share</h3>
                 <div style={CAP}>{pageLabel.toLowerCase()} · top 8 projects, rest grouped · click a slice → drill</div>
@@ -433,7 +433,7 @@ export default function CaseManagementPage() {
                 })()}
               </div>
             </Zoomable>
-            <Zoomable title="Project open bars">
+            <Zoomable title="Project open bars" collapsible defaultCollapsed>
               <div style={{ ...CARD, height: "100%" }}>
                 <h3 style={H3}>Cases by Project — Open vs Total</h3>
                 <div style={CAP}>green = total · gold = open portion · click a project → drill</div>
@@ -460,7 +460,7 @@ export default function CaseManagementPage() {
               </div>
             </Zoomable>
           </div>
-          <Zoomable title="Project wise table">
+          <Zoomable title="Project wise table" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Project-wise Summary</h3>
               <div style={CAP}>{fN(projSplit.length)} projects in scope · click a row → drill</div>
@@ -496,7 +496,7 @@ export default function CaseManagementPage() {
           </Zoomable>
 
           <SectionHead n="2" t="Daily complaints register" sub="last 10 days to as-on · carry forward, received, resolved, pending · category split of pending" />
-          <Zoomable title="Daily complaints register">
+          <Zoomable title="Daily complaints register" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Day-wise Register</h3>
               <div style={CAP}>computed on the full filter scope (tab-independent) · old = opened before that day, current = opened same day · %cont = (received − resolved) ÷ resolved</div>
@@ -609,7 +609,7 @@ export default function CaseManagementPage() {
           {/* Open view extras: TAT split by owner + Ageing (reference open page) */}
           {tab !== "closed" && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14 }}>
-              <Zoomable title="TAT by owner">
+              <Zoomable title="TAT by owner" collapsible>
                 <div style={{ ...CARD, height: "100%" }}>
                   <h3 style={H3}>Cases by Status (Overdue / At Risk / Within Time) — Case Owner</h3>
                   <div style={CAP}>open cases · red = overdue · gold = at risk · green = within</div>
@@ -637,7 +637,7 @@ export default function CaseManagementPage() {
                   })()}
                 </div>
               </Zoomable>
-              <Zoomable title="Cases by ageing">
+              <Zoomable title="Cases by ageing" collapsible>
                 <div style={{ ...CARD, height: "100%" }}>
                   <h3 style={H3}>Cases By Ageing</h3>
                   <div style={CAP}>open cases · days since opened · click a band → filter</div>
@@ -685,7 +685,7 @@ export default function CaseManagementPage() {
           </div>
 
           {/* Cases by Category — full-width, all case areas */}
-          <Zoomable title="Cases by category">
+          <Zoomable title="Cases by category" collapsible>
             <div style={{ ...CARD, marginBottom: 14 }}>
               <h3 style={H3}>Cases by Category</h3>
               <div style={CAP}>share of {pageLabel.toLowerCase()} · click a category → drill</div>
@@ -715,7 +715,7 @@ export default function CaseManagementPage() {
           <SectionHead n="5" t="Type · Status · Case Origin" />
           {/* Panel row: Case Type / Status / Case Origin */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
-            <Zoomable title="Case type">
+            <Zoomable title="Case type" collapsible>
               <div style={{ ...CARD, height: "100%" }}>
                 <h3 style={H3}>Case Type</h3>
                 <div style={CAP}>{pageLabel.toLowerCase()} · click a slice → filter</div>
@@ -758,7 +758,7 @@ export default function CaseManagementPage() {
               </div>
             </Zoomable>
 
-            <Zoomable title="Status">
+            <Zoomable title="Status" collapsible>
               <div style={{ ...CARD, height: "100%" }}>
                 <h3 style={H3}>Status</h3>
                 <div style={CAP}>Closed groups Closed/Resolved/Close · click → filter</div>
@@ -786,7 +786,7 @@ export default function CaseManagementPage() {
               </div>
             </Zoomable>
 
-            <Zoomable title="Case origin">
+            <Zoomable title="Case origin" collapsible>
               <div style={{ ...CARD, height: "100%" }}>
                 <h3 style={H3}>Case Origin</h3>
                 <div style={CAP}>share of {pageLabel.toLowerCase()} · click → filter</div>
@@ -814,7 +814,7 @@ export default function CaseManagementPage() {
 
           <SectionHead n="6" t="Owner load & trend" sub="cases per owner / team leader · monthly trend" />
           {/* Number of Cases by Case Owner — with By Case Owner / By Team Leader toggle */}
-          <Zoomable title="Cases by owner">
+          <Zoomable title="Cases by owner" collapsible>
             <div style={{ ...CARD, marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <div>
@@ -859,7 +859,7 @@ export default function CaseManagementPage() {
           </Zoomable>
 
           {/* Monthly trend */}
-          <Zoomable title="Monthly opened vs closed">
+          <Zoomable title="Monthly opened vs closed" collapsible>
             <div style={{ ...CARD, marginBottom: 14 }}>
               <h3 style={H3}>Monthly opened vs closed</h3>
               <div style={CAP}>teal = opened · green = closed in month · scoped to {pageLabel.toLowerCase()}</div>
