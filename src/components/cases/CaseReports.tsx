@@ -89,7 +89,6 @@ function BucketTable({ title, cap, rows, nameOf, onRow, extra }: {
 
 export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: DrillOpen }) {
   const [grp, setGrp] = useState<"own" | "tl">("own"); // merged ageing table grouping
-  const [pendScope, setPendScope] = useState<"all" | 0 | 1>("all"); // applicability filter for pending summary
   const openCases = useMemo(() => rows.filter(c => !isClosed(c)), [rows]);
   const exclIdx = CM.APP.indexOf("Exclusion");
   const inclIdx = CM.APP.indexOf("Inclusion");
@@ -101,10 +100,10 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
   };
 
   /* 1 — RM Wise Open Ticket, Ageing Wise */
-  const rmAgeing = useMemo(() => groupBy(openCases.filter(c => pendScope === "all" || c.app === pendScope), c => c.own), [openCases, pendScope]);
+  const rmAgeing = useMemo(() => groupBy(openCases, c => c.own), [openCases]);
 
   /* 2 — Pending Ticket Summary — TL wise (HOD grouped), scoped by applicability */
-  const pendScoped = useMemo(() => openCases.filter(c => pendScope === "all" || c.app === pendScope), [openCases, pendScope]);
+  const pendScoped = openCases;
   const tlPending = useMemo(() => {
     const g = groupBy(pendScoped, c => c.tl);
     return g.sort((a, b) => (HOD_OF[CM.TL[a[0]]] ?? "zz").localeCompare(HOD_OF[CM.TL[b[0]]] ?? "zz") || b[1].length - a[1].length);
@@ -129,13 +128,6 @@ export function CaseReports({ rows, openDrill }: { rows: CaseRec[]; openDrill: D
           <button key={k} onClick={() => setGrp(k)}
             style={{ border: "1px solid #d8d2c4", background: grp === k ? NAVY : "#fff", color: grp === k ? "#fff" : "var(--ink)", fontWeight: 700, fontSize: 11.5, borderRadius: 999, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit" }}>
             {k === "own" ? "By RM (Case Owner)" : "By TL (HOD-wise)"}
-          </button>
-        ))}
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", marginLeft: 8 }}>Scope</span>
-        {(["all", inclIdx, exclIdx] as const).map(k => (
-          <button key={String(k)} onClick={() => setPendScope(k as typeof pendScope)}
-            style={{ border: "1px solid #d8d2c4", background: pendScope === k ? NAVY : "#fff", color: pendScope === k ? "#fff" : "var(--ink)", fontWeight: 700, fontSize: 11.5, borderRadius: 999, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit" }}>
-            {k === "all" ? "All" : CM.APP[k as number]}
           </button>
         ))}
       </div>
