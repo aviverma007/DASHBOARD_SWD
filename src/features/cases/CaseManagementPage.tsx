@@ -495,14 +495,14 @@ export default function CaseManagementPage() {
             </div>
           </Zoomable>
 
-          <SectionHead n="2" t="Daily complaints register" sub="last 7 days to as-on · carry forward, received, resolved, pending · category split of pending" />
+          <SectionHead n="2" t="Daily complaints register" sub="last 10 days to as-on · carry forward, received, resolved, pending · category split of pending" />
           <Zoomable title="Daily complaints register">
             <div style={CARD}>
               <h3 style={H3}>Day-wise Register</h3>
               <div style={CAP}>computed on the full filter scope (tab-independent) · old = opened before that day, current = opened same day · %cont = (received − resolved) ÷ resolved</div>
               <div style={{ overflowX: "auto" }}>
                 {(() => {
-                  const days = Array.from({ length: 7 }, (_, i) => maxOpenDay - 6 + i);
+                  const days = Array.from({ length: 10 }, (_, i) => maxOpenDay - 9 + i);
                   const pendAt = (d: number) => filtered.filter(c => c.open >= 0 && c.open <= d && !(isClosed(c) && c.closed >= 0 && c.closed <= d));
                   const topAreas = (() => {
                     const m = new Map<number, number>();
