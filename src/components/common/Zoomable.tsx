@@ -35,7 +35,7 @@ export function Zoomable({ children, title, btnTop = 10, btnRight = 10, collapsi
   if (collapsible && collapsed) {
     return (
       <div onClick={() => setCollapsed(false)}
-        style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05)", padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}>
+        style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05)", padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none", alignSelf: "start", height: "fit-content", boxSizing: "border-box" }}>
         <span style={{ fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color: "var(--ink)" }}>{title ?? "Card"}</span>
         <button aria-label="Expand" title="Expand"
           onClick={e => { e.stopPropagation(); setCollapsed(false); }}
