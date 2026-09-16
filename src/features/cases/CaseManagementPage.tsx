@@ -613,6 +613,7 @@ export default function CaseManagementPage() {
                 <div style={{ ...CARD, height: "100%" }}>
                   <h3 style={H3}>Cases by Status (Overdue / At Risk / Within Time) — Case Owner</h3>
                   <div style={CAP}>open cases · red = overdue · gold = at risk · green = within</div>
+                  <div style={{ maxHeight: 330, overflowY: "auto", paddingRight: 6 }}>
                   {(() => {
                     const mx = Math.max(...tatByOwner.map(([, e]) => e.ov + e.ar + e.wi), 1);
                     return tatByOwner.map(([k, e]) => {
@@ -635,12 +636,14 @@ export default function CaseManagementPage() {
                       );
                     });
                   })()}
+                  </div>
                 </div>
               </Zoomable>
               <Zoomable title="Cases by ageing" collapsible>
                 <div style={{ ...CARD, height: "100%" }}>
                   <h3 style={H3}>Cases By Ageing</h3>
                   <div style={CAP}>open cases · days since opened · click a band → filter</div>
+                  <div style={{ maxHeight: 330, overflowY: "auto", paddingRight: 6 }}>
                   {AGE_BANDS.map(b => {
                     const v = ageing.get(b.k) ?? 0;
                     const mx = Math.max(...AGE_BANDS.map(x => ageing.get(x.k) ?? 0), 1);
@@ -659,6 +662,7 @@ export default function CaseManagementPage() {
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               </Zoomable>
             </div>
@@ -684,35 +688,50 @@ export default function CaseManagementPage() {
             })}
           </div>
 
-          {/* Cases by Category — full-width, all case areas */}
+          {/* Cases by Category — table format */}
           <Zoomable title="Cases by category" collapsible>
             <div style={{ ...CARD, marginBottom: 14 }}>
               <h3 style={H3}>Cases by Category</h3>
-              <div style={CAP}>share of {pageLabel.toLowerCase()} · click a category → drill</div>
-              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6, columnGap: 24 }}>
-                {(() => {
-                  const tot = Math.max(pageRows.length, 1);
-                  const mx = Math.max(...categoryList.map(([, v]) => v), 1);
-                  return categoryList.map(([k, v]) => (
-                    <div key={k} className="barrow" onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })}
-                      onMouseEnter={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} cases (${((v / tot) * 100).toFixed(2)}%)`)}
-                      onMouseMove={e => showTip(e, `<b>${CM.AREA[k]}</b><br/>${fN(v)} (${((v / tot) * 100).toFixed(2)}%)`)} onMouseLeave={hideTip}
-                      style={{ padding: "3.5px 0", cursor: "pointer" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{CM.AREA[k]}</span>
-                        <span style={{ color: "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fN(v)} · {((v / tot) * 100).toFixed(2)}%</span>
-                      </div>
-                      <div style={{ height: 8, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(v / mx) * 100}%`, background: NAVY, borderRadius: 5 }} />
-                      </div>
-                    </div>
-                  ));
-                })()}
+              <div style={CAP}>{pageLabel.toLowerCase()} · click a row → drill</div>
+              <div style={{ maxHeight: 360, overflow: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 560 }}>
+                  <thead>
+                    <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                      {["Category", "Open", "Closed", "Total", "% share"].map(h => (
+                        <th key={h} style={{ textAlign: h === "Category" ? "left" : "right", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const tot = Math.max(pageRows.length, 1);
+                      const stats = new Map<number, { o: number; c: number }>();
+                      pageRows.forEach(c => { if (c.area < 0) return; if (!stats.has(c.area)) stats.set(c.area, { o: 0, c: 0 }); const e = stats.get(c.area)!; if (isClosed(c)) e.c++; else e.o++; });
+                      return categoryList.map(([k, v]) => {
+                        const e = stats.get(k) ?? { o: 0, c: 0 };
+                        return (
+                          <tr key={k} onClick={() => setDrill({ chips: [{ dim: "area", val: k, label: CM.AREA[k] }] })} style={{ cursor: "pointer" }}
+                            onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
+                            <td style={{ padding: "6px 10px", fontWeight: 700, color: "var(--ink)", borderBottom: "1px solid #f0ede5" }}>{CM.AREA[k]}</td>
+                            <td style={{ padding: "6px 10px", textAlign: "right", color: GOLD, fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{fN(e.o)}</td>
+                            <td style={{ padding: "6px 10px", textAlign: "right", color: GREEN, borderBottom: "1px solid #f0ede5" }}>{fN(e.c)}</td>
+                            <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 800, borderBottom: "1px solid #f0ede5" }}>{fN(v)}</td>
+                            <td style={{ padding: "6px 10px", textAlign: "right", color: "var(--mut)", borderBottom: "1px solid #f0ede5" }}>{((v / tot) * 100).toFixed(2)}%</td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </div>
           </Zoomable>
 
-          <SectionHead n="5" t="Type · Status · Case Origin" />
+          <SectionHead n="5" t="TL wise · RM wise · Inclusion / Exclusion" sub="MIS report tables — ageing per RM/TL, exclusion split, resolved summary" />
+          <CaseReports rows={pageRows} openDrill={chips => setDrill({ chips })} />
+
+          <SectionHead n="6" t="Type · Status · Case Origin" />
           {/* Panel row: Case Type / Status / Case Origin */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
             <Zoomable title="Case type" collapsible>
@@ -812,7 +831,7 @@ export default function CaseManagementPage() {
             </Zoomable>
           </div>
 
-          <SectionHead n="6" t="Owner load & trend" sub="cases per owner / team leader · monthly trend" />
+          <SectionHead n="7" t="Owner load & trend" sub="cases per owner / team leader · monthly trend" />
           {/* Number of Cases by Case Owner — with By Case Owner / By Team Leader toggle */}
           <Zoomable title="Cases by owner" collapsible>
             <div style={{ ...CARD, marginBottom: 14 }}>
@@ -882,7 +901,7 @@ export default function CaseManagementPage() {
             </div>
           </Zoomable>
 
-          <SectionHead n="7" t="Case records" sub="filtered case list" />
+          <SectionHead n="8" t="Case records" sub="filtered case list" />
           {/* Records */}
           <div style={{ ...CARD }}>
             <h3 style={H3}>{pageLabel} — records</h3>
@@ -926,8 +945,6 @@ export default function CaseManagementPage() {
             </div>
           </div>
 
-          <SectionHead n="8" t="TL wise · RM wise · Inclusion / Exclusion" sub="MIS report tables — ageing per RM/TL, exclusion split, resolved summary" />
-          <CaseReports rows={pageRows} openDrill={chips => setDrill({ chips })} />
         </div>
       </div>
       </div>
