@@ -21,6 +21,17 @@ export function Zoomable({ children, title, btnTop = 10, btnRight = 10, collapsi
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [open]);
+
+  // Rendered only after every hook has run — an early return above the
+  // useEffect changed the hook count between renders and crashed React
+  // (blank page) the moment collapse/expand toggled.
   if (collapsible && collapsed) {
     return (
       <div onClick={() => setCollapsed(false)}
@@ -32,14 +43,6 @@ export function Zoomable({ children, title, btnTop = 10, btnRight = 10, collapsi
       </div>
     );
   }
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
-  }, [open]);
 
   return (
     <div style={{ position: "relative", minWidth: 0 }}>
