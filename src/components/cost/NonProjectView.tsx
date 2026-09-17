@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
@@ -319,11 +319,14 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
         return (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
             <Zoomable title="Budget health donut" collapsible>
-              <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
+              {/* Compact body (~240px): flex column card capped in height so the
+                  grid row can't inflate it; donut + legend centered together,
+                  wrapping to a stacked layout on narrow screens. */}
+              <div className="g3d" style={{ ...CARD, height: "100%", maxHeight: 316, marginBottom: 0, display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
                 <h3 style={H3}>Budget Health — WBS Count by Status</h3>
-                <div style={CAP}>utilized ÷ approved budget per WBS</div>
-                <div style={{ flex: 1, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", justifyContent: "center", minHeight: 0 }}>
-                  <svg width={230} height={230} viewBox="0 0 170 170" style={{ maxHeight: "100%" }}>
+                <div style={{ ...CAP, marginBottom: 4 }}>utilized ÷ approved budget per WBS</div>
+                <div style={{ flex: 1, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", justifyContent: "center", alignContent: "center", minHeight: 190, padding: "2px 0" }}>
+                  <svg viewBox="0 0 170 170" style={{ height: "100%", maxHeight: 200, minHeight: 160, width: "auto", aspectRatio: "1 / 1", flexShrink: 0 }}>
                     {order.map(k => {
                       const v = byStatus.get(k)!; const frac = v / tot; const dash = frac * C; const o = off; off += dash;
                       return (
@@ -336,13 +339,13 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
                     <text x={85} y={82} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 19, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
                     <text x={85} y={98} textAnchor="middle" style={{ fontSize: 9, fill: "var(--mut)", letterSpacing: 1 }}>WBS</text>
                   </svg>
-                  <div>
+                  <div style={{ display: "grid", gridTemplateColumns: "12px auto minmax(34px, auto)", columnGap: 8, rowGap: 5, alignItems: "center" }}>
                     {order.map(k => (
-                      <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12 }}>
+                      <React.Fragment key={k}>
                         <span style={{ width: 10, height: 10, borderRadius: "50%", background: ST_COL[k] }} />
-                        <span style={{ color: "var(--ink)", flex: 1 }}>{ST_LBL[k]}</span>
-                        <span style={{ fontWeight: 800 }}>{fN(byStatus.get(k)!)}</span>
-                      </div>
+                        <span style={{ color: "var(--ink)", fontSize: 12, whiteSpace: "nowrap" }}>{ST_LBL[k]}</span>
+                        <span style={{ fontWeight: 800, fontSize: 12, textAlign: "right" }}>{fN(byStatus.get(k)!)}</span>
+                      </React.Fragment>
                     ))}
                   </div>
                 </div>
