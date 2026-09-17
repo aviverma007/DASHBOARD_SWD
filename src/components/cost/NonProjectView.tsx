@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
 import raw from "../../data/costNonProject.json";
-import { fN, fMoney } from "./costShared";
+import { fN, fMoney, WBS_ROWS } from "./costShared";
 
 /** Non-project FY-26 PO detail (ZALR export, joined to the CN41 master).
  * L = [0 wbs, 1 wdesc, 2 vend, 3 pgrp, 4 plant, 5 gl, 6 dtyp, 7 comp,
@@ -31,6 +31,26 @@ export const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
 }));
 
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
+
+/** Approved budget per WBS from the 07-Sep ZALR budget run (same as-on
+ * as the PO export) — the PO detail alone carries no budget columns. */
+const BUDGET_BY_CODE = (() => {
+  const m = new Map<string, { budget: number; assigned: number }>();
+  WBS_ROWS.forEach(w => { if (w.typ === 0) m.set(w.wbs, { budget: w.budget, assigned: w.assigned }); });
+  return m;
+})();
+const statusOf = (b: number, u: number) => b <= 0 ? "nobudget" : u / b > 0.95 ? "critical" : u / b > 0.8 ? "watch" : "healthy";
+const ST_COL: Record<string, string> = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8a94a6" };
+const ST_LBL: Record<string, string> = { healthy: "Healthy (<80%)", watch: "Watch (80–95%)", critical: "Critical (>95%)", nobudget: "No budget" };
+
+/* Glassmorphism KPI + 3D-lift card styles */
+const GLASS = (c1: string, c2: string): React.CSSProperties => ({
+  background: `linear-gradient(150deg, ${c1} 0%, ${c2} 100%)`,
+  border: "1px solid rgba(255,255,255,.35)",
+  borderRadius: 14,
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.45), 0 10px 24px rgba(20,33,61,.28), 0 2px 6px rgba(20,33,61,.18)",
+  padding: "14px 16px", color: "#fff", position: "relative", overflow: "hidden",
+});
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBottom: 10 };
@@ -245,12 +265,118 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
 
   return (
     <>
+      {/* ── Budget control strip — glass cards, reference-sheet metrics ── */}
+      {(() => {
+        const scopeCodes = new Set(rows.map(r => NP.WBS[r.wbs]));
+        const anyFilter = rows.length !== NP_ROWS.length;
+        const brows = [...BUDGET_BY_CODE.entries()].filter(([code]) => !anyFilter || scopeCodes.has(code));
+        const budget = brows.reduce((s2, [, b]) => s2 + b.budget, 0);
+        const utilized = brows.reduce((s2, [, b]) => s2 + b.assigned, 0);
+        const balance = budget - utilized;
+        const utilPct = budget > 0 ? (utilized / budget) * 100 : 0;
+        const risk = brows.filter(([, b]) => statusOf(b.budget, b.assigned) === "critical").length;
+        const cards: [string, string, string, [string, string]][] = [
+          ["Approved Budget", fMoney(budget), `across ${fN(brows.length)} WBS elements`, ["#1c3f6e", "#0f2547"]],
+          ["Utilized", fMoney(utilized), `from ${fN(pos)} PO documents`, ["#1a7f9c", "#0e5468"]],
+          ["Balance Available", fMoney(balance), `unspent as on ${NP.meta.asOn}`, ["#1e9a6c", "#0f6647"]],
+          ["Utilization %", `${utilPct.toFixed(1)}%`, "watch >80% · critical >95%", ["#c99a3a", "#96691c"]],
+          ["WBS at Risk", fN(risk), "critical (>95% utilized)", ["#c0392b", "#7e1f14"]],
+        ];
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
+            {cards.map(([k, v, sub, [c1, c2]]) => (
+              <div key={k} className="g3d" style={GLASS(c1, c2)}
+                onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${sub}`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}>
+                <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,.10)", filter: "blur(2px)" }} />
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "rgba(255,255,255,.85)" }}>{k}</div>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 27, fontWeight: 700, lineHeight: 1.1, marginTop: 6, textShadow: "0 2px 4px rgba(0,0,0,.25)", whiteSpace: "nowrap" }}>{v}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.75)", marginTop: 6 }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
         <KPI k={`Ordered ${gst ? "(with GST)" : "(excl GST)"}`} v={fMoney(ord)} s={`${fN(pos)} POs · ${fN(rows.length)} lines`} col={NAVY} />
         <KPI k="Delivered" v={fMoney(del)} s={`${ord > 0 ? ((del / ord) * 100).toFixed(1) : "—"}% of ordered`} col={TEAL} />
         <KPI k="Still to deliver" v={fMoney(still)} s="open commitment (excl GST)" col={AMBER} />
         <KPI k="WBS in scope" v={fN(wbsN)} s={`${fN(vendN)} vendors`} col={GOLD} />
       </div>
+
+      {/* ── Budget health donut + Top 10 WBS by utilization ── */}
+      {(() => {
+        const scopeCodes = new Set(rows.map(r => NP.WBS[r.wbs]));
+        const anyFilter = rows.length !== NP_ROWS.length;
+        const brows = [...BUDGET_BY_CODE.entries()].filter(([code]) => !anyFilter || scopeCodes.has(code));
+        const byStatus = new Map<string, number>();
+        brows.forEach(([, b]) => { const st = statusOf(b.budget, b.assigned); byStatus.set(st, (byStatus.get(st) ?? 0) + 1); });
+        const top10 = [...brows].sort((a, b) => b[1].assigned - a[1].assigned).slice(0, 10);
+        const mxU = Math.max(...top10.map(([, b]) => Math.max(b.assigned, b.budget)), 1);
+        const R = 62, C = 2 * Math.PI * R; let off = 0;
+        const order = ["healthy", "watch", "critical", "nobudget"].filter(k => (byStatus.get(k) ?? 0) > 0);
+        const tot = Math.max(brows.length, 1);
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
+            <Zoomable title="Budget health donut" collapsible>
+              <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                <h3 style={H3}>Budget Health — WBS Count by Status</h3>
+                <div style={CAP}>utilized ÷ approved budget per WBS</div>
+                <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+                  <svg width={170} height={170} viewBox="0 0 170 170">
+                    {order.map(k => {
+                      const v = byStatus.get(k)!; const frac = v / tot; const dash = frac * C; const o = off; off += dash;
+                      return (
+                        <circle key={k} cx={85} cy={85} r={R} fill="none" stroke={ST_COL[k]} strokeWidth={26}
+                          strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-o} transform="rotate(-90 85 85)"
+                          onMouseEnter={e => showTip(e, `<b>${ST_LBL[k]}</b><br/>${fN(v)} WBS (${(frac * 100).toFixed(0)}%)`)}
+                          onMouseMove={e => showTip(e, `<b>${ST_LBL[k]}</b> ${fN(v)}`)} onMouseLeave={hideTip} />
+                      );
+                    })}
+                    <text x={85} y={82} textAnchor="middle" style={{ fontFamily: "Georgia,serif", fontSize: 19, fontWeight: 700, fill: "var(--ink)" }}>{fN(tot)}</text>
+                    <text x={85} y={98} textAnchor="middle" style={{ fontSize: 9, fill: "var(--mut)", letterSpacing: 1 }}>WBS</text>
+                  </svg>
+                  <div>
+                    {order.map(k => (
+                      <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: "50%", background: ST_COL[k] }} />
+                        <span style={{ color: "var(--ink)", flex: 1 }}>{ST_LBL[k]}</span>
+                        <span style={{ fontWeight: 800 }}>{fN(byStatus.get(k)!)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Zoomable>
+            <Zoomable title="Top WBS by utilization" collapsible>
+              <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                <h3 style={H3}>Top 10 WBS by Utilization</h3>
+                <div style={CAP}>red = utilized · grey = approved budget · click → drill</div>
+                <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                  {top10.map(([code, b]) => {
+                    const wIdx = NP.WBS.indexOf(code);
+                    return (
+                      <div key={code} className="barrow" onClick={() => { if (wIdx >= 0) open([{ dim: "wbs", val: wIdx, label: code }]); }}
+                        onMouseEnter={e => showTip(e, `<b>${code}</b><br/>Utilized — ${fMoney(b.assigned)}<br/>Budget — ${fMoney(b.budget)}`)}
+                        onMouseMove={e => showTip(e, `<b>${code}</b> ${fMoney(b.assigned)}`)} onMouseLeave={hideTip}
+                        style={{ padding: "4px 0", cursor: wIdx >= 0 ? "pointer" : "default" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 2 }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 700 }}>{code}</span>
+                          <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fMoney(b.assigned)}</span>
+                        </div>
+                        <div style={{ position: "relative", height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ position: "absolute", inset: 0, width: `${(b.budget / mxU) * 100}%`, background: "#c9c5b8", borderRadius: 4 }} />
+                          <div style={{ position: "absolute", inset: 0, width: `${(b.assigned / mxU) * 100}%`, background: RED, borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Zoomable>
+          </div>
+        );
+      })()}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
         <BarPair cardTitle="Ordered by department" title="Ordered vs Delivered — by Department" cap="navy = ordered · teal = delivered · click → drill" data={byDept} names={NP.PGRP} dim="pgrp" />
@@ -292,8 +418,8 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
               <thead>
                 <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  {["WBS", "Description", "Ordered", "Delivered", "Still to deliver", "Delivery %"].map(h => (
-                    <th key={h} style={{ textAlign: ["Ordered", "Delivered", "Still to deliver", "Delivery %"].includes(h) ? "right" : "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
+                  {["WBS", "Description", "Budget", "Ordered", "Delivered", "Still to deliver", "% Util", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: ["Budget", "Ordered", "Delivered", "Still to deliver", "% Util"].includes(h) ? "right" : "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -302,16 +428,23 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
                   const wr = rows.filter(r => r.wbs === k);
                   const st = wr.reduce((s, r) => s + r.still, 0);
                   const desc = NP.WDESC[wr[0]?.wdesc ?? -1] ?? "—";
+                  const bud = BUDGET_BY_CODE.get(NP.WBS[k]);
+                  const stat = bud ? statusOf(bud.budget, bud.assigned) : "nobudget";
+                  const utilPct = bud && bud.budget > 0 ? (bud.assigned / bud.budget) * 100 : null;
                   return (
                     <tr key={k} onClick={() => open([{ dim: "wbs", val: k, label: NP.WBS[k] }])} style={{ cursor: "pointer" }}
                       onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                       onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
                       <td style={{ padding: "6px 10px", fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap", borderBottom: "1px solid #f0ede5" }}>{NP.WBS[k]}</td>
-                      <td style={{ padding: "6px 10px", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", borderBottom: "1px solid #f0ede5" }}>{desc}</td>
+                      <td style={{ padding: "6px 10px", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", borderBottom: "1px solid #f0ede5" }}>{desc}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", color: "var(--ink)", borderBottom: "1px solid #f0ede5" }}>{bud ? fMoney(bud.budget) : "—"}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{fMoney(e.o)}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", color: TEAL, borderBottom: "1px solid #f0ede5" }}>{fMoney(e.d)}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", color: st > 0 ? AMBER : "var(--mut)", fontWeight: st > 0 ? 700 : 500, borderBottom: "1px solid #f0ede5" }}>{fMoney(st)}</td>
-                      <td style={{ padding: "6px 10px", textAlign: "right", color: e.o > 0 && e.d / e.o < 0.5 ? RED : GREEN, fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{e.o > 0 ? `${((e.d / e.o) * 100).toFixed(1)}%` : "—"}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", color: "var(--mut)", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{utilPct === null ? "—" : `${utilPct.toFixed(1)}%`}</td>
+                      <td style={{ padding: "6px 10px", borderBottom: "1px solid #f0ede5" }}>
+                        <span style={{ background: `${ST_COL[stat]}1f`, color: ST_COL[stat], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{ST_LBL[stat]}</span>
+                      </td>
                     </tr>
                   );
                 })}
