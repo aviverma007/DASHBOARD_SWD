@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
@@ -75,6 +75,69 @@ const matches = (r: NpRow, ch: NpChip): boolean => {
     case "mon": return r.day >= 0 && ymOf(r.day) === ch.val;
   }
 };
+
+
+/** Responsive grouped-bar month chart (custom SVG — this project uses no
+ * chart library). Fits the container via ResizeObserver: no horizontal
+ * scroll, dynamic label step (~1 label per 55px), horizontal gridlines,
+ * hover tooltip + click-to-drill per month band. All months stay in the
+ * data even when their label is skipped. */
+function MonthlyTrendChart({ data, onMonth }: {
+  data: [string, { o: number; d: number }][];
+  onMonth: (key: string, label: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [w, setW] = useState(0);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(es => setW(es[0].contentRect.width));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  const W = Math.max(w, 320), H = 236;
+  const ML = 46, MR = 6, MT = 8, MB = 28;
+  const plotW = W - ML - MR, plotH = H - MT - MB;
+  const n = Math.max(data.length, 1);
+  const band = plotW / n;
+  const barW = Math.max(3.5, Math.min(16, band * 0.34));
+  const mx = Math.max(...data.map(([, e]) => Math.max(e.o, e.d)), 1);
+  const y = (v: number) => MT + plotH - (v / mx) * plotH;
+  const step = Math.max(1, Math.ceil(n / Math.max(4, Math.floor(plotW / 55))));
+  const short = (v: number) => v >= 1e7 ? `${(v / 1e7).toFixed(v >= 1e8 ? 0 : 1)} Cr` : v >= 1e5 ? `${(v / 1e5).toFixed(0)} L` : fN(Math.round(v));
+  return (
+    <div ref={ref} style={{ flex: 1, minHeight: H, width: "100%", overflow: "hidden" }}>
+      {w > 0 && (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
+          {[0.25, 0.5, 0.75, 1].map(fr => (
+            <g key={fr}>
+              <line x1={ML} x2={W - MR} y1={y(mx * fr)} y2={y(mx * fr)} stroke="#eae6da" strokeWidth={1} />
+              <text x={ML - 6} y={y(mx * fr) + 3.5} textAnchor="end" style={{ fontSize: 9.5, fontWeight: 700, fill: "var(--mut)" }}>{short(mx * fr)}</text>
+            </g>
+          ))}
+          <line x1={ML} x2={W - MR} y1={MT + plotH} y2={MT + plotH} stroke="#d8d2c4" strokeWidth={1.5} />
+          {data.map(([k, e], i) => {
+            const cx = ML + i * band + band / 2;
+            const showLbl = i % step === 0 || i === n - 1;
+            return (
+              <g key={k} style={{ cursor: "pointer" }}
+                onClick={() => onMonth(k, ymLbl(k))}
+                onMouseEnter={ev => showTip(ev, `<b>${ymLbl(k)}</b><br/>Ordered — ${fMoney(e.o)}<br/>Delivered — ${fMoney(e.d)}`)}
+                onMouseMove={ev => showTip(ev, `<b>${ymLbl(k)}</b><br/>Ordered — ${fMoney(e.o)} · Delivered — ${fMoney(e.d)}`)}
+                onMouseLeave={hideTip}>
+                <rect x={ML + i * band} y={MT} width={band} height={plotH} fill="transparent" />
+                <rect x={cx - barW - 0.75} y={y(e.o)} width={barW} height={Math.max(MT + plotH - y(e.o), e.o > 0 ? 1.5 : 0)} rx={2} fill="#14213D" />
+                <rect x={cx + 0.75} y={y(e.d)} width={barW} height={Math.max(MT + plotH - y(e.d), e.d > 0 ? 1.5 : 0)} rx={2} fill="#0E7490" />
+                {showLbl && (
+                  <text x={cx} y={H - 9} textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 700, fill: "var(--mut)" }}>{ymLbl(k)}</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
 
 /* ---------------- drill drawer (same shell as the other cost drills) ---------------- */
 function NpDrillDrawer({ seed, baseRows, gst, onClose, onAddChip }: {
@@ -387,23 +450,7 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
           <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Monthly PO — Ordered vs Delivered</h3>
             <div style={CAP}>by document date · navy = ordered · teal = delivered · click a month → drill</div>
-            <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 3, minHeight: 220, overflowX: "auto", overflowY: "hidden", paddingTop: 8 }}>
-              {(() => {
-                const mx = Math.max(...trend.map(([, e]) => e.o), 1);
-                return trend.map(([k, e]) => (
-                  <div key={k} onClick={() => open([{ dim: "mon", val: k, label: ymLbl(k) }])}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: "1 0 30px", minWidth: 30, height: "100%", justifyContent: "flex-end", cursor: "pointer" }}
-                    onMouseEnter={ev => showTip(ev, `<b>${ymLbl(k)}</b><br/>Ordered — ${fMoney(e.o)}<br/>Delivered — ${fMoney(e.d)}`)}
-                    onMouseMove={ev => showTip(ev, `<b>${ymLbl(k)}</b> ${fMoney(e.o)}`)} onMouseLeave={hideTip}>
-                    <div style={{ width: "72%", position: "relative", height: "85%", display: "flex", alignItems: "flex-end" }}>
-                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${(e.o / mx) * 100}%`, background: NAVY, borderRadius: "3px 3px 0 0" }} />
-                      <div style={{ position: "absolute", bottom: 0, left: "20%", right: "20%", height: `${(e.d / mx) * 100}%`, background: TEAL, borderRadius: "3px 3px 0 0" }} />
-                    </div>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "var(--mut)", whiteSpace: "nowrap", transform: "rotate(-45deg)", transformOrigin: "top center", marginTop: 4 }}>{ymLbl(k)}</span>
-                  </div>
-                ));
-              })()}
-            </div>
+            <MonthlyTrendChart data={trend} onMonth={(k, l) => open([{ dim: "mon", val: k, label: l }])} />
           </div>
         </Zoomable>
       </div>
