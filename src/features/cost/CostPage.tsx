@@ -7,6 +7,7 @@ import {
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
+import { NonProjectView, NP, NP_ROWS } from "../../components/cost/NonProjectView";
 import { VA, VA_ROWS } from "../../components/cost/vendorAgeingShared";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
@@ -74,7 +75,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
 }
 
 export default function CostPage() {
-  const [view, setView] = useState<"budget" | "po" | "ageing">("budget"); // Budget Control vs Actual-vs-Commitment (PO) view
+  const [view, setView] = useState<"np" | "budget" | "po" | "ageing">("np"); // budget/po legacy views await project data // Budget Control vs Actual-vs-Commitment (PO) view
   const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
   const [depts, setDepts] = useState<(number | string)[]>([]);
   const [projs, setProjs] = useState<(number | string)[]>([]);
@@ -82,6 +83,11 @@ export default function CostPage() {
   const [stats, setStats] = useState<(number | string)[]>([]);
   const [descs, setDescs] = useState<(number | string)[]>([]);
   const [q, setQ] = useState("");
+  const [npDepts, setNpDepts] = useState<(number | string)[]>([]);
+  const [npPlants, setNpPlants] = useState<(number | string)[]>([]);
+  const [npComps, setNpComps] = useState<(number | string)[]>([]);
+  const [npQ, setNpQ] = useState("");   // non-project WBS / vendor search
+  const [npGst, setNpGst] = useState(false);
   const [vaQ, setVaQ] = useState("");   // vendor-ageing vendor search
   const [vaRecon, setVaRecon] = useState<(number | string)[]>([]);
   const [qOpen, setQOpen] = useState(false);
@@ -112,6 +118,13 @@ export default function CostPage() {
     (descs.length === 0 || descs.includes(w.desc)) &&
     (!q.trim() || w.wbs.toLowerCase().includes(q.trim().toLowerCase()) || w.desc.toLowerCase().includes(q.trim().toLowerCase()))
   ), [typF, depts, projs, plants, stats, descs, q]);
+  const npRows = useMemo(() => NP_ROWS.filter(r =>
+    (npDepts.length === 0 || npDepts.includes(r.pgrp)) &&
+    (npPlants.length === 0 || npPlants.includes(r.plant)) &&
+    (npComps.length === 0 || npComps.includes(r.comp)) &&
+    (!npQ.trim() || NP.WBS[r.wbs].toLowerCase().includes(npQ.trim().toLowerCase()) || NP.VEND[r.vend].toLowerCase().includes(npQ.trim().toLowerCase()))
+  ), [npDepts, npPlants, npComps, npQ]);
+
   const vaRows = useMemo(() => VA_ROWS.filter(r =>
     (vaRecon.length === 0 || vaRecon.includes(r.recon)) &&
     (!vaQ.trim() || VA.VEND[r.vend].toLowerCase().includes(vaQ.trim().toLowerCase()))
@@ -222,9 +235,29 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
-        center={<BannerPills size="lg" items={[["budget", "Budget Control"], ["po", "Actual vs Commitment"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
-        sub={<>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
-        {view !== "ageing" ? (<>
+        center={<BannerPills size="lg" items={[["np", "Non-Project FY-26"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
+        sub={view === "np"
+          ? <>{fN(NP.meta.wbs)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} lines · FY-26 · data as on {NP.meta.asOn}</>
+          : <>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
+        {view === "np" ? (<>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Search WBS / vendor</div>
+            <input value={npQ} onChange={e => setNpQ(e.target.value)} placeholder="WBS code or vendor…"
+              style={{ ...BANNER_CTL, width: 230, cursor: "text" }} />
+          </div>
+          <MSFilter label="Department" options={NP.PGRP.map((n, i2) => ({ k: i2, l: n }))} sel={npDepts} onChange={setNpDepts} width={200} />
+          <MSFilter label="Plant" options={NP.PLANT.map((n, i2) => ({ k: i2, l: n }))} sel={npPlants} onChange={setNpPlants} width={200} />
+          <MSFilter label="Company" options={NP.COMP.map((n, i2) => ({ k: i2, l: n }))} sel={npComps} onChange={setNpComps} width={210} />
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Values</div>
+            <div className="pb-pills">
+              {([[false, "Excl GST"], [true, "With GST"]] as const).map(([k, l]) => (
+                <button key={l} className={`pb-pill${npGst === k ? " on" : ""}`} onClick={() => setNpGst(k)}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <button onClick={() => { setNpQ(""); setNpDepts([]); setNpPlants([]); setNpComps([]); }} className="pb-btn">⟲ Reset</button>
+        </>) : view !== "ageing" ? (<>
           <div>
             <div style={WLBL}>Budget type</div>
             <select style={SEL} value={typF} onChange={e => setTypF(Number(e.target.value))}>
@@ -273,7 +306,7 @@ export default function CostPage() {
 
       <div style={{ padding: "16px 20px 40px" }}>
         {/* KPI tickets — reference set (budget/PO views only) */}
-        {view !== "ageing" && (
+        {view !== "ageing" && view !== "np" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
           <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
@@ -289,7 +322,9 @@ export default function CostPage() {
         </div>
         )}
 
-        {view === "ageing" ? (
+        {view === "np" ? (
+          <NonProjectView rows={npRows} gst={npGst} />
+        ) : view === "ageing" ? (
           <VendorAgeingView rows={vaRows} scopeLabel={vaScopeLabel} />
         ) : view === "budget" ? (<>
         {/* Row 1: Approved vs Utilized by project · Monthly PO trend */}
