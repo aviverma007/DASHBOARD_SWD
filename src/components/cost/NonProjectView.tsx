@@ -319,11 +319,11 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
         return (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
             <Zoomable title="Budget health donut" collapsible>
-              <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+              <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
                 <h3 style={H3}>Budget Health — WBS Count by Status</h3>
                 <div style={CAP}>utilized ÷ approved budget per WBS</div>
-                <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-                  <svg width={170} height={170} viewBox="0 0 170 170">
+                <div style={{ flex: 1, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap", justifyContent: "center", minHeight: 0 }}>
+                  <svg width={230} height={230} viewBox="0 0 170 170" style={{ maxHeight: "100%" }}>
                     {order.map(k => {
                       const v = byStatus.get(k)!; const frac = v / tot; const dash = frac * C; const o = off; off += dash;
                       return (
