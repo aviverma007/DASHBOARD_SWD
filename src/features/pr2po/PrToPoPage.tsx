@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
+import "../../components/inventory/smartworldInventory.css";
 
 /** PR → PO Journey — live from the PR2PO backend on the VendorGlobe
  * API server. One journey per PR number, stitched from three legs:
@@ -456,24 +457,24 @@ export default function PrToPoPage() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f6f4ef" }}>
+    <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef" }}>
       <PageBanner bleed title="PR → PO Journey"
         sub={<>SAP PR → QMS approvals → NFA vendor selection → SAP PO · live
           {syncAge !== undefined && syncAge !== null ? <> · synced {Math.max(1, Math.round(Number(syncAge) / 60))} min ago</> : null}
           {raw ? <> · {fN(journeys.length)} journeys in window</> : null}</>}>
         <div>
           <div style={BANNER_LBL}>From (PR created)</div>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ ...BANNER_CTL, width: 150 } as React.CSSProperties} />
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ ...BANNER_CTL, width: 150, color: "#14213d", colorScheme: "light" } as React.CSSProperties} />
         </div>
         <div>
           <div style={BANNER_LBL}>To</div>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...BANNER_CTL, width: 150 } as React.CSSProperties} />
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...BANNER_CTL, width: 150, color: "#14213d", colorScheme: "light" } as React.CSSProperties} />
         </div>
         <button className="pb-btn" onClick={() => { setApplied({ from, to }); setPage(1); }}>Apply</button>
         <div>
           <div style={BANNER_LBL}>Search</div>
           <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="PR / PO / vendor / text…"
-            style={{ ...BANNER_CTL, width: 210, cursor: "text" } as React.CSSProperties} />
+            style={{ ...BANNER_CTL, width: 210, cursor: "text", color: "#14213d" } as React.CSSProperties} />
         </div>
         <div>
           <div style={BANNER_LBL}>Status</div>
