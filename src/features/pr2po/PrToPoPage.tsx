@@ -94,7 +94,12 @@ interface Journey {
 function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journey[] {
   type R = Rec;
   const poByNo = new Map<string, R>();
-  data.sap_po.forEach(p => { if (p.EBELN) poByNo.set(String(p.EBELN), p); });
+  const poByBanfn = new Map<string, R[]>();
+  data.sap_po.forEach(p => {
+    if (p.EBELN) poByNo.set(String(p.EBELN), p);
+    const bn = String(p.BANFN || "");
+    if (bn) { if (!poByBanfn.has(bn)) poByBanfn.set(bn, []); poByBanfn.get(bn)!.push(p); }
+  });
   const vgByNo = new Map<string, R>();
   data.vg.forEach(v => { if (v.EPR_No) vgByNo.set(String(v.EPR_No), v); });
 
@@ -184,7 +189,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       reached.po_created = true;
       const badats = pos.map(p => pDate(p.BADAT)).filter((x): x is number => x !== null);
       m.po_created = badats.length ? Math.min(...badats) : null;
-      const released = pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05");
+      const released = pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
       if (released) {
         reached.po_released = true;
         const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
@@ -214,13 +219,29 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     STAGES.forEach(s => { m[s.k] = null; reached[s.k] = false; });
     mkFromVg(v, m, reached);
     if (!reached.qms_created) return;
+    // Live SAP OData POs carry BANFN, so a QMS journey whose SAP PR is
+    // missing from the stale mirror still reaches the PO stages.
+    const pos = poByBanfn.get(epr) ?? [];
+    if (pos.length) {
+      reached.po_created = true;
+      const badats = pos.map(p => pDate(p.BADAT)).filter((x): x is number => x !== null);
+      m.po_created = badats.length ? Math.min(...badats) : null;
+      const released = pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
+      if (released) {
+        reached.po_released = true;
+        const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
+        m.po_released = aedats.length ? Math.max(...aedats) : null;
+      }
+    }
+    const poVal = pos.reduce((s2, p) => s2 + (parseFloat(String(p.NETWR)) || 0), 0);
     const j: Journey = {
       id: epr, origin: "vg",
       desc: String(v.Scope || "—"), plant: "—", project: String(v.Project_Name || "—"),
-      dept: String(v.PRH_Category_Name || "—"), vendor: String(v.Vendor_Name || "—"),
-      value: parseFloat(String(v.Amount_Including_Tax)) || parseFloat(String(v.PR_Budget)) || 0,
+      dept: String(v.PRH_Category_Name || "—"), vendor: String(pos[0]?.NAME1 || v.Vendor_Name || "—"),
+      value: poVal || parseFloat(String(v.Amount_Including_Tax)) || parseFloat(String(v.PR_Budget)) || 0,
       m, reached, exception: null, stageIdx: 0, done: false,
-      pendingWith: "", pendingSince: null, vg: v, po: null, poApprox: false,
+      pendingWith: "", pendingSince: null, vg: v, po: pos[0] ?? null,
+      poApprox: reached.po_released,
     };
     finish(j, v);
   });
@@ -358,11 +379,10 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
 
 /* ---------------- page ---------------- */
 export default function PrToPoPage() {
-  // Default to May-Jul 2026: the window the SAP feed fully covers.
-  // (SWDBIDB stopped receiving new documents on 21-Jul-2026; widen the
-  // range or change these once the SAP OData sync goes live.)
+  // POs + QMS are live from SAP OData / VendorGlobe; only the SAP PR
+  // leg still comes from the stale SWDBIDB mirror (PR entity pending).
   const defStart = "2026-05-01";
-  const defEnd = "2026-07-31";
+  const defEnd = new Date().toISOString().slice(0, 10);
   const [from, setFrom] = useState(defStart);
   const [to, setTo] = useState(defEnd);
   const [applied, setApplied] = useState({ from: defStart, to: defEnd });
@@ -504,8 +524,7 @@ export default function PrToPoPage() {
             const stale = mxSap > 0 && days(mxSap, todayUtc()) > 14;
             return stale ? (
               <div style={{ background: "#fdf6e3", border: `1px solid ${AMBER}`, borderLeft: `6px solid ${AMBER}`, borderRadius: 10, padding: "9px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--ink)", fontWeight: 600 }}>
-                ⚠ SAP feed: no new SAP documents since <b>{fD(mxSap)}</b> (source system load stopped — QMS data stays current).
-                Journeys shown are complete for windows up to that date.
+                ⚠ SAP <b>PR</b> feed: no new SAP PR documents since <b>{fD(mxSap)}</b> (PR OData entity pending) — QMS and <b>PO data are live from SAP</b>.
               </div>
             ) : null;
           })()}
