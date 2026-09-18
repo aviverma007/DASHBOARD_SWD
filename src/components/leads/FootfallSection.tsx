@@ -120,7 +120,7 @@ export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: 
             {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
           </button>
           {projOpen && (
-            <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 280 }}>
+            <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", color: "var(--ink)", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 280 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer", fontWeight: 700 }}>
                 <input type="checkbox" checked={selProjects.length === 0}
                   onChange={() => setSelProjects([])} style={{ accentColor: "#0e7490" }} />
