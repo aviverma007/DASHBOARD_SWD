@@ -29,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
   { key: "casemanagement", label: "Case Management", path: "/case-management", icon: "Headset", status: "active", section: "CRM" },
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Management" },
+  { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Management" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
   { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },
   { key: "guide", label: "Guide", path: "/guide", icon: "BookOpen", status: "active", section: "Workspace" },
