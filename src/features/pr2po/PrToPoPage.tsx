@@ -358,9 +358,11 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
 
 /* ---------------- page ---------------- */
 export default function PrToPoPage() {
-  const today = new Date();
-  const defEnd = today.toISOString().slice(0, 10);
-  const defStart = new Date(today.getTime() - 90 * DAY).toISOString().slice(0, 10);
+  // Default to May-Jul 2026: the window the SAP feed fully covers.
+  // (SWDBIDB stopped receiving new documents on 21-Jul-2026; widen the
+  // range or change these once the SAP OData sync goes live.)
+  const defStart = "2026-05-01";
+  const defEnd = "2026-07-31";
   const [from, setFrom] = useState(defStart);
   const [to, setTo] = useState(defEnd);
   const [applied, setApplied] = useState({ from: defStart, to: defEnd });
@@ -496,6 +498,18 @@ export default function PrToPoPage() {
           </div>
         )}
         {!loading && !error && raw && (<>
+          {/* Stale-feed notice - computed from the data, disappears when fresh rows arrive */}
+          {(() => {
+            const mxSap = Math.max(0, ...(raw.sap_pr as Rec[]).map(r => pDate(r.Erdat) ?? 0));
+            const stale = mxSap > 0 && days(mxSap, todayUtc()) > 14;
+            return stale ? (
+              <div style={{ background: "#fdf6e3", border: `1px solid ${AMBER}`, borderLeft: `6px solid ${AMBER}`, borderRadius: 10, padding: "9px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--ink)", fontWeight: 600 }}>
+                ⚠ SAP feed: no new SAP documents since <b>{fD(mxSap)}</b> (source system load stopped — QMS data stays current).
+                Journeys shown are complete for windows up to that date.
+              </div>
+            ) : null;
+          })()}
+
           {/* KPI strip */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
             {KPIS.map(([k, v, sub, [c1, c2]]) => (
