@@ -227,3 +227,17 @@
     min-height: 0;
   }
 }
+
+/* Guard: any white dropdown/popup panel opened inside the navy banner
+   must render ink text, whatever inline styles it carries — the banner
+   sets color:#fff on its content, and popups that forget to reset it
+   render white-on-white (invisible labels). */
+.pb [style*='background: "#fff"'],
+.pb div[style*="background: rgb(255, 255, 255)"],
+.pb div[style*="background:#fff"],
+.pb div[style*='background: "#fff'] {
+  color: var(--ink, #14213d);
+}
+.pb label {
+  color: inherit;
+}
