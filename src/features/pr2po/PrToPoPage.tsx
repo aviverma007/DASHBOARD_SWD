@@ -242,9 +242,9 @@ function TrendChart({ rows }: { rows: Journey[] }) {
   const mx = Math.max(...data.map(([, e]) => Math.max(e.c, e.p)), 1);
   const lbl = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, minHeight: 180, paddingTop: 6 }}>
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 190, overflow: "hidden", paddingTop: 6 }}>
       {data.map(([k, e]) => (
-        <div key={k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: 180, justifyContent: "flex-end" }}
+        <div key={k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}
           onMouseEnter={ev => showTip(ev, `<b>${lbl(k)}</b><br/>PRs created — ${fN(e.c)}<br/>POs created — ${fN(e.p)}`)}
           onMouseMove={ev => showTip(ev, `<b>${lbl(k)}</b> ${fN(e.c)} / ${fN(e.p)}`)} onMouseLeave={hideTip}>
           <div style={{ width: "70%", display: "flex", gap: 2, alignItems: "flex-end", height: "82%" }}>
@@ -513,15 +513,16 @@ export default function PrToPoPage() {
             <div style={CARD}>
               <h3 style={H3}>Journey Funnel — how far PRs have travelled</h3>
               <div style={CAP}>bar = journeys that reached the stage · gold badge = sitting there now · click a badge → filter records</div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, gap: 8, alignItems: "end", minHeight: 190, paddingTop: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, gap: 8, alignItems: "end", height: 210, paddingTop: 4 }}>
                 {funnel.map(({ s, i, n, stuck }) => {
-                  const mx = Math.max(funnel[0].n, 1);
+                  const mx = Math.max(...funnel.map(x => x.n), 1);
+                  const total = Math.max(rows.length, 1);
                   return (
                     <div key={s.k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%", justifyContent: "flex-end" }}
-                      onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(n)} reached (${((n / mx) * 100).toFixed(0)}%)<br/>${fN(stuck)} sitting here now`)}
+                      onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(n)} reached (${((n / total) * 100).toFixed(0)}% of journeys)<br/>${fN(stuck)} sitting here now`)}
                       onMouseMove={e => showTip(e, `<b>${s.l}</b> ${fN(n)}`)} onMouseLeave={hideTip}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>{fN(n)}</span>
-                      <div style={{ width: "76%", height: `${Math.max((n / mx) * 130, n ? 4 : 0)}px`, background: STAGE_COLS[i], borderRadius: "5px 5px 0 0" }} />
+                      <div style={{ width: "76%", height: `${Math.max((n / mx) * 120, n ? 4 : 0)}px`, background: STAGE_COLS[i], borderRadius: "5px 5px 0 0" }} />
                       {stuck > 0 && (
                         <span onClick={() => { setStageF(i); setStatusF("flight"); setPage(1); }}
                           style={{ background: `${GOLD}22`, color: GOLD, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 8px", cursor: "pointer", border: stageF === i ? `1.5px solid ${GOLD}` : "1.5px solid transparent", whiteSpace: "nowrap" }}>
@@ -618,6 +619,50 @@ export default function PrToPoPage() {
               </div>
             </Zoomable>
           </div>
+
+          {/* Data & join diagnostics — the proof of every connection */}
+          <Zoomable title="Data and join diagnostics" collapsible defaultCollapsed>
+            <div style={CARD}>
+              <h3 style={H3}>Data & Join Diagnostics</h3>
+              <div style={CAP}>live counts proving each link · SAP PR ⟷ VendorGlobe joined on Banfn = EPR_No · PR → PO joined on Ebeln = EBELN</div>
+              {(() => {
+                const sapPrs = new Set((raw.sap_pr as Rec[]).map(r => String(r.Banfn || "")).filter(Boolean));
+                const vgPrs = new Set((raw.vg as Rec[]).map(r => String(r.EPR_No || "")).filter(Boolean));
+                const both = [...sapPrs].filter(x => vgPrs.has(x)).length;
+                const sapWithPoLink = new Set((raw.sap_pr as Rec[]).filter(r => r.Ebeln).map(r => String(r.Banfn))).size;
+                const poNos = new Set((raw.sap_po as Rec[]).map(r => String(r.EBELN || "")));
+                const linkedFound = new Set((raw.sap_pr as Rec[]).filter(r => r.Ebeln && poNos.has(String(r.Ebeln))).map(r => String(r.Banfn))).size;
+                const sapErr = (raw.meta as { sap_error?: string | null }).sap_error;
+                const items: [string, string, string][] = [
+                  ["SAP PR lines fetched", fN((raw.sap_pr as Rec[]).length), "rows from PR2PO.dbo.SAP_PR (mirror of SWDBIDB.PRD_PR)"],
+                  ["Distinct SAP PRs", fN(sapPrs.size), "grouped by Banfn — one journey each"],
+                  ["VendorGlobe PRs fetched", fN(vgPrs.size), "rows from PRNFATatReportHistory (QMS + NFA legs)"],
+                  ["Matched in BOTH systems", fN(both), "Banfn = EPR_No — these journeys carry all legs"],
+                  ["SAP-only journeys", fN(sapPrs.size - both), "no QMS record — not yet replicated, or outside VG sync window"],
+                  ["VendorGlobe-only journeys", fN(vgPrs.size - both), "created directly in QMS (Is_Sap_Pr = 0) or SAP twin missing"],
+                  ["SAP PRs with a PO link", fN(sapWithPoLink), "PR lines carrying Ebeln (follow-on PO number)"],
+                  ["PO headers fetched", fN((raw.sap_po as Rec[]).length), "PR2PO.dbo.SAP_PO rows aggregated by EBELN"],
+                  ["PRs whose PO was found", fN(linkedFound), "Ebeln resolved in SAP_PO — these reach the PO stage"],
+                ];
+                return (
+                  <>
+                    {sapErr && <div style={{ background: "#fdecea", border: `1px solid ${RED}`, color: RED, fontWeight: 700, fontSize: 12.5, borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>SAP mirror query failed: {String(sapErr)}</div>}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 8 }}>
+                      {items.map(([k, v, sub]) => (
+                        <div key={k} style={{ background: "#faf9f6", border: "1px solid #eee9dd", borderRadius: 10, padding: "8px 12px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink)" }}>{k}</span>
+                            <span style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{v}</span>
+                          </div>
+                          <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 2 }}>{sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </Zoomable>
 
           {/* Records */}
           <Zoomable title="Journey records" collapsible>
