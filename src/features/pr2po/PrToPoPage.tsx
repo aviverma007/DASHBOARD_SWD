@@ -169,7 +169,9 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
 
   sapByNo.forEach((lines, banfn) => {
     seen.add(banfn);
-    const erdats = lines.map(l => pDate(l.Erdat)).filter((x): x is number => x !== null);
+    // Badat is the true requisition date; this extract's Erdat is a
+    // refresh date (often later, sometimes after Frgdt).
+    const erdats = lines.map(l => pDate(l.Badat) ?? pDate(l.Erdat)).filter((x): x is number => x !== null);
     const frgdts = lines.map(l => pDate(l.Frgdt)).filter((x): x is number => x !== null);
     const v = vgByNo.get(banfn) ?? null;
     const first = lines[0];
@@ -520,7 +522,7 @@ export default function PrToPoPage() {
         {!loading && !error && raw && (<>
           {/* Stale-feed notice - computed from the data, disappears when fresh rows arrive */}
           {(() => {
-            const mxSap = Math.max(0, ...(raw.sap_pr as Rec[]).map(r => pDate(r.Erdat) ?? 0));
+            const mxSap = Math.max(0, ...(raw.sap_pr as Rec[]).map(r => pDate(r.Badat) ?? pDate(r.Erdat) ?? 0));
             const stale = mxSap > 0 && days(mxSap, todayUtc()) > 14;
             return stale ? (
               <div style={{ background: "#fdf6e3", border: `1px solid ${AMBER}`, borderLeft: `6px solid ${AMBER}`, borderRadius: 10, padding: "9px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--ink)", fontWeight: 600 }}>
