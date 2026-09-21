@@ -276,6 +276,34 @@ type Rec = Record<string, string | null>;
 
 /* ---------------- drill list drawer (click any chart segment) ---------------- */
 export interface ListSel { title: string; sub?: string; rows: { j: Journey; note?: string }[] }
+
+function MiniBars({ title, data, color = TEAL, max = 8 }: { title: string; data: [string, number][]; color?: string; max?: number }) {
+  const bars = data.filter(([, n]) => n > 0).slice(0, max);
+  if (!bars.length) return null;
+  const mx = Math.max(...bars.map(b => b[1]), 1);
+  return (
+    <div style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 10, padding: "10px 13px", marginBottom: 10 }}>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", marginBottom: 5 }}>{title}</div>
+      {bars.map(([l, n]) => (
+        <div key={l} style={{ padding: "3px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, gap: 8 }}>
+            <span style={{ fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
+            <span style={{ fontWeight: 800, color: "var(--mut)", whiteSpace: "nowrap" }}>{fN(n)}</span>
+          </div>
+          <div style={{ height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden", marginTop: 2 }}>
+            <div style={{ height: "100%", width: `${(n / mx) * 100}%`, background: color, borderRadius: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function count<T>(items: T[], key: (t: T) => string | null): [string, number][] {
+  const m = new Map<string, number>();
+  items.forEach(t => { const k = key(t); if (k) m.set(k, (m.get(k) ?? 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
 function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j: Journey) => void; onClose: () => void }) {
   if (!sel) return null;
   const totVal = sel.rows.reduce((s, r) => s + r.j.value, 0);
@@ -297,6 +325,49 @@ function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j:
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
           {sel.rows.length === 0 && <div style={{ textAlign: "center", color: "var(--mut)", fontWeight: 600, padding: 30 }}>No journeys in this segment.</div>}
+          {sel.rows.length > 0 && (() => {
+            const js = sel.rows.map(r => r.j);
+            const fl = js.filter(j => !j.done && !j.exception);
+            const idles = fl.map(j => (j.pendingSince !== null ? idleDays(j.pendingSince) : null)).filter((x): x is number => x !== null);
+            const tiles: [string, string, string][] = [
+              ["PRs", fN(js.length), TEAL],
+              ["Value", fMoney(js.reduce((s, j) => s + j.value, 0)), NAVY],
+              ["In-flight", fN(fl.length), "#1a7f9c"],
+              ["Completed", fN(js.filter(j => j.done).length), GREEN],
+              ["Exceptions", fN(js.filter(j => j.exception).length), RED],
+              ["Avg idle", idles.length ? `${(idles.reduce((a, b) => a + b, 0) / idles.length).toFixed(0)} d` : "—", AMBER],
+            ];
+            const monthOf = (j: Journey) => { const c = j.m.sap_created ?? j.m.qms_created; return c !== null ? new Date(c).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }) : null; };
+            const monthKey = (j: Journey) => { const c = j.m.sap_created ?? j.m.qms_created; return c !== null ? iso(c).slice(0, 7) : ""; };
+            const mm = new Map<string, number>();
+            js.slice().sort((a, b) => monthKey(a).localeCompare(monthKey(b))).forEach(j => {
+              const l = monthOf(j); if (l) mm.set(l, (mm.get(l) ?? 0) + 1);
+            });
+            const months: [string, number][] = [...mm.entries()];
+            return (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                  {tiles.map(([k, v, c]) => (
+                    <div key={k} style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `4px solid ${c}`, borderRadius: 10, padding: "7px 10px" }}>
+                      <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color: "var(--ink)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <MiniBars title="By stage" color={TEAL}
+                  data={count(js, j => j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l))} />
+                <MiniBars title="Pending with" color={GOLD}
+                  data={count(fl, j => j.pendingWith || "—")} />
+                <MiniBars title="By project / plant" color={NAVY}
+                  data={count(js, j => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null))} />
+                <MiniBars title="Idle ageing" color={RED}
+                  data={[["0–7 d", 0, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]]
+                    .map(([l, lo, hi]) => [l as string, idles.filter(d => d >= (lo as number) && d <= (hi as number)).length] as [string, number])} />
+                <MiniBars title="Created by month" color="#2a5c8f" max={12} data={months} />
+                <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", margin: "12px 2px 6px" }}>PR list · {fN(js.length)}</div>
+              </>
+            );
+          })()}
           {sel.rows.map(({ j, note }) => {
             const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
             const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
