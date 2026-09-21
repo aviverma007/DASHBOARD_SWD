@@ -675,6 +675,11 @@ export default function PrToPoPage() {
   const [page, setPage] = useState(1);
   const [showSug, setShowSug] = useState(false);
   const [reportView, setReportView] = useState<null | "sappr" | "sappo" | "qmsfull" | "qmspr">(null);
+  /* reports stay mounted after first open so toggling is instant */
+  const [loadedReports, setLoadedReports] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (reportView) setLoadedReports(prev => prev.has(reportView) ? prev : new Set(prev).add(reportView));
+  }, [reportView]);
   const sugRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (sugRef.current && !sugRef.current.contains(e.target as Node)) setShowSug(false); };
@@ -842,7 +847,6 @@ export default function PrToPoPage() {
       ["qmsfull", "QMS Full (NFA TAT)", `${API_BASE}/nfatat`],
       ["qmspr", "QMS Replication PR", `${API_BASE}/`],
     ];
-    const cur = REPORTS.find(r => r[0] === reportView)!;
     return (
       <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
         <PageBanner bleed title="PR → PO · Live Reports" sub={<>raw source tables, live from the 5-minute syncs · filter, sort and download Excel inside each report</>}>
@@ -853,8 +857,12 @@ export default function PrToPoPage() {
               value={reportView} onChange={k => setReportView(k as typeof reportView)} />
           </div>
         </PageBanner>
-        <iframe key={cur[0]} src={cur[2]} title={cur[1]}
-          style={{ flex: 1, width: "100%", minHeight: "calc(100vh - 150px)", border: "none", background: "#fff" }} />
+        {/* all visited reports stay mounted; toggling only flips visibility */}
+        {REPORTS.filter(r => loadedReports.has(r[0])).map(([k, t, u]) => (
+          <iframe key={k} src={u} title={t}
+            style={{ flex: 1, width: "100%", minHeight: "calc(100vh - 150px)", border: "none", background: "#fff",
+                     display: k === reportView ? "block" : "none" }} />
+        ))}
       </div>
     );
   }
