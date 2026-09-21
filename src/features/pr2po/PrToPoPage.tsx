@@ -190,7 +190,10 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     const deleted = lines.every(l => l.Loekz === "True" || l.Loekz === "1");
     const ebelns = [...new Set(lines.map(l => String(l.Ebeln || "")).filter(Boolean))];
     const pos = ebelns.map(e => poByNo.get(e)).filter((p): p is R => !!p);
-    const lineVal = lines.reduce((s, l) => s + (parseFloat(String(l.Netwr)) || 0), 0);
+    // guard against the OData entity duplicating document totals onto
+    // every line: all-identical line values -> count once, not summed
+    const lineNet = lines.map(l => parseFloat(String(l.Netwr)) || 0);
+    const lineVal = lineNet.length > 1 && new Set(lineNet).size === 1 ? lineNet[0] : lineNet.reduce((s, x) => s + x, 0);
     const poVal = pos.reduce((s, p) => s + (parseFloat(String(p.NETWR)) || 0), 0);
 
     const m: Journey["m"] = {}; const reached: Journey["reached"] = {};
@@ -381,13 +384,7 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
                 <tbody>
                   {[["PO number", j.po.EBELN], ["PO date", fD(pDate(j.po.BADAT))], ["Vendor", j.po.NAME1],
                     ["Release levels granted", j.po.FRGZU || "none"], ["Release indicator", j.po.FRGKE === "G" ? "G — released" : `${j.po.FRGKE} — blocked/in release`],
-                    ["Value", fMoney(parseFloat(String(j.po.NETWR)) || 0)], ["Invoiced", fMoney(parseFloat(String(j.po.NETWR_INV)) || 0)],
-                    j.poItemsGone > 0
-                      ? ["Items deleted in SAP", j.poItemsGone >= j.poItemsSeen
-                          ? `all ${j.poItemsSeen} synced item(s) — PO cancelled`
-                          : `${j.poItemsGone} of ${j.poItemsSeen} synced item(s)`]
-                      : null]
-                    .filter((x): x is (string | null)[] => !!x)
+                    ["Value", fMoney(parseFloat(String(j.po.NETWR)) || 0)], ["Invoiced", fMoney(parseFloat(String(j.po.NETWR_INV)) || 0)]]
                     .filter(([, v]) => v).map(([k, v]) => (
                       <tr key={k as string}><td style={{ ...TD, color: "var(--mut)", width: 150 }}>{k}</td><td style={{ ...TD, fontWeight: 600 }}>{v}</td></tr>
                     ))}
