@@ -156,12 +156,24 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       else if (/Cancel/i.test(nf)) j.exception = "NFA Cancelled";
       else if (/Return/i.test(nf)) j.exception = "NFA Returned";
     }
-    const applicable = STAGES.filter(s => !(j.origin === "vg" && (s.k === "sap_created" || s.k === "sap_released")));
+    /* stages that don't apply to this journey:
+       - QMS-direct journeys have no SAP PR stages
+       - journeys with NO NFA at all (NFA_Status_Desc = 'NA') whose PO is
+         released skip the NFA stages (per business rule: some flows go
+         to PO without an NFA; while the PO is not yet released they show
+         as pending on the QMS side) */
+    const noNfa = !v || ((String(v.NFA_Status_Desc || "NA") === "NA") && pDate(v.NFA_Created_Date) === null);
+    const skip = new Set<string>();
+    if (j.origin === "vg") { skip.add("sap_created"); skip.add("sap_released"); }
+    if (noNfa && j.reached.po_released) { skip.add("nfa_created"); skip.add("nfa_approved"); }
+    const applicable = STAGES.filter(s => !skip.has(s.k));
     let idx = applicable.length;
     for (let i = 0; i < applicable.length; i++) {
       if (!j.reached[applicable[i].k]) { idx = i; break; }
     }
-    j.done = applicable.every(s => j.reached[s.k]);
+    /* business rule: a released PO completes the journey even when some
+       intermediate QMS/NFA milestones are missing in the data */
+    j.done = j.reached.po_released || applicable.every(s => j.reached[s.k]);
     j.stageIdx = STAGES.findIndex(s => s.k === (applicable[idx]?.k ?? "po_released"));
     if (j.done) j.stageIdx = STAGES.length;
 
@@ -171,7 +183,9 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       if (at === "sap_released") j.pendingWith = "SAP Release";
       else if (at === "qms_created") j.pendingWith = "QMS Replication";
       else if (at === "qms_approved") j.pendingWith = (j.vg?.PR_Pending_With && j.vg.PR_Pending_With !== "NA" ? j.vg.PR_Pending_With : "QMS Approval") as string;
-      else if (at === "nfa_created") j.pendingWith = "NFA Creation";
+      else if (at === "nfa_created") j.pendingWith = noNfa
+        ? ((j.vg?.PR_Pending_With && j.vg.PR_Pending_With !== "NA" ? j.vg.PR_Pending_With : "QMS (NFA pending)") as string)
+        : "NFA Creation";
       else if (at === "nfa_approved") j.pendingWith = (j.vg?.NFA_Pending_With && j.vg.NFA_Pending_With !== "NA" ? j.vg.NFA_Pending_With : "NFA Approval") as string;
       else if (at === "po_created") j.pendingWith = "PO Creation (SAP)";
       else if (at === "po_released") j.pendingWith = "PO Release (SAP)";
@@ -435,7 +449,9 @@ function TrendChart({ rows, onPick }: { rows: Journey[]; onPick?: (monthKey: str
 /* ---------------- journey drawer ---------------- */
 function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void }) {
   if (!j) return null;
-  const applicable = STAGES.filter(s => !(j.origin === "vg" && s.k.startsWith("sap_")));
+  const applicable = STAGES.filter(s =>
+    !(j.origin === "vg" && s.k.startsWith("sap_")) &&
+    !(j.done && !j.reached.nfa_created && s.k.startsWith("nfa_")));  // NFA skipped for no-NFA flows
   let prev: number | null = null;
   return (
     <>
