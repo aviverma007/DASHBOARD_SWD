@@ -89,7 +89,19 @@ interface Journey {
   vg: Record<string, string | null> | null;
   po: Record<string, string | null> | null;
   poApprox: boolean;                // po_released date approximated by AEDAT
+  poItemsGone: number;              // PO items SAP stopped returning (deleted)
+  poItemsSeen: number;              // PO items ever synced from the live feed
 }
+
+/* SAP's OData entity silently drops deleted items instead of sending
+ * Loekz='X', so cancellation is inferred: every synced item of the PO has
+ * vanished from the feed (backend sets CANCELLED), or a real deletion
+ * indicator arrives once the entity is fixed. */
+const poCancelled = (pos: Rec[]) =>
+  pos.length > 0 && pos.every(p =>
+    p.CANCELLED === "1" || p.LOEKZ === "L" || p.LOEKZ === "X" || p.LOEKZ === "1" || p.LOEKZ === "True");
+const goneOf = (pos: Rec[], k: "ITEMS_GONE" | "ITEMS_SEEN") =>
+  pos.reduce((s, p) => s + (parseInt(String(p[k] ?? "0"), 10) || 0), 0);
 
 function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journey[] {
   type R = Rec;
@@ -133,7 +145,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
 
   const finish = (j: Journey, v: R | null) => {
     // exception states (terminal): anything Returned / Cancelled / Deleted
-    if (v) {
+    if (v && !j.exception) {
       const pr = String(v.PRH_Status_Desc || "");
       const nf = String(v.NFA_Status_Desc || "");
       if (/Cancel/i.test(pr)) j.exception = "QMS PR Cancelled";
@@ -191,7 +203,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       reached.po_created = true;
       const badats = pos.map(p => pDate(p.BADAT)).filter((x): x is number => x !== null);
       m.po_created = badats.length ? Math.min(...badats) : null;
-      const released = pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
+      const released = !poCancelled(pos) && pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
       if (released) {
         reached.po_released = true;
         const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
@@ -205,10 +217,12 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       dept: String(first.Eknam || first.Ekgrp || "—"),
       vendor: String(pos[0]?.NAME1 || v?.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v?.Amount_Including_Tax)) || lineVal,
-      m, reached, exception: deleted ? "PR Deleted in SAP" : null,
+      m, reached,
+      exception: deleted ? "PR Deleted in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
       vg: v, po: pos[0] ?? null,
       poApprox: reached.po_released,
+      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"),
     };
     finish(j, v);
   });
@@ -228,7 +242,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       reached.po_created = true;
       const badats = pos.map(p => pDate(p.BADAT)).filter((x): x is number => x !== null);
       m.po_created = badats.length ? Math.min(...badats) : null;
-      const released = pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
+      const released = !poCancelled(pos) && pos.every(p => p.FRGKE === "G" || p.PROCSTAT === "05" || p.PROCSTAT === "5");
       if (released) {
         reached.po_released = true;
         const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
@@ -241,9 +255,11 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       desc: String(v.Scope || "—"), plant: "—", project: String(v.Project_Name || "—"),
       dept: String(v.PRH_Category_Name || "—"), vendor: String(pos[0]?.NAME1 || v.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v.Amount_Including_Tax)) || parseFloat(String(v.PR_Budget)) || 0,
-      m, reached, exception: null, stageIdx: 0, done: false,
+      m, reached, exception: poCancelled(pos) ? "PO Cancelled in SAP" : null,
+      stageIdx: 0, done: false,
       pendingWith: "", pendingSince: null, vg: v, po: pos[0] ?? null,
       poApprox: reached.po_released,
+      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"),
     };
     finish(j, v);
   });
@@ -365,7 +381,13 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
                 <tbody>
                   {[["PO number", j.po.EBELN], ["PO date", fD(pDate(j.po.BADAT))], ["Vendor", j.po.NAME1],
                     ["Release levels granted", j.po.FRGZU || "none"], ["Release indicator", j.po.FRGKE === "G" ? "G — released" : `${j.po.FRGKE} — blocked/in release`],
-                    ["Value", fMoney(parseFloat(String(j.po.NETWR)) || 0)], ["Invoiced", fMoney(parseFloat(String(j.po.NETWR_INV)) || 0)]]
+                    ["Value", fMoney(parseFloat(String(j.po.NETWR)) || 0)], ["Invoiced", fMoney(parseFloat(String(j.po.NETWR_INV)) || 0)],
+                    j.poItemsGone > 0
+                      ? ["Items deleted in SAP", j.poItemsGone >= j.poItemsSeen
+                          ? `all ${j.poItemsSeen} synced item(s) — PO cancelled`
+                          : `${j.poItemsGone} of ${j.poItemsSeen} synced item(s)`]
+                      : null]
+                    .filter((x): x is (string | null)[] => !!x)
                     .filter(([, v]) => v).map(([k, v]) => (
                       <tr key={k as string}><td style={{ ...TD, color: "var(--mut)", width: 150 }}>{k}</td><td style={{ ...TD, fontWeight: 600 }}>{v}</td></tr>
                     ))}
@@ -424,12 +446,12 @@ export default function PrToPoPage() {
   const inFlight = rows.filter(j => !j.done && !j.exception);
   const completed = rows.filter(j => j.done);
   const exceptions = rows.filter(j => j.exception);
-  const withPo = rows.filter(j => j.reached.po_created);
+  const withPo = rows.filter(j => j.reached.po_created && !j.exception);
   const totTats = completed
     .map(j => { const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created; return a !== null && b !== null ? days(a, b) : null; })
     .filter((x): x is number => x !== null && x >= 0);
   const avgTat = totTats.length ? totTats.reduce((s, x) => s + x, 0) / totTats.length : null;
-  const poValue = rows.reduce((s, j) => s + (j.reached.po_created ? j.value : 0), 0);
+  const poValue = rows.reduce((s, j) => s + (j.reached.po_created && !j.exception ? j.value : 0), 0);
 
   /* funnel counts: journeys that reached each stage */
   const funnel = STAGES.map((s, i) => ({
