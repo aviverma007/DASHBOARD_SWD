@@ -174,6 +174,11 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       skip.add("qms_created"); skip.add("qms_approved");
       skip.add("nfa_created"); skip.add("nfa_approved");
     }
+    /* business rule: for QMS-direct PRs the ENFA/final QMS approval IS the
+       end of the journey - the SAP PO release is not visible from QMS, so
+       their journey completes at PO Created (no PO Approved stage). Real
+       linked POs (j.po set) still follow the release stage normally. */
+    if (j.origin === "vg" && j.reached.po_created && !j.po) skip.add("po_released");
     j.skipStages = [...skip];
     const applicable = STAGES.filter(s => !skip.has(s.k));
     let idx = applicable.length;
@@ -1192,6 +1197,7 @@ export default function PrToPoPage() {
                   qms_approved: "direct SAP procurement — PO made without QMS",
                   nfa_created: "these PRs go to PO without an NFA / QMS",
                   nfa_approved: "these PRs go to PO without an NFA / QMS",
+                  po_released: "direct PRs complete at PO creation — SAP release not visible from QMS",
                 };
                 const total = Math.max(rows.length, 1);
                 return STAGES.map((s, i) => {
