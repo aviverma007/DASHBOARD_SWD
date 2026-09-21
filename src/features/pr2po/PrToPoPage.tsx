@@ -673,6 +673,12 @@ export default function PrToPoPage() {
   const [drawer, setDrawer] = useState<Journey | null>(null);
   const [list, setList] = useState<ListSel | null>(null);
   const [page, setPage] = useState(1);
+  const [showSug, setShowSug] = useState(false);
+  const sugRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (sugRef.current && !sugRef.current.contains(e.target as Node)) setShowSug(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   /** open the drill list drawer: journeys sorted oldest-movement-first */
   const openList = (title: string, js: Journey[], sub?: string, notes?: Map<string, string>) =>
@@ -695,6 +701,34 @@ export default function PrToPoPage() {
   const journeys = useMemo(() => raw ? buildJourneys(raw) : [], [raw]);
   const qmsDirectCount = useMemo(() => journeys.filter(j => j.origin === "vg").length, [journeys]);
   const flowJs = useMemo(() => journeys.filter(j => (flow === "sap" ? j.origin === "sap" : j.origin === "vg")), [journeys, flow]);
+  /* search suggestions: PR / PO / vendor / plant / dept / text matches */
+  const suggestions = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (s.length < 2) return [];
+    const out: { t: string; v: string; j?: Journey }[] = [];
+    const seenV = new Set<string>();
+    const push = (t: string, v: string, j?: Journey) => {
+      const key = `${t}|${v}`;
+      if (v && !seenV.has(key) && out.length < 9) { seenV.add(key); out.push({ t, v, j }); }
+    };
+    for (const j of flowJs) {
+      if (out.length >= 9) break;
+      if (j.id.toLowerCase().includes(s)) push("PR", j.id, j);
+      const po = String(j.po?.EBELN ?? "");
+      if (po.toLowerCase().includes(s)) push("PO", po, j);
+      if (j.vendor !== "—" && j.vendor.toLowerCase().includes(s)) push("Vendor", j.vendor);
+      const pl = plantOf(j) ?? "";
+      if (pl.toLowerCase().includes(s)) push("Plant", pl);
+      if (j.dept !== "—" && j.dept.toLowerCase().includes(s)) push("Dept", j.dept);
+    }
+    if (out.length < 9) {
+      for (const j of flowJs) {
+        if (out.length >= 9) break;
+        if (j.desc !== "—" && j.desc.toLowerCase().includes(s)) push("Text", j.desc.slice(0, 60), j);
+      }
+    }
+    return out;
+  }, [q, flowJs]);
   const plantOpts = useMemo(() => [...new Set(flowJs.map(plantOf).filter((x): x is string => !!x))].sort(), [flowJs]);
   const deptOpts = useMemo(() => [...new Set(flowJs.map(j => j.dept).filter(d => d !== "—"))].sort(), [flowJs]);
   const rows = useMemo(() => journeys.filter(j => {
@@ -704,7 +738,8 @@ export default function PrToPoPage() {
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       if (!j.id.toLowerCase().includes(s) && !j.desc.toLowerCase().includes(s) &&
-          !j.vendor.toLowerCase().includes(s) && !(j.po?.EBELN ?? "").toLowerCase().includes(s)) return false;
+          !j.vendor.toLowerCase().includes(s) && !(j.po?.EBELN ?? "").toLowerCase().includes(s) &&
+          !j.dept.toLowerCase().includes(s) && !(plantOf(j) ?? "").toLowerCase().includes(s)) return false;
     }
     if (statusF === "flight" && (j.done || j.exception)) return false;
     if (statusF === "done" && !j.done) return false;
@@ -813,10 +848,29 @@ export default function PrToPoPage() {
           <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...BANNER_CTL, width: 150, color: "#14213d", colorScheme: "light" } as React.CSSProperties} />
         </div>
         <button className="pb-btn" onClick={() => { setApplied({ from, to }); setPage(1); }}>Apply</button>
-        <div>
+        <div ref={sugRef} style={{ position: "relative" }}>
           <div style={BANNER_LBL}>Search</div>
-          <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="PR / PO / vendor / text…"
-            style={{ ...BANNER_CTL, width: 210, cursor: "text", color: "#14213d" } as React.CSSProperties} />
+          <input value={q} onChange={e => { setQ(e.target.value); setPage(1); setShowSug(true); }} onFocus={() => setShowSug(true)}
+            placeholder="PR / PO / vendor / plant / dept…"
+            style={{ ...BANNER_CTL, width: 230, cursor: "text", color: "#14213d" } as React.CSSProperties} />
+          {showSug && suggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 50, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 10, boxShadow: "0 10px 30px rgba(20,33,61,.25)", minWidth: 300, maxWidth: 420, overflow: "hidden" }}>
+              {suggestions.map(sg => (
+                <div key={`${sg.t}|${sg.v}`}
+                  onClick={() => {
+                    setShowSug(false); setPage(1);
+                    if ((sg.t === "PR" || sg.t === "PO") && sg.j) { setQ(sg.j.id); setDrawer(sg.j); }
+                    else setQ(sg.v);
+                  }}
+                  style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 11px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid #f3f0e8" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf6ec"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                  <span style={{ background: "#14213d", color: "#c9b27c", fontWeight: 800, fontSize: 9, borderRadius: 5, padding: "2px 6px", letterSpacing: ".5px", flexShrink: 0, width: 42, textAlign: "center" }}>{sg.t.toUpperCase()}</span>
+                  <span style={{ color: "#14213d", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sg.v}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <div style={BANNER_LBL}>Flow</div>
