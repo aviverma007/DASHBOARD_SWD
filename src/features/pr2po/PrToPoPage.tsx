@@ -167,6 +167,13 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     const skip = new Set<string>();
     if (j.origin === "vg") { skip.add("sap_created"); skip.add("sap_released"); }
     if (noNfa && (j.reached.po_released || (j.origin === "vg" && j.reached.po_created))) { skip.add("nfa_created"); skip.add("nfa_approved"); }
+    /* SAP PR that went straight to PO with NO QMS record at all: the QMS
+       and NFA legs don't apply (direct SAP procurement) - never show it
+       as "awaiting QMS" while its PO already exists */
+    if (j.origin === "sap" && !v && j.reached.po_created) {
+      skip.add("qms_created"); skip.add("qms_approved");
+      skip.add("nfa_created"); skip.add("nfa_approved");
+    }
     j.skipStages = [...skip];
     const applicable = STAGES.filter(s => !skip.has(s.k));
     let idx = applicable.length;
@@ -235,7 +242,12 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
         const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
         m.po_released = aedats.length ? Math.max(...aedats) : null;
       }
+    } else if (ebelns.length) {
+      // The PR line itself carries the follow-on PO number (Ebeln) even
+      // when the PO header wasn't fetched - that alone proves PO Created.
+      reached.po_created = true;
     }
+    const poFallback = !pos.length && ebelns.length ? ({ EBELN: ebelns[0] } as R) : null;
     const j: Journey = {
       id: banfn, origin: "sap",
       desc: String(v?.Scope || first.Txz01 || "—"),
@@ -246,7 +258,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       m, reached,
       exception: deleted ? "PR Deleted in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
-      vg: v, po: pos[0] ?? null,
+      vg: v, po: pos[0] ?? poFallback,
       poApprox: reached.po_released,
       poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"), skipStages: [],
     };
@@ -544,9 +556,7 @@ function TrendChart({ rows, onPick }: { rows: Journey[]; onPick?: (monthKey: str
 /* ---------------- journey drawer ---------------- */
 function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void }) {
   if (!j) return null;
-  const applicable = STAGES.filter(s =>
-    !(j.origin === "vg" && s.k.startsWith("sap_")) &&
-    !((j.done || j.reached.po_created) && !j.reached.nfa_created && s.k.startsWith("nfa_")));  // NFA skipped for no-NFA flows
+  const applicable = STAGES.filter(s => !j.skipStages.includes(s.k));  // skips: SAP stages (QMS-direct), QMS/NFA (direct SAP→PO), NFA (no-NFA flows)
   let prev: number | null = null;
   return (
     <>
@@ -867,7 +877,7 @@ export default function PrToPoPage() {
               {(() => {
                 const today = todayUtc();
                 /* SAP approved but QMS PR not created yet (replication pending) */
-                const repl = inFlight.filter(j => j.origin === "sap" && j.reached.sap_released && !j.reached.qms_created);
+                const repl = inFlight.filter(j => j.origin === "sap" && j.reached.sap_released && !j.reached.qms_created && !j.reached.po_created);
                 const waitOf = (j: Journey) => (j.m.sap_created !== null ? Math.max(0, days(j.m.sap_created, today)) : (j.pendingSince !== null ? idleDays(j.pendingSince) : null));
                 const waits = repl.map(waitOf).filter((x): x is number => x !== null);
                 const openLatest = (title: string, js: Journey[], sortKey: (j: Journey) => number, noteFn?: (j: Journey) => string | undefined, sub?: string) =>
@@ -1087,8 +1097,10 @@ export default function PrToPoPage() {
                 const SKIP_WHY: Record<string, string> = {
                   sap_created: "QMS-direct PRs have no SAP PR step",
                   sap_released: "QMS-direct PRs have no SAP PR step",
-                  nfa_created: "these PRs go to PO without an NFA",
-                  nfa_approved: "these PRs go to PO without an NFA",
+                  qms_created: "direct SAP procurement — PO made without QMS",
+                  qms_approved: "direct SAP procurement — PO made without QMS",
+                  nfa_created: "these PRs go to PO without an NFA / QMS",
+                  nfa_approved: "these PRs go to PO without an NFA / QMS",
                 };
                 const total = Math.max(rows.length, 1);
                 return STAGES.map((s, i) => {
