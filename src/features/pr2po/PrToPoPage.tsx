@@ -983,13 +983,14 @@ export default function PrToPoPage() {
                 const awaitPo = inFlight.filter(j => j.stageIdx === 6 || j.stageIdx === 7);
                 const tats = completed.map(tatOf).filter((x): x is number => x !== null);
                 const cards: { t: string; n: string; sub: string; expl: string; c: string; pick: () => void }[] = [
-                  {
+                  /* SAP hand-over card only makes sense for the SAP flow */
+                  ...(flow === "qms" ? [] : [{
     t: "Approved in SAP, not yet in QMS", n: fN(repl.length),
                     sub: `avg wait ${waits.length ? (waits.reduce((a, b) => a + b, 0) / waits.length).toFixed(0) : 0} d · longest ${waits.length ? Math.max(...waits) : 0} d · ${fMoney(repl.reduce((s, j) => s + j.value, 0))}`,
                     expl: "SAP released these PRs (Frgkz R/2) but the QMS PR is still not created — the hand-over to QMS is pending. Wait counted from the PR date.",
                     c: RED,
                     pick: () => openLatest("Approved in SAP, not yet in QMS", repl, j => j.m.sap_created ?? 0, j => { const w = waitOf(j); return w !== null ? `waiting ${w} d` : undefined; }, "latest SAP PRs first"),
-                  },
+                  }]),
                   {
                     t: "Under QMS approval", n: fN(underQms.length),
                     sub: fMoney(underQms.reduce((s, j) => s + j.value, 0)),
