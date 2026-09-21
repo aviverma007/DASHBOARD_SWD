@@ -419,8 +419,8 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
             );
           })()}
           {sel.rows.map(({ j, note }) => {
-            const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
-            const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
+            const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`);
+            const stageCol = j.exception && !j.done ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
             const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
             return (
               <div key={j.id} onClick={() => onPick(j)}
@@ -497,7 +497,7 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>
-                PR JOURNEY {j.exception ? `· ${j.exception.toUpperCase()}` : j.done ? "· COMPLETED" : `· AT ${STAGES[Math.min(j.stageIdx, 7)].l.toUpperCase()}`}
+                PR JOURNEY {j.exception ? `· ${j.exception.toUpperCase()}` : j.done ? "· COMPLETED" : `· AWAITING ${STAGES[Math.min(j.stageIdx, 7)].l.toUpperCase()}`}
               </div>
               <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", marginTop: 2 }}>PR {j.id}</div>
             </div>
@@ -1150,8 +1150,8 @@ export default function PrToPoPage() {
                   <tbody>
                     {pageRows.map(j => {
                       const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
-                      const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
-                      const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
+                      const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`);
+                      const stageCol = j.exception && !j.done ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
                       return (
                         <tr key={j.id} onClick={() => setDrawer(j)} style={{ cursor: "pointer" }}
                           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
