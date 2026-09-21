@@ -674,6 +674,7 @@ export default function PrToPoPage() {
   const [list, setList] = useState<ListSel | null>(null);
   const [page, setPage] = useState(1);
   const [showSug, setShowSug] = useState(false);
+  const [reportView, setReportView] = useState<null | "sappr" | "sappo" | "qmsfull" | "qmspr">(null);
   const sugRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (sugRef.current && !sugRef.current.contains(e.target as Node)) setShowSug(false); };
@@ -833,6 +834,31 @@ export default function PrToPoPage() {
     ["Avg PR → PO TAT", avgTat !== null ? `${avgTat.toFixed(0)} d` : "—", `${fN(totTats.length)} completed journeys`, ["#c99a3a", "#96691c"], () => openList("Completed journeys — full TAT", completed, "end-to-end days per PR", tatNotes)],
   ];
 
+  /* ---------- Reports view: live source tables, embedded ---------- */
+  if (reportView) {
+    const REPORTS: [typeof reportView & string, string, string][] = [
+      ["sappr", "SAP PR", `${API_BASE}/sappr`],
+      ["sappo", "SAP PO", `${API_BASE}/sappo`],
+      ["qmsfull", "QMS Full (NFA TAT)", `${API_BASE}/nfatat`],
+      ["qmspr", "QMS Replication PR", `${API_BASE}/`],
+    ];
+    const cur = REPORTS.find(r => r[0] === reportView)!;
+    return (
+      <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
+        <PageBanner bleed title="PR → PO · Live Reports" sub={<>raw source tables, live from the 5-minute syncs · filter, sort and download Excel inside each report</>}>
+          <button className="pb-btn" onClick={() => setReportView(null)}>‹ Back to Dashboard</button>
+          <div>
+            <div style={BANNER_LBL}>Report</div>
+            <BannerPills items={REPORTS.map(r => [r[0], r[1]]) as [string, string][]}
+              value={reportView} onChange={k => setReportView(k as typeof reportView)} />
+          </div>
+        </PageBanner>
+        <iframe key={cur[0]} src={cur[2]} title={cur[1]}
+          style={{ flex: 1, width: "100%", minHeight: "calc(100vh - 150px)", border: "none", background: "#fff" }} />
+      </div>
+    );
+  }
+
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef" }}>
       <PageBanner bleed title="PR → PO Journey"
@@ -884,6 +910,7 @@ export default function PrToPoPage() {
           <BannerPills items={[["all", "All"], ["flight", "In-flight"], ["done", "Completed"], ["exc", "Exceptions"]] as const}
             value={statusF} onChange={k => { setStatusF(k); setStageF(-1); setPage(1); }} />
         </div>
+        <button className="pb-btn" onClick={() => setReportView("sappr")}>📄 Reports</button>
         <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setPlantF([]); setDeptF([]); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
       </PageBanner>
 
