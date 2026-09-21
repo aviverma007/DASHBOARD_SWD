@@ -291,9 +291,11 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
        PRH_Status_Desc with no NFA goes straight to PO creation - show
        PO Created even before the live PO feed links up */
     const noNfaV = String(v.NFA_Status_Desc || "NA") === "NA" && pDate(v.NFA_Created_Date) === null;
-    if (!pos.length && reached.qms_approved && noNfaV) {
+    /* direct PRs go to PO on final QMS approval: NFA/ENFA approved -> PO
+       created; and with no NFA at all, QMS PR approved -> PO created */
+    if (!pos.length && (reached.nfa_approved || (reached.qms_approved && noNfaV))) {
       reached.po_created = true;
-      m.po_created = m.qms_approved;
+      m.po_created = (reached.nfa_approved ? (m.nfa_approved ?? m.qms_approved) : m.qms_approved) ?? null;
     }
     const poVal = pos.reduce((s2, p) => s2 + (parseFloat(String(p.NETWR)) || 0), 0);
     const j: Journey = {
