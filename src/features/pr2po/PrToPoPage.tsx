@@ -291,15 +291,17 @@ type Rec = Record<string, string | null>;
 /* ---------------- drill list drawer (click any chart segment) ---------------- */
 export interface ListSel { title: string; sub?: string; rows: { j: Journey; note?: string }[] }
 
-function MiniBars({ title, data, color = TEAL, max = 8 }: { title: string; data: [string, number][]; color?: string; max?: number }) {
+function MiniBars({ title, data, color = TEAL, max = 10, onPick }: { title: string; data: [string, number][]; color?: string; max?: number; onPick?: (label: string) => void }) {
   const bars = data.filter(([, n]) => n > 0).slice(0, max);
   if (!bars.length) return null;
   const mx = Math.max(...bars.map(b => b[1]), 1);
   return (
     <div style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 10, padding: "10px 13px", marginBottom: 10 }}>
-      <div style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", marginBottom: 5 }}>{title}</div>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", marginBottom: 5 }}>{title}{onPick ? <span style={{ fontSize: 9.5, color: "var(--mut)", fontWeight: 600 }}> · click a bar to drill</span> : null}</div>
       {bars.map(([l, n]) => (
-        <div key={l} style={{ padding: "3px 0" }}>
+        <div key={l} style={{ padding: "3px 0", cursor: onPick ? "pointer" : "default", borderRadius: 6 }} onClick={() => onPick?.(l)}
+          onMouseEnter={e => { if (onPick) (e.currentTarget as HTMLElement).style.background = "#faf6ec"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, gap: 8 }}>
             <span style={{ fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
             <span style={{ fontWeight: 800, color: "var(--mut)", whiteSpace: "nowrap" }}>{fN(n)}</span>
@@ -313,12 +315,19 @@ function MiniBars({ title, data, color = TEAL, max = 8 }: { title: string; data:
   );
 }
 
+/** end-to-end completion days for a done journey, else null */
+const tatOf = (j: Journey): number | null => {
+  if (!j.done) return null;
+  const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created;
+  return a !== null && b !== null && b >= a ? days(a, b) : null;
+};
+
 function count<T>(items: T[], key: (t: T) => string | null): [string, number][] {
   const m = new Map<string, number>();
   items.forEach(t => { const k = key(t); if (k) m.set(k, (m.get(k) ?? 0) + 1); });
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
-function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j: Journey) => void; onClose: () => void }) {
+function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onPick: (j: Journey) => void; onClose: () => void; refine?: (sel: ListSel) => void }) {
   if (!sel) return null;
   const totVal = sel.rows.reduce((s, r) => s + r.j.value, 0);
   return (
@@ -341,15 +350,27 @@ function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j:
           {sel.rows.length === 0 && <div style={{ textAlign: "center", color: "var(--mut)", fontWeight: 600, padding: 30 }}>No journeys in this segment.</div>}
           {sel.rows.length > 0 && (() => {
             const js = sel.rows.map(r => r.j);
+            const noteOf = new Map(sel.rows.map(r => [r.j.id, r.note]));
+            /** nested drill: open a refined panel keeping context in the title */
+            const drill = (label: string, keep: (j: Journey) => boolean) =>
+              refine?.({ title: `${sel.title} › ${label}`, sub: sel.sub, rows: js.filter(keep).map(j => ({ j, note: noteOf.get(j.id) })) });
+            const doneJs = js.filter(j => j.done);
+            const excJs = js.filter(j => j.exception && !j.done);
             const fl = js.filter(j => !j.done && !j.exception);
             const idles = fl.map(j => (j.pendingSince !== null ? idleDays(j.pendingSince) : null)).filter((x): x is number => x !== null);
-            const tiles: [string, string, string][] = [
-              ["PRs", fN(js.length), TEAL],
-              ["Value", fMoney(js.reduce((s, j) => s + j.value, 0)), NAVY],
-              ["In-flight", fN(fl.length), "#1a7f9c"],
-              ["Completed", fN(js.filter(j => j.done).length), GREEN],
-              ["Exceptions", fN(js.filter(j => j.exception).length), RED],
-              ["Avg idle", idles.length ? `${(idles.reduce((a, b) => a + b, 0) / idles.length).toFixed(0)} d` : "—", AMBER],
+            const tats = doneJs.map(tatOf).filter((x): x is number => x !== null);
+            const tiles: [string, string, string, (() => void) | null][] = [
+              ["PRs", fN(js.length), TEAL, null],
+              ["Value", fMoney(js.reduce((s, j) => s + j.value, 0)), NAVY, null],
+              ["In-flight", fN(fl.length), "#1a7f9c", () => drill("In-flight", j => !j.done && !j.exception)],
+              ["Completed", fN(doneJs.length), GREEN, () => drill("Completed", j => j.done)],
+              ["Exceptions", fN(excJs.length), RED, () => drill("Exceptions", j => !!j.exception && !j.done)],
+              ["Avg idle", idles.length ? `${(idles.reduce((a, b) => a + b, 0) / idles.length).toFixed(0)} d` : "—", AMBER, null],
+              ...(tats.length ? [
+                ["Avg TAT", `${(tats.reduce((a, b) => a + b, 0) / tats.length).toFixed(0)} d`, GREEN, null],
+                ["Min TAT", `${Math.min(...tats)} d`, "#0f8a7a", null],
+                ["Max TAT", `${Math.max(...tats)} d`, RED, null],
+              ] as [string, string, string, (() => void) | null][] : []),
             ];
             const monthOf = (j: Journey) => { const c = j.m.sap_created ?? j.m.qms_created; return c !== null ? new Date(c).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }) : null; };
             const monthKey = (j: Journey) => { const c = j.m.sap_created ?? j.m.qms_created; return c !== null ? iso(c).slice(0, 7) : ""; };
@@ -358,26 +379,41 @@ function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j:
               const l = monthOf(j); if (l) mm.set(l, (mm.get(l) ?? 0) + 1);
             });
             const months: [string, number][] = [...mm.entries()];
+            const stageOf = (j: Journey) => j.exception && !j.done ? j.exception : j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`;
+            const projOf = (j: Journey) => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null);
+            const IDLE_BANDS = [["0–7 d", 0, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
+            const idleOf = (j: Journey) => (!j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null);
+            const TAT_BANDS = [["0–7 d", 0, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
             return (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-                  {tiles.map(([k, v, c]) => (
-                    <div key={k} style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `4px solid ${c}`, borderRadius: 10, padding: "7px 10px" }}>
+                  {tiles.map(([k, v, c, pick]) => (
+                    <div key={k} onClick={() => pick?.()} style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `4px solid ${c}`, borderRadius: 10, padding: "7px 10px", cursor: pick ? "pointer" : "default" }}>
                       <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
                       <div style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color: "var(--ink)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</div>
                     </div>
                   ))}
                 </div>
-                <MiniBars title="By stage" color={TEAL}
-                  data={count(js, j => j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l))} />
-                <MiniBars title="Pending with" color={GOLD}
-                  data={count(fl, j => j.pendingWith || "—")} />
-                <MiniBars title="By project / plant" color={NAVY}
-                  data={count(js, j => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null))} />
-                <MiniBars title="Idle ageing" color={RED}
-                  data={[["0–7 d", 0, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]]
-                    .map(([l, lo, hi]) => [l as string, idles.filter(d => d >= (lo as number) && d <= (hi as number)).length] as [string, number])} />
-                <MiniBars title="Created by month" color="#2a5c8f" max={12} data={months} />
+                <MiniBars title="By stage" color={TEAL} data={count(js, stageOf)}
+                  onPick={l => drill(l, j => stageOf(j) === l)} />
+                <MiniBars title="Pending with" color={GOLD} data={count(fl, j => j.pendingWith || "—")}
+                  onPick={l => drill(`Pending: ${l}`, j => !j.done && !j.exception && (j.pendingWith || "—") === l)} />
+                <MiniBars title="By project / plant" color={NAVY} data={count(js, projOf)}
+                  onPick={l => drill(l, j => projOf(j) === l)} />
+                <MiniBars title="By department" color="#0f8a7a" data={count(js, j => (j.dept !== "—" ? j.dept : null))}
+                  onPick={l => drill(l, j => j.dept === l)} />
+                <MiniBars title="By vendor" color="#7e5aa2" data={count(js, j => (j.vendor !== "—" ? j.vendor : null))}
+                  onPick={l => drill(l, j => j.vendor === l)} />
+                <MiniBars title="Idle ageing (in-flight)" color={RED}
+                  data={IDLE_BANDS.map(([l, lo, hi]) => [l, fl.filter(j => { const d = idleOf(j); return d !== null && d >= lo && d <= hi; }).length] as [string, number])}
+                  onPick={l => { const [, lo, hi] = IDLE_BANDS.find(b => b[0] === l)!; drill(`Idle ${l}`, j => { const d = idleOf(j); return d !== null && d >= lo && d <= hi; }); }} />
+                {tats.length > 0 && (
+                  <MiniBars title="Completion TAT distribution" color={GREEN}
+                    data={TAT_BANDS.map(([l, lo, hi]) => [l, doneJs.filter(j => { const d = tatOf(j); return d !== null && d >= lo && d <= hi; }).length] as [string, number])}
+                    onPick={l => { const [, lo, hi] = TAT_BANDS.find(b => b[0] === l)!; drill(`TAT ${l}`, j => { const d = tatOf(j); return d !== null && d >= lo && d <= hi; }); }} />
+                )}
+                <MiniBars title="Created by month" color="#2a5c8f" max={12} data={months}
+                  onPick={l => drill(l, j => monthOf(j) === l)} />
                 <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", margin: "12px 2px 6px" }}>PR list · {fN(js.length)}</div>
               </>
             );
@@ -403,7 +439,7 @@ function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j:
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {j.done || j.exception ? (j.po?.EBELN ? `PO ${j.po.EBELN}` : "—") : `with ${j.pendingWith || "—"}`}
                   </span>
-                  <span style={{ whiteSpace: "nowrap" }}>{idle !== null ? `idle ${idle} d · ` : ""}{j.value ? fMoney(j.value) : ""}</span>
+                  <span style={{ whiteSpace: "nowrap" }}>{idle !== null ? `idle ${idle} d · ` : ""}{j.done && tatOf(j) !== null ? `TAT ${tatOf(j)} d · ` : ""}{j.value ? fMoney(j.value) : ""}</span>
                 </div>
               </div>
             );
@@ -601,15 +637,17 @@ export default function PrToPoPage() {
     return true;
   }), [journeys, q, statusF, stageF, flow]);
 
-  const inFlight = rows.filter(j => !j.done && !j.exception);
+  /* mutually exclusive buckets — a journey whose PO released counts as
+     completed even if a QMS status also matched an exception text */
   const completed = rows.filter(j => j.done);
-  const exceptions = rows.filter(j => j.exception);
-  const withPo = rows.filter(j => j.reached.po_created && !j.exception);
+  const exceptions = rows.filter(j => j.exception && !j.done);
+  const inFlight = rows.filter(j => !j.done && !j.exception);
+  const withPo = rows.filter(j => j.reached.po_created && (!j.exception || j.done));
   const totTats = completed
     .map(j => { const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created; return a !== null && b !== null ? days(a, b) : null; })
     .filter((x): x is number => x !== null && x >= 0);
   const avgTat = totTats.length ? totTats.reduce((s, x) => s + x, 0) / totTats.length : null;
-  const poValue = rows.reduce((s, j) => s + (j.reached.po_created && !j.exception ? j.value : 0), 0);
+  const poValue = rows.reduce((s, j) => s + (j.reached.po_created && (!j.exception || j.done) ? j.value : 0), 0);
 
   /* funnel counts: journeys that reached each stage */
   const funnel = STAGES.map((s, i) => ({
@@ -766,7 +804,7 @@ export default function PrToPoPage() {
               {/* status split bar */}
               {(() => {
                 const segs = [
-                  ["Completed", completed, GREEN], ["In-flight", inFlight, TEAL], ["Exceptions", exceptions, RED],
+                  ["Exceptions", exceptions, RED], ["In-flight", inFlight, TEAL], ["Completed", completed, GREEN],
                 ] as const;
                 const tot = Math.max(rows.length, 1);
                 return (
@@ -793,10 +831,10 @@ export default function PrToPoPage() {
                     </tr></thead>
                     <tbody>
                       {stageBreak.filter(b => b.js.length > 0).map(b => (
-                        <tr key={b.s.k} onClick={() => openList(`Sitting at: ${b.s.l}`, b.js)} style={{ cursor: "pointer" }}
+                        <tr key={b.s.k} onClick={() => openList(`Awaiting: ${b.s.l}`, b.js)} style={{ cursor: "pointer" }}
                           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                          <td style={TD}><span style={{ background: `${STAGE_COLS[b.i]}1c`, color: STAGE_COLS[b.i], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{b.s.l}</span></td>
+                          <td style={TD}><span style={{ background: `${STAGE_COLS[b.i]}1c`, color: STAGE_COLS[b.i], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>Awaiting · {b.s.l}</span></td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(b.js.length)}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.avgIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.avgIdle !== null ? `${b.avgIdle.toFixed(0)} d` : "—"}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.maxIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.maxIdle !== null ? `${b.maxIdle} d` : "—"}</td>
@@ -1063,7 +1101,7 @@ export default function PrToPoPage() {
           </Zoomable>
         </>)}
       </div>
-      <ListDrawer sel={list} onPick={j => setDrawer(j)} onClose={() => setList(null)} />
+      <ListDrawer sel={list} onPick={j => setDrawer(j)} onClose={() => setList(null)} refine={s => setList(s)} />
       <JourneyDrawer j={drawer} onClose={() => setDrawer(null)} />
     </div>
   );
