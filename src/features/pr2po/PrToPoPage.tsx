@@ -165,7 +165,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     const noNfa = !v || ((String(v.NFA_Status_Desc || "NA") === "NA") && pDate(v.NFA_Created_Date) === null);
     const skip = new Set<string>();
     if (j.origin === "vg") { skip.add("sap_created"); skip.add("sap_released"); }
-    if (noNfa && j.reached.po_released) { skip.add("nfa_created"); skip.add("nfa_approved"); }
+    if (noNfa && (j.reached.po_released || (j.origin === "vg" && j.reached.po_created))) { skip.add("nfa_created"); skip.add("nfa_approved"); }
     const applicable = STAGES.filter(s => !skip.has(s.k));
     let idx = applicable.length;
     for (let i = 0; i < applicable.length; i++) {
@@ -268,6 +268,14 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
         const aedats = pos.map(p => pDate(p.AEDAT)).filter((x): x is number => x !== null);
         m.po_released = aedats.length ? Math.max(...aedats) : null;
       }
+    }
+    /* business rule (direct PRs only): a QMS-direct PR approved in
+       PRH_Status_Desc with no NFA goes straight to PO creation - show
+       PO Created even before the live PO feed links up */
+    const noNfaV = String(v.NFA_Status_Desc || "NA") === "NA" && pDate(v.NFA_Created_Date) === null;
+    if (!pos.length && reached.qms_approved && noNfaV) {
+      reached.po_created = true;
+      m.po_created = m.qms_approved;
     }
     const poVal = pos.reduce((s2, p) => s2 + (parseFloat(String(p.NETWR)) || 0), 0);
     const j: Journey = {
@@ -524,7 +532,7 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
   if (!j) return null;
   const applicable = STAGES.filter(s =>
     !(j.origin === "vg" && s.k.startsWith("sap_")) &&
-    !(j.done && !j.reached.nfa_created && s.k.startsWith("nfa_")));  // NFA skipped for no-NFA flows
+    !((j.done || j.reached.po_created) && !j.reached.nfa_created && s.k.startsWith("nfa_")));  // NFA skipped for no-NFA flows
   let prev: number | null = null;
   return (
     <>
