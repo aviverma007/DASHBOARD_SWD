@@ -62,16 +62,16 @@ const idleDays = (t: number) => Math.max(0, days(t, todayUtc()));
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 /* ---------------- journey model ---------------- */
-export interface Stage { k: string; l: string; short: string }
+export interface Stage { k: string; l: string; short: string; pend: string }
 export const STAGES: Stage[] = [
-  { k: "sap_created", l: "SAP PR Created", short: "SAP PR" },
-  { k: "sap_released", l: "SAP PR Approved", short: "SAP Appr" },
-  { k: "qms_created", l: "QMS PR Created", short: "QMS PR" },
-  { k: "qms_approved", l: "QMS PR Approved", short: "QMS Appr" },
-  { k: "nfa_created", l: "NFA / Vendor Selection", short: "NFA" },
-  { k: "nfa_approved", l: "NFA Approved", short: "NFA Appr" },
-  { k: "po_created", l: "PO Created", short: "PO" },
-  { k: "po_released", l: "PO Approved", short: "PO Appr" },
+  { k: "sap_created", l: "SAP PR Created", short: "SAP PR", pend: "SAP PR Creation Pending" },
+  { k: "sap_released", l: "SAP PR Approved", short: "SAP Appr", pend: "SAP PR Approval Pending" },
+  { k: "qms_created", l: "QMS PR Created", short: "QMS PR", pend: "QMS Replication Pending" },
+  { k: "qms_approved", l: "QMS PR Approved", short: "QMS Appr", pend: "QMS Approval Pending" },
+  { k: "nfa_created", l: "NFA / Vendor Selection", short: "NFA", pend: "NFA Creation Pending" },
+  { k: "nfa_approved", l: "NFA Approved", short: "NFA Appr", pend: "NFA Approval Pending" },
+  { k: "po_created", l: "PO Created", short: "PO", pend: "PO Creation Pending" },
+  { k: "po_released", l: "PO Approved", short: "PO Appr", pend: "PO Approval Pending" },
 ];
 const STAGE_COLS = ["#1c3f6e", "#2a5c8f", "#0E7490", "#0f8a7a", "#B8893C", "#c99a3a", "#1BAF7A", "#0f8a5f"];
 
@@ -450,7 +450,7 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
               const l = monthOf(j); if (l) mm.set(l, (mm.get(l) ?? 0) + 1);
             });
             const months: [string, number][] = [...mm.entries()];
-            const stageOf = (j: Journey) => j.exception && !j.done ? j.exception : j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`;
+            const stageOf = (j: Journey) => j.exception && !j.done ? j.exception : j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].pend;
             const projOf = (j: Journey) => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null);
             const IDLE_BANDS = [["0–7 d", 0, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
             const idleOf = (j: Journey) => (!j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null);
@@ -490,7 +490,7 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
             );
           })()}
           {sel.rows.map(({ j, note }) => {
-            const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`);
+            const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].pend);
             const stageCol = j.exception && !j.done ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
             const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
             return (
@@ -566,7 +566,7 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>
-                PR JOURNEY {j.exception ? `· ${j.exception.toUpperCase()}` : j.done ? "· COMPLETED" : `· AWAITING ${STAGES[Math.min(j.stageIdx, 7)].l.toUpperCase()}`}
+                PR JOURNEY {j.exception ? `· ${j.exception.toUpperCase()}` : j.done ? "· COMPLETED" : `· ${STAGES[Math.min(j.stageIdx, 7)].pend.toUpperCase()}`}
               </div>
               <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", marginTop: 2 }}>PR {j.id}</div>
             </div>
@@ -985,10 +985,10 @@ export default function PrToPoPage() {
                     </tr></thead>
                     <tbody>
                       {stageBreak.filter(b => b.js.length > 0).map(b => (
-                        <tr key={b.s.k} onClick={() => openList(`Awaiting: ${b.s.l}`, b.js)} style={{ cursor: "pointer" }}
+                        <tr key={b.s.k} onClick={() => openList(b.s.pend, b.js)} style={{ cursor: "pointer" }}
                           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                          <td style={TD}><span style={{ background: `${STAGE_COLS[b.i]}1c`, color: STAGE_COLS[b.i], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>Awaiting · {b.s.l}</span></td>
+                          <td style={TD}><span style={{ background: `${STAGE_COLS[b.i]}1c`, color: STAGE_COLS[b.i], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{b.s.pend}</span></td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(b.js.length)}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.avgIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.avgIdle !== null ? `${b.avgIdle.toFixed(0)} d` : "—"}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.maxIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.maxIdle !== null ? `${b.maxIdle} d` : "—"}</td>
@@ -1319,7 +1319,7 @@ export default function PrToPoPage() {
                   <tbody>
                     {pageRows.map(j => {
                       const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
-                      const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : `Awaiting · ${STAGES[Math.min(j.stageIdx, 7)].l}`);
+                      const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].pend);
                       const stageCol = j.exception && !j.done ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
                       return (
                         <tr key={j.id} onClick={() => setDrawer(j)} style={{ cursor: "pointer" }}
