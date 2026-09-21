@@ -56,6 +56,9 @@ const days = (a: number, b: number) => Math.round((b - a) / DAY);
 const fD = (t: number | null) =>
   t === null ? "—" : new Date(t).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
 const todayUtc = () => { const n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); };
+/** days idle since t, clamped at 0 — some QMS/NFA dates are future-dated
+ *  data-entry artifacts and must not produce negative idle */
+const idleDays = (t: number) => Math.max(0, days(t, todayUtc()));
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 /* ---------------- journey model ---------------- */
@@ -297,7 +300,7 @@ function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j:
           {sel.rows.map(({ j, note }) => {
             const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
             const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
-            const idle = !j.done && !j.exception && j.pendingSince !== null ? days(j.pendingSince, todayUtc()) : null;
+            const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
             return (
               <div key={j.id} onClick={() => onPick(j)}
                 style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 10, padding: "9px 12px", marginBottom: 8, cursor: "pointer" }}
@@ -548,13 +551,13 @@ export default function PrToPoPage() {
   /* aging of in-flight (days since last milestone) */
   const AGE_BANDS = [["0–3 d", 0, 3], ["4–7 d", 4, 7], ["8–15 d", 8, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
   const aging = AGE_BANDS.map(([l, lo, hi]) => ({
-    l, n: inFlight.filter(j => { if (j.pendingSince === null) return false; const a = days(j.pendingSince, todayUtc()); return a >= lo && a <= hi; }).length,
+    l, n: inFlight.filter(j => { if (j.pendingSince === null) return false; const a = idleDays(j.pendingSince); return a >= lo && a <= hi; }).length,
   }));
 
   /* full bifurcation: in-flight by stage, exceptions by type */
   const stageBreak = STAGES.map((s, i) => {
     const js = inFlight.filter(j => j.stageIdx === i);
-    const idles = js.map(j => (j.pendingSince !== null ? days(j.pendingSince, todayUtc()) : null))
+    const idles = js.map(j => (j.pendingSince !== null ? idleDays(j.pendingSince) : null))
       .filter((x): x is number => x !== null);
     return {
       s, i, js,
@@ -821,8 +824,8 @@ export default function PrToPoPage() {
                           <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{k}</td>
                           <td style={{ ...TD, color: "var(--mut)" }}>{e.stage}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(e.n)}</td>
-                          <td style={{ ...TD, textAlign: "right", color: e.oldest !== null && days(e.oldest, todayUtc()) > 30 ? RED : "var(--mut)", fontWeight: 700 }}>
-                            {e.oldest !== null ? `${days(e.oldest, todayUtc())} d` : "—"}
+                          <td style={{ ...TD, textAlign: "right", color: e.oldest !== null && idleDays(e.oldest) > 30 ? RED : "var(--mut)", fontWeight: 700 }}>
+                            {e.oldest !== null ? `${idleDays(e.oldest)} d` : "—"}
                           </td>
                         </tr>
                       ))}
@@ -847,7 +850,7 @@ export default function PrToPoPage() {
                         const [, lo, hi] = AGE_BANDS[i];
                         openList(`In-flight, idle ${a.l}`, inFlight.filter(j => {
                           if (j.pendingSince === null) return false;
-                          const d = days(j.pendingSince, todayUtc()); return d >= lo && d <= hi;
+                          const d = idleDays(j.pendingSince); return d >= lo && d <= hi;
                         }));
                       }}
                       onMouseEnter={e => showTip(e, `<b>${a.l}</b><br/>${fN(a.n)} journeys<br/>click → list`)} onMouseMove={e => showTip(e, `<b>${a.l}</b> ${fN(a.n)}`)} onMouseLeave={hideTip}>
@@ -930,7 +933,7 @@ export default function PrToPoPage() {
                   </tr></thead>
                   <tbody>
                     {pageRows.map(j => {
-                      const idle = !j.done && !j.exception && j.pendingSince !== null ? days(j.pendingSince, todayUtc()) : null;
+                      const idle = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
                       const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
                       const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
                       return (
