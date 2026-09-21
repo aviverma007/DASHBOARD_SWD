@@ -271,8 +271,64 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
 }
 type Rec = Record<string, string | null>;
 
+/* ---------------- drill list drawer (click any chart segment) ---------------- */
+export interface ListSel { title: string; sub?: string; rows: { j: Journey; note?: string }[] }
+function ListDrawer({ sel, onPick, onClose }: { sel: ListSel | null; onPick: (j: Journey) => void; onClose: () => void }) {
+  if (!sel) return null;
+  const totVal = sel.rows.reduce((s, r) => s + r.j.value, 0);
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,28,54,.30)", zIndex: 60 }} />
+      <div style={{ position: "fixed", top: 0, right: 0, height: "100%", width: "min(480px, 92vw)", zIndex: 61, background: "#f6f4ef", boxShadow: "-14px 0 46px rgba(20,33,61,.35)", display: "flex", flexDirection: "column" }}>
+        <div style={{ background: NAVY, padding: "14px 18px", borderBottom: "3px solid var(--gold)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>DRILL-DOWN</div>
+              <div style={{ fontFamily: "Georgia,serif", fontSize: 16.5, fontWeight: 700, color: "#fff", marginTop: 2 }}>{sel.title}</div>
+            </div>
+            <button onClick={onClose} aria-label="Close" style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, fontSize: 15, cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ color: "rgba(255,255,255,.8)", fontSize: 12, marginTop: 6 }}>
+            {fN(sel.rows.length)} PR{sel.rows.length === 1 ? "" : "s"}{totVal ? ` · ${fMoney(totVal)}` : ""}{sel.sub ? ` · ${sel.sub}` : ""}
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+          {sel.rows.length === 0 && <div style={{ textAlign: "center", color: "var(--mut)", fontWeight: 600, padding: 30 }}>No journeys in this segment.</div>}
+          {sel.rows.map(({ j, note }) => {
+            const stageLbl = j.exception ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].l);
+            const stageCol = j.exception ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
+            const idle = !j.done && !j.exception && j.pendingSince !== null ? days(j.pendingSince, todayUtc()) : null;
+            return (
+              <div key={j.id} onClick={() => onPick(j)}
+                style={{ background: "#fff", border: "1px solid #eae6da", borderRadius: 10, padding: "9px 12px", marginBottom: 8, cursor: "pointer" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = GOLD; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#eae6da"; }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{j.id}</span>
+                  <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {note && <span style={{ background: `${GOLD}22`, color: "#96691c", fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{note}</span>}
+                    <span style={{ background: `${stageCol}1c`, color: stageCol, fontWeight: 800, fontSize: 10, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>{stageLbl}</span>
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.desc}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--mut)", marginTop: 3, fontWeight: 600 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {j.done || j.exception ? (j.po?.EBELN ? `PO ${j.po.EBELN}` : "—") : `with ${j.pendingWith || "—"}`}
+                  </span>
+                  <span style={{ whiteSpace: "nowrap" }}>{idle !== null ? `idle ${idle} d · ` : ""}{j.value ? fMoney(j.value) : ""}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding: "8px 14px", borderTop: "1px solid #e5e0d2", fontSize: 11, color: "var(--mut)", fontWeight: 600 }}>Click a PR for its full milestone timeline</div>
+      </div>
+    </>
+  );
+}
+
 /* ---------------- small chart: monthly created vs PO ---------------- */
-function TrendChart({ rows }: { rows: Journey[] }) {
+function TrendChart({ rows, onPick }: { rows: Journey[]; onPick?: (monthKey: string, label: string) => void }) {
   const data = useMemo(() => {
     const m = new Map<string, { c: number; p: number }>();
     rows.forEach(j => {
@@ -287,8 +343,9 @@ function TrendChart({ rows }: { rows: Journey[] }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 190, overflow: "hidden", paddingTop: 6 }}>
       {data.map(([k, e]) => (
-        <div key={k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}
-          onMouseEnter={ev => showTip(ev, `<b>${lbl(k)}</b><br/>PRs created — ${fN(e.c)}<br/>POs created — ${fN(e.p)}`)}
+        <div key={k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end", cursor: onPick ? "pointer" : "default" }}
+          onClick={() => onPick?.(k, lbl(k))}
+          onMouseEnter={ev => showTip(ev, `<b>${lbl(k)}</b><br/>PRs created — ${fN(e.c)}<br/>POs created — ${fN(e.p)}<br/>click → list`)}
           onMouseMove={ev => showTip(ev, `<b>${lbl(k)}</b> ${fN(e.c)} / ${fN(e.p)}`)} onMouseLeave={hideTip}>
           <div style={{ width: "70%", display: "flex", gap: 2, alignItems: "flex-end", height: "82%" }}>
             <div style={{ flex: 1, height: `${(e.c / mx) * 100}%`, background: NAVY, borderRadius: "3px 3px 0 0", minHeight: e.c ? 2 : 0 }} />
@@ -414,7 +471,16 @@ export default function PrToPoPage() {
   const [statusF, setStatusF] = useState<"all" | "flight" | "done" | "exc">("all");
   const [stageF, setStageF] = useState(-1);
   const [drawer, setDrawer] = useState<Journey | null>(null);
+  const [list, setList] = useState<ListSel | null>(null);
   const [page, setPage] = useState(1);
+
+  /** open the drill list drawer: journeys sorted oldest-movement-first */
+  const openList = (title: string, js: Journey[], sub?: string, notes?: Map<string, string>) =>
+    setList({
+      title, sub,
+      rows: [...js].sort((a, b) => (a.pendingSince ?? 9e15) - (b.pendingSince ?? 9e15))
+        .map(j => ({ j, note: notes?.get(j.id) })),
+    });
 
   useEffect(() => {
     let alive = true;
@@ -485,18 +551,47 @@ export default function PrToPoPage() {
     l, n: inFlight.filter(j => { if (j.pendingSince === null) return false; const a = days(j.pendingSince, todayUtc()); return a >= lo && a <= hi; }).length,
   }));
 
+  /* full bifurcation: in-flight by stage, exceptions by type */
+  const stageBreak = STAGES.map((s, i) => {
+    const js = inFlight.filter(j => j.stageIdx === i);
+    const idles = js.map(j => (j.pendingSince !== null ? days(j.pendingSince, todayUtc()) : null))
+      .filter((x): x is number => x !== null);
+    return {
+      s, i, js,
+      avgIdle: idles.length ? idles.reduce((a, b) => a + b, 0) / idles.length : null,
+      maxIdle: idles.length ? Math.max(...idles) : null,
+      value: js.reduce((a, j) => a + j.value, 0),
+    };
+  });
+  const excByType = useMemo(() => {
+    const m = new Map<string, Journey[]>();
+    exceptions.forEach(j => { const k = j.exception!; if (!m.has(k)) m.set(k, []); m.get(k)!.push(j); });
+    return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
+  /* month → journeys, for trend-chart drill */
+  const monthPick = (mk: string, label: string) => {
+    const js = rows.filter(j => { const c = j.m.sap_created ?? j.m.qms_created; return c !== null && iso(c).slice(0, 7) === mk; });
+    openList(`PRs created in ${label}`, js);
+  };
+
   const meta = raw?.meta as { sync?: { SAP_PR?: { last_sync_age_s?: number } } } | undefined;
   const syncAge = meta?.sync?.SAP_PR?.last_sync_age_s;
   const pageSize = 25;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageRows = [...rows].sort((a, b) => (b.pendingSince ?? 0) - (a.pendingSince ?? 0)).slice((page - 1) * pageSize, page * pageSize);
 
-  const KPIS: [string, string, string, [string, string]][] = [
-    ["Total PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"]],
-    ["Reached PO", `${fN(withPo.length)}`, `${rows.length ? ((withPo.length / rows.length) * 100).toFixed(1) : 0}% conversion · ${fMoney(poValue)}`, ["#1e9a6c", "#0f6647"]],
-    ["In-flight", fN(inFlight.length), "moving through approvals", ["#1a7f9c", "#0e5468"]],
-    ["Returned / Cancelled", fN(exceptions.length), "exception journeys", ["#c0392b", "#7e1f14"]],
-    ["Avg PR → PO TAT", avgTat !== null ? `${avgTat.toFixed(0)} d` : "—", `${fN(totTats.length)} completed journeys`, ["#c99a3a", "#96691c"]],
+  const tatNotes = new Map(completed.map(j => {
+    const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created;
+    return [j.id, a !== null && b !== null ? `${days(a, b)} d total` : ""] as [string, string];
+  }));
+  const KPIS: [string, string, string, [string, string], () => void][] = [
+    ["Total PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"], () => openList("All PRs in window", rows)],
+    ["Reached PO", `${fN(withPo.length)}`, `${rows.length ? ((withPo.length / rows.length) * 100).toFixed(1) : 0}% conversion · ${fMoney(poValue)}`, ["#1e9a6c", "#0f6647"], () => openList("PRs that reached PO", withPo)],
+    ["In-flight", fN(inFlight.length), "moving through approvals", ["#1a7f9c", "#0e5468"], () => openList("In-flight PRs", inFlight)],
+    ["Returned / Cancelled", fN(exceptions.length), "exception journeys", ["#c0392b", "#7e1f14"], () => openList("Exception journeys", exceptions)],
+    ["Avg PR → PO TAT", avgTat !== null ? `${avgTat.toFixed(0)} d` : "—", `${fN(totTats.length)} completed journeys`, ["#c99a3a", "#96691c"], () => openList("Completed journeys — full TAT", completed, "end-to-end days per PR", tatNotes)],
   ];
 
   return (
@@ -552,9 +647,9 @@ export default function PrToPoPage() {
 
           {/* KPI strip */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
-            {KPIS.map(([k, v, sub, [c1, c2]]) => (
-              <div key={k} className="g3d" style={GLASS(c1, c2)}
-                onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${sub}`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}>
+            {KPIS.map(([k, v, sub, [c1, c2], pick]) => (
+              <div key={k} className="g3d" style={{ ...GLASS(c1, c2), cursor: "pointer" }} onClick={pick}
+                onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${sub}<br/>click → list`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}>
                 <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,.10)", filter: "blur(2px)" }} />
                 <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "rgba(255,255,255,.85)" }}>{k}</div>
                 <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 6, textShadow: "0 2px 4px rgba(0,0,0,.25)", whiteSpace: "nowrap" }}>{v}</div>
@@ -562,6 +657,87 @@ export default function PrToPoPage() {
               </div>
             ))}
           </div>
+
+          {/* Journey summary — full bifurcation of where every PR stands */}
+          <Zoomable title="Journey summary" collapsible>
+            <div style={CARD}>
+              <h3 style={H3}>Journey Summary — where every PR stands right now</h3>
+              <div style={CAP}>{fN(rows.length)} PRs in window · click any row or segment → list of those PRs · click a PR → full timeline</div>
+              {/* status split bar */}
+              {(() => {
+                const segs = [
+                  ["Completed", completed, GREEN], ["In-flight", inFlight, TEAL], ["Exceptions", exceptions, RED],
+                ] as const;
+                const tot = Math.max(rows.length, 1);
+                return (
+                  <div style={{ display: "flex", height: 26, borderRadius: 8, overflow: "hidden", marginBottom: 12, border: "1px solid #eee9dd" }}>
+                    {segs.map(([l, js, c]) => js.length > 0 && (
+                      <div key={l} onClick={() => openList(`${l} PRs`, [...js])}
+                        style={{ width: `${(js.length / tot) * 100}%`, background: c, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minWidth: js.length ? 34 : 0 }}
+                        onMouseEnter={e => showTip(e, `<b>${l}</b><br/>${fN(js.length)} PRs (${((js.length / tot) * 100).toFixed(1)}%)<br/>click → list`)}
+                        onMouseMove={e => showTip(e, `<b>${l}</b> ${fN(js.length)}`)} onMouseLeave={hideTip}>
+                        <span style={{ color: "#fff", fontWeight: 800, fontSize: 11.5, textShadow: "0 1px 2px rgba(0,0,0,.35)", whiteSpace: "nowrap" }}>{fN(js.length)}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
+                {/* in-flight by stage */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 6 }}>In-flight — sitting at stage</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead><tr>
+                      <th style={TH}>Stage</th><th style={{ ...TH, textAlign: "right" }}>PRs</th>
+                      <th style={{ ...TH, textAlign: "right" }}>Avg idle</th><th style={{ ...TH, textAlign: "right" }}>Max idle</th><th style={{ ...TH, textAlign: "right" }}>Value</th>
+                    </tr></thead>
+                    <tbody>
+                      {stageBreak.filter(b => b.js.length > 0).map(b => (
+                        <tr key={b.s.k} onClick={() => openList(`Sitting at: ${b.s.l}`, b.js)} style={{ cursor: "pointer" }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                          <td style={TD}><span style={{ background: `${STAGE_COLS[b.i]}1c`, color: STAGE_COLS[b.i], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{b.s.l}</span></td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(b.js.length)}</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.avgIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.avgIdle !== null ? `${b.avgIdle.toFixed(0)} d` : "—"}</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: (b.maxIdle ?? 0) > 30 ? RED : "var(--mut)" }}>{b.maxIdle !== null ? `${b.maxIdle} d` : "—"}</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{b.value ? fMoney(b.value) : "—"}</td>
+                        </tr>
+                      ))}
+                      {inFlight.length === 0 && <tr><td style={{ ...TD, color: "var(--mut)" }} colSpan={5}>Nothing in flight.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+                {/* completed + exceptions by type */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 6 }}>Completed & exceptions</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead><tr><th style={TH}>Status</th><th style={{ ...TH, textAlign: "right" }}>PRs</th><th style={{ ...TH, textAlign: "right" }}>% of window</th><th style={{ ...TH, textAlign: "right" }}>Value</th></tr></thead>
+                    <tbody>
+                      <tr onClick={() => openList("Completed journeys — full TAT", completed, "end-to-end days per PR", tatNotes)} style={{ cursor: "pointer" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                        <td style={TD}><span style={{ background: `${GREEN}1c`, color: GREEN, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px" }}>Completed (PO approved)</span></td>
+                        <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(completed.length)}</td>
+                        <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: "var(--mut)" }}>{rows.length ? ((completed.length / rows.length) * 100).toFixed(1) : 0}%</td>
+                        <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fMoney(completed.reduce((s, j) => s + j.value, 0))}</td>
+                      </tr>
+                      {excByType.map(([k, js]) => (
+                        <tr key={k} onClick={() => openList(k, [...js])} style={{ cursor: "pointer" }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                          <td style={TD}><span style={{ background: `${RED}1c`, color: RED, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px" }}>{k}</span></td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(js.length)}</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: "var(--mut)" }}>{rows.length ? ((js.length / rows.length) * 100).toFixed(1) : 0}%</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fMoney(js.reduce((s, j) => s + j.value, 0))}</td>
+                        </tr>
+                      ))}
+                      {exceptions.length === 0 && <tr><td style={{ ...TD, color: "var(--mut)" }} colSpan={4}>No returned / cancelled journeys.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </Zoomable>
 
           {/* Funnel */}
           <Zoomable title="Journey funnel" collapsible>
@@ -574,10 +750,11 @@ export default function PrToPoPage() {
                   const total = Math.max(rows.length, 1);
                   return (
                     <div key={s.k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%", justifyContent: "flex-end" }}
-                      onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(n)} reached (${((n / total) * 100).toFixed(0)}% of journeys)<br/>${fN(stuck)} sitting here now`)}
+                      onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(n)} reached (${((n / total) * 100).toFixed(0)}% of journeys)<br/>${fN(stuck)} sitting here now<br/>click bar → list`)}
                       onMouseMove={e => showTip(e, `<b>${s.l}</b> ${fN(n)}`)} onMouseLeave={hideTip}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>{fN(n)}</span>
-                      <div style={{ width: "76%", height: `${Math.max((n / mx) * 120, n ? 4 : 0)}px`, background: STAGE_COLS[i], borderRadius: "5px 5px 0 0" }} />
+                      <div onClick={() => openList(`Reached: ${s.l}`, rows.filter(j => j.reached[s.k]))}
+                        style={{ width: "76%", height: `${Math.max((n / mx) * 120, n ? 4 : 0)}px`, background: STAGE_COLS[i], borderRadius: "5px 5px 0 0", cursor: "pointer" }} />
                       {stuck > 0 && (
                         <span onClick={() => { setStageF(i); setStatusF("flight"); setPage(1); }}
                           style={{ background: `${GOLD}22`, color: GOLD, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 8px", cursor: "pointer", border: stageF === i ? `1.5px solid ${GOLD}` : "1.5px solid transparent", whiteSpace: "nowrap" }}>
@@ -601,8 +778,19 @@ export default function PrToPoPage() {
                 {(() => {
                   const mx = Math.max(...legTats.map(t => t.avg ?? 0), 1);
                   return legTats.map(t => (
-                    <div key={t.to.k} className="barrow" style={{ padding: "4px 0" }}
-                      onMouseEnter={e => showTip(e, `<b>${t.from.short} → ${t.to.short}</b><br/>avg ${t.avg?.toFixed(1) ?? "—"} d · median ${t.med ?? "—"} d · ${fN(t.n)} journeys`)}
+                    <div key={t.to.k} className="barrow" style={{ padding: "4px 0", cursor: "pointer" }}
+                      onClick={() => {
+                        const withD = rows.map(j => {
+                          const a = j.m[t.from.k], b = j.m[t.to.k];
+                          const d = a !== null && b !== null ? days(a, b) : null;
+                          return d !== null && d >= 0 ? { j, d } : null;
+                        }).filter((x): x is { j: Journey; d: number } => !!x).sort((a, b) => b.d - a.d);
+                        setList({
+                          title: `TAT: ${t.from.l} → ${t.to.l}`, sub: "slowest first",
+                          rows: withD.map(({ j, d }) => ({ j, note: `${d} d` })),
+                        });
+                      }}
+                      onMouseEnter={e => showTip(e, `<b>${t.from.short} → ${t.to.short}</b><br/>avg ${t.avg?.toFixed(1) ?? "—"} d · median ${t.med ?? "—"} d · ${fN(t.n)} journeys<br/>click → list, slowest first`)}
                       onMouseMove={e => showTip(e, `<b>${t.to.short}</b> avg ${t.avg?.toFixed(1) ?? "—"} d`)} onMouseLeave={hideTip}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
                         <span style={{ color: "var(--ink)", fontWeight: 700 }}>{t.from.short} → {t.to.short}</span>
@@ -627,7 +815,9 @@ export default function PrToPoPage() {
                     </tr></thead>
                     <tbody>
                       {pendingWith.map(([k, e]) => (
-                        <tr key={k}>
+                        <tr key={k} onClick={() => openList(`Pending with: ${k}`, inFlight.filter(j => (j.pendingWith || "—") === k))} style={{ cursor: "pointer" }}
+                          onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
                           <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{k}</td>
                           <td style={{ ...TD, color: "var(--mut)" }}>{e.stage}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(e.n)}</td>
@@ -652,8 +842,15 @@ export default function PrToPoPage() {
                 {(() => {
                   const mx = Math.max(...aging.map(a => a.n), 1);
                   return aging.map((a, i) => (
-                    <div key={a.l} className="barrow" style={{ padding: "4.5px 0" }}
-                      onMouseEnter={e => showTip(e, `<b>${a.l}</b><br/>${fN(a.n)} journeys`)} onMouseMove={e => showTip(e, `<b>${a.l}</b> ${fN(a.n)}`)} onMouseLeave={hideTip}>
+                    <div key={a.l} className="barrow" style={{ padding: "4.5px 0", cursor: "pointer" }}
+                      onClick={() => {
+                        const [, lo, hi] = AGE_BANDS[i];
+                        openList(`In-flight, idle ${a.l}`, inFlight.filter(j => {
+                          if (j.pendingSince === null) return false;
+                          const d = days(j.pendingSince, todayUtc()); return d >= lo && d <= hi;
+                        }));
+                      }}
+                      onMouseEnter={e => showTip(e, `<b>${a.l}</b><br/>${fN(a.n)} journeys<br/>click → list`)} onMouseMove={e => showTip(e, `<b>${a.l}</b> ${fN(a.n)}`)} onMouseLeave={hideTip}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 2 }}>
                         <span style={{ fontWeight: 700, color: "var(--ink)" }}>{a.l}</span>
                         <span style={{ fontWeight: 800, color: "var(--mut)" }}>{fN(a.n)}</span>
@@ -670,7 +867,7 @@ export default function PrToPoPage() {
               <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
                 <h3 style={H3}>Monthly — PRs Created vs POs Created</h3>
                 <div style={CAP}>navy = PRs created · green = POs created</div>
-                <TrendChart rows={rows} />
+                <TrendChart rows={rows} onPick={monthPick} />
               </div>
             </Zoomable>
           </div>
@@ -766,6 +963,7 @@ export default function PrToPoPage() {
           </Zoomable>
         </>)}
       </div>
+      <ListDrawer sel={list} onPick={j => setDrawer(j)} onClose={() => setList(null)} />
       <JourneyDrawer j={drawer} onClose={() => setDrawer(null)} />
     </div>
   );
