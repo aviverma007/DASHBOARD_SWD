@@ -94,6 +94,7 @@ interface Journey {
   poApprox: boolean;                // po_released date approximated by AEDAT
   poItemsGone: number;              // PO items SAP stopped returning (deleted)
   poItemsSeen: number;              // PO items ever synced from the live feed
+  skipStages: string[];             // stages not applicable to this journey
 }
 
 /* SAP's OData entity silently drops deleted items instead of sending
@@ -166,6 +167,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     const skip = new Set<string>();
     if (j.origin === "vg") { skip.add("sap_created"); skip.add("sap_released"); }
     if (noNfa && (j.reached.po_released || (j.origin === "vg" && j.reached.po_created))) { skip.add("nfa_created"); skip.add("nfa_approved"); }
+    j.skipStages = [...skip];
     const applicable = STAGES.filter(s => !skip.has(s.k));
     let idx = applicable.length;
     for (let i = 0; i < applicable.length; i++) {
@@ -242,7 +244,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
       vg: v, po: pos[0] ?? null,
       poApprox: reached.po_released,
-      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"),
+      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"), skipStages: [],
     };
     finish(j, v);
   });
@@ -287,7 +289,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       stageIdx: 0, done: false,
       pendingWith: "", pendingSince: null, vg: v, po: pos[0] ?? null,
       poApprox: reached.po_released,
-      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"),
+      poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"), skipStages: [],
     };
     finish(j, v);
   });
@@ -701,11 +703,6 @@ export default function PrToPoPage() {
   const avgTat = totTats.length ? totTats.reduce((s, x) => s + x, 0) / totTats.length : null;
   const poValue = rows.reduce((s, j) => s + (j.reached.po_created && (!j.exception || j.done) ? j.value : 0), 0);
 
-  /* funnel counts: journeys that reached each stage */
-  const funnel = STAGES.map((s, i) => ({
-    s, i, n: rows.filter(j => j.reached[s.k]).length,
-    stuck: rows.filter(j => !j.done && !j.exception && j.stageIdx === i).length,
-  }));
 
   /* avg TAT per consecutive leg */
   const legTats = STAGES.slice(1).map((s, i) => {
@@ -1062,29 +1059,76 @@ export default function PrToPoPage() {
           {/* Funnel */}
           <Zoomable title="Journey funnel" collapsible>
             <div style={CARD}>
-              <h3 style={H3}>Journey Funnel — how far PRs have travelled</h3>
-              <div style={CAP}>bar = journeys that reached the stage · gold badge = sitting there now · click a badge → filter records</div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, gap: 8, alignItems: "end", height: 210, paddingTop: 4 }}>
-                {funnel.map(({ s, i, n, stuck }) => {
-                  const mx = Math.max(...funnel.map(x => x.n), 1);
-                  const total = Math.max(rows.length, 1);
+              <h3 style={H3}>Journey Flow — step by step, with every PR accounted for</h3>
+              <div style={CAP}>each row is one step of the journey · Reached = PRs that finished this step · Waiting here = stuck at it now · Skipped = step doesn't apply to those PRs · click any number → list</div>
+              {(() => {
+                const DESC: Record<string, string> = {
+                  sap_created: "PR raised in SAP",
+                  sap_released: "PR approved (released) in SAP",
+                  qms_created: "PR replicated / created in QMS",
+                  qms_approved: "Approved by QMS (validators, CP, assignee)",
+                  nfa_created: "NFA made — vendor selection running",
+                  nfa_approved: "NFA approved at all levels",
+                  po_created: "Purchase Order created in SAP",
+                  po_released: "Purchase Order released — journey complete",
+                };
+                const SKIP_WHY: Record<string, string> = {
+                  sap_created: "QMS-direct PRs have no SAP PR step",
+                  sap_released: "QMS-direct PRs have no SAP PR step",
+                  nfa_created: "these PRs go to PO without an NFA",
+                  nfa_approved: "these PRs go to PO without an NFA",
+                };
+                const total = Math.max(rows.length, 1);
+                return STAGES.map((s, i) => {
+                  const reached = rows.filter(j => j.reached[s.k]);
+                  const skipped = rows.filter(j => j.skipStages.includes(s.k));
+                  const here = rows.filter(j => !j.done && !j.exception && j.stageIdx === i);
+                  const applicableN = Math.max(total - skipped.length, 1);
+                  const pct = (reached.length / applicableN) * 100;
                   return (
-                    <div key={s.k} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%", justifyContent: "flex-end" }}
-                      onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(n)} reached (${((n / total) * 100).toFixed(0)}% of journeys)<br/>${fN(stuck)} sitting here now<br/>click bar → list`)}
-                      onMouseMove={e => showTip(e, `<b>${s.l}</b> ${fN(n)}`)} onMouseLeave={hideTip}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>{fN(n)}</span>
-                      <div onClick={() => openList(`Reached: ${s.l}`, rows.filter(j => j.reached[s.k]))}
-                        style={{ width: "76%", height: `${Math.max((n / mx) * 120, n ? 4 : 0)}px`, background: STAGE_COLS[i], borderRadius: "5px 5px 0 0", cursor: "pointer" }} />
-                      {stuck > 0 && (
-                        <span onClick={() => { setStageF(i); setStatusF("flight"); setPage(1); }}
-                          style={{ background: `${GOLD}22`, color: GOLD, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 8px", cursor: "pointer", border: stageF === i ? `1.5px solid ${GOLD}` : "1.5px solid transparent", whiteSpace: "nowrap" }}>
-                          {fN(stuck)} here
-                        </span>
-                      )}
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--mut)", textAlign: "center", lineHeight: 1.25 }}>{s.short}</span>
+                    <div key={s.k} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "7px 0", borderBottom: i < STAGES.length - 1 ? "1px solid #f0ede5" : "none" }}>
+                      <div style={{ width: 26, textAlign: "center", flexShrink: 0 }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: STAGE_COLS[i], color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>{i + 1}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>{s.l}
+                            <span style={{ fontWeight: 600, color: "var(--mut)", fontSize: 11.5 }}> — {DESC[s.k]}</span>
+                          </span>
+                          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <span onClick={() => openList(`Reached: ${s.l}`, reached)}
+                              style={{ background: `${STAGE_COLS[i]}18`, color: STAGE_COLS[i], fontWeight: 800, fontSize: 11, borderRadius: 999, padding: "2px 10px", cursor: "pointer", whiteSpace: "nowrap" }}
+                              onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(reached.length)} PRs finished this step<br/>= ${pct.toFixed(0)}% of the ${fN(applicableN)} PRs this step applies to`)} onMouseLeave={hideTip}>
+                              ✓ Reached {fN(reached.length)} ({pct.toFixed(0)}%)
+                            </span>
+                            {here.length > 0 && (
+                              <span onClick={() => openList(`Waiting for: ${s.l}`, here)}
+                                style={{ background: `${GOLD}22`, color: "#96691c", fontWeight: 800, fontSize: 11, borderRadius: 999, padding: "2px 10px", cursor: "pointer", whiteSpace: "nowrap" }}
+                                onMouseEnter={e => showTip(e, `<b>${fN(here.length)} PRs waiting</b> for ${s.l} right now`)} onMouseLeave={hideTip}>
+                                ⏳ Waiting here {fN(here.length)}
+                              </span>
+                            )}
+                            {skipped.length > 0 && (
+                              <span onClick={() => openList(`Skipped ${s.l}`, skipped)}
+                                style={{ background: "#efece3", color: "var(--mut)", fontWeight: 700, fontSize: 11, borderRadius: 999, padding: "2px 10px", cursor: "pointer", whiteSpace: "nowrap" }}
+                                onMouseEnter={e => showTip(e, `<b>${fN(skipped.length)} PRs skip this step</b><br/>${SKIP_WHY[s.k] ?? ""}`)} onMouseLeave={hideTip}>
+                                ↷ Skipped {fN(skipped.length)}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden", marginTop: 5, display: "flex" }}>
+                          <div style={{ height: "100%", width: `${(reached.length / total) * 100}%`, background: STAGE_COLS[i] }} />
+                          <div style={{ height: "100%", width: `${(here.length / total) * 100}%`, background: GOLD, opacity: .55 }} />
+                          <div style={{ height: "100%", width: `${(skipped.length / total) * 100}%`, background: "#d8d2c4", opacity: .6 }} />
+                        </div>
+                      </div>
                     </div>
                   );
-                })}
+                });
+              })()}
+              <div style={{ fontSize: 10.5, color: "var(--mut)", fontWeight: 600, marginTop: 8 }}>
+                bar: <span style={{ color: TEAL, fontWeight: 800 }}>■ reached</span> · <span style={{ color: "#96691c", fontWeight: 800 }}>■ waiting here</span> · <span style={{ fontWeight: 800 }}>■ step not applicable</span> — % is out of the PRs the step applies to, so a step some PRs skip (like NFA) no longer looks like a drop
               </div>
             </div>
           </Zoomable>
