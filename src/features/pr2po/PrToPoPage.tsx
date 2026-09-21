@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -287,6 +287,43 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
   return out;
 }
 type Rec = Record<string, string | null>;
+
+/* ---------------- banner multi-select ---------------- */
+function MultiSel({ label, options, value, onChange }: { label: string; options: string[]; value: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggle = (o: string) => onChange(value.includes(o) ? value.filter(x => x !== o) : [...value, o]);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={BANNER_LBL}>{label}</div>
+      <button onClick={() => setOpen(v => !v)}
+        style={{ ...BANNER_CTL, width: 170, cursor: "pointer", textAlign: "left", color: "#14213d", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as React.CSSProperties}>
+        {value.length === 0 ? "All" : value.length === 1 ? value[0] : `${value.length} selected`} ▾
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 50, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 10, boxShadow: "0 10px 30px rgba(20,33,61,.25)", minWidth: 240, maxHeight: 300, overflowY: "auto", padding: 6 }}>
+          <div onClick={() => onChange([])}
+            style={{ padding: "6px 10px", fontSize: 12, fontWeight: 800, color: value.length === 0 ? "#B8893C" : "#14213d", cursor: "pointer", borderRadius: 6 }}>
+            ✓ All ({options.length})
+          </div>
+          {options.map(o => (
+            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#14213d", cursor: "pointer", borderRadius: 6, background: value.includes(o) ? "#faf3e3" : "transparent" }}>
+              <input type="checkbox" checked={value.includes(o)} onChange={() => toggle(o)} style={{ accentColor: "#B8893C" }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** plant / project of a journey (VG project name, else SAP plant) */
+const plantOf = (j: Journey): string | null => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null);
 
 /* ---------------- drill list drawer (click any chart segment) ---------------- */
 export interface ListSel { title: string; sub?: string; rows: { j: Journey; note?: string }[] }
@@ -598,6 +635,8 @@ export default function PrToPoPage() {
   /* main view = SAP-origin journeys only (SAP PR → QMS → back to SAP PO);
      PRs created directly in QMS (no SAP twin) live in their own bucket */
   const [flow, setFlow] = useState<"sap" | "qms">("sap");
+  const [plantF, setPlantF] = useState<string[]>([]);   // empty = all
+  const [deptF, setDeptF] = useState<string[]>([]);     // empty = all
   const [stageF, setStageF] = useState(-1);
   const [drawer, setDrawer] = useState<Journey | null>(null);
   const [list, setList] = useState<ListSel | null>(null);
@@ -623,8 +662,13 @@ export default function PrToPoPage() {
 
   const journeys = useMemo(() => raw ? buildJourneys(raw) : [], [raw]);
   const qmsDirectCount = useMemo(() => journeys.filter(j => j.origin === "vg").length, [journeys]);
+  const flowJs = useMemo(() => journeys.filter(j => (flow === "sap" ? j.origin === "sap" : j.origin === "vg")), [journeys, flow]);
+  const plantOpts = useMemo(() => [...new Set(flowJs.map(plantOf).filter((x): x is string => !!x))].sort(), [flowJs]);
+  const deptOpts = useMemo(() => [...new Set(flowJs.map(j => j.dept).filter(d => d !== "—"))].sort(), [flowJs]);
   const rows = useMemo(() => journeys.filter(j => {
     if (flow === "sap" ? j.origin !== "sap" : j.origin !== "vg") return false;
+    if (plantF.length && !plantF.includes(plantOf(j) ?? "—")) return false;
+    if (deptF.length && !deptF.includes(j.dept)) return false;
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       if (!j.id.toLowerCase().includes(s) && !j.desc.toLowerCase().includes(s) &&
@@ -635,7 +679,7 @@ export default function PrToPoPage() {
     if (statusF === "exc" && !j.exception) return false;
     if (stageF >= 0 && (j.done || j.exception || j.stageIdx !== stageF)) return false;
     return true;
-  }), [journeys, q, statusF, stageF, flow]);
+  }), [journeys, q, statusF, stageF, flow, plantF, deptF]);
 
   /* mutually exclusive buckets — a journey whose PO released counts as
      completed even if a QMS status also matched an exception text */
@@ -752,12 +796,14 @@ export default function PrToPoPage() {
           <BannerPills items={[["sap", "SAP → QMS → SAP"], ["qms", `QMS-direct (${fN(qmsDirectCount)})`]] as const}
             value={flow} onChange={k => { setFlow(k); setStageF(-1); setPage(1); }} />
         </div>
+        <MultiSel label="Plant / Project" options={plantOpts} value={plantF} onChange={v => { setPlantF(v); setPage(1); }} />
+        <MultiSel label="Department" options={deptOpts} value={deptF} onChange={v => { setDeptF(v); setPage(1); }} />
         <div>
           <div style={BANNER_LBL}>Status</div>
           <BannerPills items={[["all", "All"], ["flight", "In-flight"], ["done", "Completed"], ["exc", "Exceptions"]] as const}
             value={statusF} onChange={k => { setStatusF(k); setStageF(-1); setPage(1); }} />
         </div>
-        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
+        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setPlantF([]); setDeptF([]); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
@@ -957,6 +1003,53 @@ export default function PrToPoPage() {
               </div>
             </div>
           </Zoomable>
+
+          {/* Plant-wise & Department-wise */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 14, marginBottom: 14 }}>
+            {([["Plant / Project wise", plantOf], ["Department wise", (j: Journey) => (j.dept !== "—" ? j.dept : null)]] as [string, (j: Journey) => string | null][]).map(([title, keyOf]) => {
+              const m = new Map<string, Journey[]>();
+              rows.forEach(j => { const k = keyOf(j); if (k) { if (!m.has(k)) m.set(k, []); m.get(k)!.push(j); } });
+              const ents = [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+              const mx = Math.max(...ents.map(([, js]) => js.length), 1);
+              return (
+                <Zoomable key={title} title={title} collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>{title}</h3>
+                    <div style={CAP}>{fN(ents.length)} groups · click a row → full drill-down</div>
+                    <div style={{ maxHeight: 330, overflowY: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                          <th style={TH}>{title.startsWith("Plant") ? "Plant / Project" : "Department"}</th>
+                          <th style={{ ...TH, textAlign: "right" }}>PRs</th>
+                          <th style={{ ...TH, textAlign: "right" }}>In-flight</th>
+                          <th style={{ ...TH, textAlign: "right" }}>Done</th>
+                          <th style={{ ...TH, textAlign: "right" }}>Value</th>
+                        </tr></thead>
+                        <tbody>
+                          {ents.map(([k, js]) => (
+                            <tr key={k} onClick={() => openList(`${title.startsWith("Plant") ? "Plant" : "Dept"}: ${k}`, js)} style={{ cursor: "pointer" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                              <td style={{ ...TD, fontWeight: 700, color: "var(--ink)", maxWidth: 200 }}>
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k}</div>
+                                <div style={{ height: 5, background: "#f0ede5", borderRadius: 3, overflow: "hidden", marginTop: 3 }}>
+                                  <div style={{ height: "100%", width: `${(js.length / mx) * 100}%`, background: title.startsWith("Plant") ? NAVY : "#0f8a7a", borderRadius: 3 }} />
+                                </div>
+                              </td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(js.length)}</td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: "var(--mut)" }}>{fN(js.filter(j => !j.done && !j.exception).length)}</td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: GREEN }}>{fN(js.filter(j => j.done).length)}</td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fMoney(js.reduce((s, j) => s + j.value, 0))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Zoomable>
+              );
+            })}
+          </div>
 
           {/* Funnel */}
           <Zoomable title="Journey funnel" collapsible>
