@@ -389,7 +389,9 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>DRILL-DOWN</div>
-              <div style={{ fontFamily: "Georgia,serif", fontSize: 16.5, fontWeight: 700, color: "#fff", marginTop: 2 }}>{sel.title}</div>
+              <div style={{ fontFamily: "Georgia,serif", fontSize: 16.5, fontWeight: 700, color: "#fff", marginTop: 2 }}>
+                {(() => { const p = sel.title.split(" › "); return p.length > 3 ? `${p[0]} › … › ${p.slice(-2).join(" › ")}` : sel.title; })()}
+              </div>
             </div>
             <button onClick={onClose} aria-label="Close" style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, fontSize: 15, cursor: "pointer" }}>✕</button>
           </div>
@@ -402,9 +404,15 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
           {sel.rows.length > 0 && (() => {
             const js = sel.rows.map(r => r.j);
             const noteOf = new Map(sel.rows.map(r => [r.j.id, r.note]));
-            /** nested drill: open a refined panel keeping context in the title */
-            const drill = (label: string, keep: (j: Journey) => boolean) =>
-              refine?.({ title: `${sel.title} › ${label}`, sub: sel.sub, rows: js.filter(keep).map(j => ({ j, note: noteOf.get(j.id) })) });
+            /** nested drill: open a refined panel keeping context in the title.
+                No-op when the click wouldn't narrow anything (all rows match)
+                or the same crumb is already applied — stops title loops. */
+            const drill = (label: string, keep: (j: Journey) => boolean) => {
+              if (!refine) return;
+              const subset = js.filter(keep);
+              if (subset.length === js.length || sel.title.endsWith(`› ${label}`)) return;
+              refine({ title: `${sel.title} › ${label}`, sub: sel.sub, rows: subset.map(j => ({ j, note: noteOf.get(j.id) })) });
+            };
             const doneJs = js.filter(j => j.done);
             const excJs = js.filter(j => j.exception && !j.done);
             const fl = js.filter(j => !j.done && !j.exception);
