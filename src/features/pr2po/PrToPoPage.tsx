@@ -182,7 +182,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     // pending-with for the stage it sits at
     const at = applicable[idx]?.k;
     if (!j.done && !j.exception) {
-      if (at === "sap_released") j.pendingWith = "SAP Release / QMS hand-over";
+      if (at === "sap_released") j.pendingWith = "SAP Release";
       else if (at === "qms_created") j.pendingWith = "QMS Replication";
       else if (at === "qms_approved") j.pendingWith = (j.vg?.PR_Pending_With && j.vg.PR_Pending_With !== "NA" ? j.vg.PR_Pending_With : "QMS Approval") as string;
       else if (at === "nfa_created") j.pendingWith = noNfa
@@ -218,11 +218,12 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     STAGES.forEach(s => { m[s.k] = null; reached[s.k] = false; });
     m.sap_created = erdats.length ? Math.min(...erdats) : null;
     reached.sap_created = true;
-    /* Frgdt in this extract is the DELIVERY date, not the release date, so
-       it cannot mark SAP approval. A PR only replicates to QMS after SAP
-       release, so a QMS record existing proves the SAP approval happened
-       (exact date unknown until SAP exposes a real release field). */
-    if (v) { reached.sap_released = true; }
+    /* SAP release: Frgkz = 'R' or '2' means the PR is released (Frgdt is
+       the DELIVERY date, not the release date, so no release date exists
+       in the data). A QMS record also proves release, since replication
+       only happens after it. */
+    const sapReleased = lines.some(l => l.Frgkz === "R" || l.Frgkz === "2");
+    if (sapReleased || v) { reached.sap_released = true; }
     if (v) mkFromVg(v, m, reached);
     if (pos.length) {
       reached.po_created = true;
@@ -858,7 +859,7 @@ export default function PrToPoPage() {
               {(() => {
                 const today = todayUtc();
                 /* SAP approved but QMS PR not created yet (replication pending) */
-                const repl = inFlight.filter(j => j.origin === "sap" && !j.reached.qms_created);
+                const repl = inFlight.filter(j => j.origin === "sap" && j.reached.sap_released && !j.reached.qms_created);
                 const waitOf = (j: Journey) => (j.m.sap_created !== null ? Math.max(0, days(j.m.sap_created, today)) : (j.pendingSince !== null ? idleDays(j.pendingSince) : null));
                 const waits = repl.map(waitOf).filter((x): x is number => x !== null);
                 const openLatest = (title: string, js: Journey[], sortKey: (j: Journey) => number, noteFn?: (j: Journey) => string | undefined, sub?: string) =>
@@ -869,11 +870,11 @@ export default function PrToPoPage() {
                 const tats = completed.map(tatOf).filter((x): x is number => x !== null);
                 const cards: { t: string; n: string; sub: string; expl: string; c: string; pick: () => void }[] = [
                   {
-    t: "In SAP, not yet in QMS", n: fN(repl.length),
+    t: "Approved in SAP, not yet in QMS", n: fN(repl.length),
                     sub: `avg wait ${waits.length ? (waits.reduce((a, b) => a + b, 0) / waits.length).toFixed(0) : 0} d · longest ${waits.length ? Math.max(...waits) : 0} d · ${fMoney(repl.reduce((s, j) => s + j.value, 0))}`,
-                    expl: "SAP PR exists but no QMS PR yet — SAP release or the hand-over to QMS is pending. Wait counted from the PR date.",
+                    expl: "SAP released these PRs (Frgkz R/2) but the QMS PR is still not created — the hand-over to QMS is pending. Wait counted from the PR date.",
                     c: RED,
-                    pick: () => openLatest("In SAP, not yet in QMS", repl, j => j.m.sap_created ?? 0, j => { const w = waitOf(j); return w !== null ? `waiting ${w} d` : undefined; }, "latest SAP PRs first"),
+                    pick: () => openLatest("Approved in SAP, not yet in QMS", repl, j => j.m.sap_created ?? 0, j => { const w = waitOf(j); return w !== null ? `waiting ${w} d` : undefined; }, "latest SAP PRs first"),
                   },
                   {
                     t: "Under QMS approval", n: fN(underQms.length),
