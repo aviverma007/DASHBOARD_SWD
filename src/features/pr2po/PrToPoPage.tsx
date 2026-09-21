@@ -796,6 +796,87 @@ export default function PrToPoPage() {
             ))}
           </div>
 
+          {/* Management snapshot — plain-language cards */}
+          <Zoomable title="Management snapshot" collapsible>
+            <div style={CARD}>
+              <h3 style={H3}>Management Snapshot — the journey in plain words</h3>
+              <div style={CAP}>each card is one situation a PR can be in · click a card → the exact PRs, latest first, with full drill-down</div>
+              {(() => {
+                const today = todayUtc();
+                /* SAP approved but QMS PR not created yet (replication pending) */
+                const repl = inFlight.filter(j => j.origin === "sap" && j.reached.sap_released && !j.reached.qms_created);
+                const waitOf = (j: Journey) => (j.m.sap_released !== null ? Math.max(0, days(j.m.sap_released, today)) : (j.pendingSince !== null ? idleDays(j.pendingSince) : null));
+                const waits = repl.map(waitOf).filter((x): x is number => x !== null);
+                const openLatest = (title: string, js: Journey[], sortKey: (j: Journey) => number, noteFn?: (j: Journey) => string | undefined, sub?: string) =>
+                  setList({ title, sub, rows: [...js].sort((a, b) => sortKey(b) - sortKey(a)).map(j => ({ j, note: noteFn?.(j) })) });
+                const underQms = inFlight.filter(j => j.stageIdx === 3);
+                const inNfa = inFlight.filter(j => j.stageIdx === 4 || j.stageIdx === 5);
+                const awaitPo = inFlight.filter(j => j.stageIdx === 6 || j.stageIdx === 7);
+                const tats = completed.map(tatOf).filter((x): x is number => x !== null);
+                const cards: { t: string; n: string; sub: string; expl: string; c: string; pick: () => void }[] = [
+                  {
+                    t: "Approved in SAP, not yet in QMS", n: fN(repl.length),
+                    sub: `avg wait ${waits.length ? (waits.reduce((a, b) => a + b, 0) / waits.length).toFixed(0) : 0} d · longest ${waits.length ? Math.max(...waits) : 0} d · ${fMoney(repl.reduce((s, j) => s + j.value, 0))}`,
+                    expl: "SAP has released these PRs but the QMS PR is still not created — the hand-over to QMS is pending.",
+                    c: RED,
+                    pick: () => openLatest("Approved in SAP, not yet in QMS", repl, j => j.m.sap_released ?? 0, j => { const w = waitOf(j); return w !== null ? `waiting ${w} d` : undefined; }, "latest SAP approvals first"),
+                  },
+                  {
+                    t: "Under QMS approval", n: fN(underQms.length),
+                    sub: fMoney(underQms.reduce((s, j) => s + j.value, 0)),
+                    expl: "QMS PR created; validators / CP team / assignee approvals are running.",
+                    c: TEAL,
+                    pick: () => openLatest("Under QMS approval", underQms, j => j.m.qms_created ?? 0),
+                  },
+                  {
+                    t: "In vendor selection (NFA)", n: fN(inNfa.length),
+                    sub: fMoney(inNfa.reduce((s, j) => s + j.value, 0)),
+                    expl: "QMS approved; NFA is being prepared or is moving through its approval levels.",
+                    c: GOLD,
+                    pick: () => openLatest("In vendor selection (NFA)", inNfa, j => j.m.qms_approved ?? j.m.qms_created ?? 0),
+                  },
+                  {
+                    t: "Back in SAP, awaiting PO", n: fN(awaitPo.length),
+                    sub: fMoney(awaitPo.reduce((s, j) => s + j.value, 0)),
+                    expl: "Everything approved; waiting for the PO to be created or released in SAP.",
+                    c: "#1a7f9c",
+                    pick: () => openLatest("Back in SAP, awaiting PO", awaitPo, j => j.pendingSince ?? 0),
+                  },
+                  {
+                    t: "Completed — PO released", n: fN(completed.length),
+                    sub: `${fMoney(completed.reduce((s, j) => s + j.value, 0))}${tats.length ? ` · avg ${(tats.reduce((a, b) => a + b, 0) / tats.length).toFixed(0)} d end-to-end` : ""}`,
+                    expl: "Full journey done: PR raised, approved everywhere, PO created and released.",
+                    c: GREEN,
+                    pick: () => openLatest("Completed — PO released", completed, j => j.m.po_released ?? j.m.po_created ?? 0, j => { const d = tatOf(j); return d !== null ? `TAT ${d} d` : undefined; }, "latest completions first"),
+                  },
+                  {
+                    t: "Returned / Cancelled", n: fN(exceptions.length),
+                    sub: fMoney(exceptions.reduce((s, j) => s + j.value, 0)),
+                    expl: "Journey ended without a PO — returned by an approver or cancelled.",
+                    c: "#7e1f14",
+                    pick: () => openLatest("Returned / Cancelled", exceptions, j => j.pendingSince ?? 0),
+                  },
+                ];
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
+                    {cards.map(k => (
+                      <div key={k.t} onClick={k.pick} className="g3d"
+                        style={{ background: "#fff", border: "1px solid #eae6da", borderTop: `4px solid ${k.c}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer" }}
+                        onMouseEnter={e => showTip(e, `<b>${k.t}</b><br/>${k.expl}<br/>click → list`)} onMouseLeave={hideTip}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--ink)" }}>{k.t}</span>
+                          <span style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, color: k.c }}>{k.n}</span>
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--mut)", marginTop: 2 }}>{k.sub}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink)", marginTop: 6, lineHeight: 1.45 }}>{k.expl}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </Zoomable>
+
           {/* Journey summary — full bifurcation of where every PR stands */}
           <Zoomable title="Journey summary" collapsible>
             <div style={CARD}>
