@@ -472,6 +472,9 @@ export default function PrToPoPage() {
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState<"all" | "flight" | "done" | "exc">("all");
+  /* main view = SAP-origin journeys only (SAP PR → QMS → back to SAP PO);
+     PRs created directly in QMS (no SAP twin) live in their own bucket */
+  const [flow, setFlow] = useState<"sap" | "qms">("sap");
   const [stageF, setStageF] = useState(-1);
   const [drawer, setDrawer] = useState<Journey | null>(null);
   const [list, setList] = useState<ListSel | null>(null);
@@ -496,7 +499,9 @@ export default function PrToPoPage() {
   }, [applied]);
 
   const journeys = useMemo(() => raw ? buildJourneys(raw) : [], [raw]);
+  const qmsDirectCount = useMemo(() => journeys.filter(j => j.origin === "vg").length, [journeys]);
   const rows = useMemo(() => journeys.filter(j => {
+    if (flow === "sap" ? j.origin !== "sap" : j.origin !== "vg") return false;
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       if (!j.id.toLowerCase().includes(s) && !j.desc.toLowerCase().includes(s) &&
@@ -507,7 +512,7 @@ export default function PrToPoPage() {
     if (statusF === "exc" && !j.exception) return false;
     if (stageF >= 0 && (j.done || j.exception || j.stageIdx !== stageF)) return false;
     return true;
-  }), [journeys, q, statusF, stageF]);
+  }), [journeys, q, statusF, stageF, flow]);
 
   const inFlight = rows.filter(j => !j.done && !j.exception);
   const completed = rows.filter(j => j.done);
@@ -590,7 +595,7 @@ export default function PrToPoPage() {
     return [j.id, a !== null && b !== null ? `${days(a, b)} d total` : ""] as [string, string];
   }));
   const KPIS: [string, string, string, [string, string], () => void][] = [
-    ["Total PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"], () => openList("All PRs in window", rows)],
+    [flow === "sap" ? "Total PRs (SAP flow)" : "QMS-direct PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"], () => openList(flow === "sap" ? "All SAP-flow PRs in window" : "All QMS-direct PRs in window", rows)],
     ["Reached PO", `${fN(withPo.length)}`, `${rows.length ? ((withPo.length / rows.length) * 100).toFixed(1) : 0}% conversion · ${fMoney(poValue)}`, ["#1e9a6c", "#0f6647"], () => openList("PRs that reached PO", withPo)],
     ["In-flight", fN(inFlight.length), "moving through approvals", ["#1a7f9c", "#0e5468"], () => openList("In-flight PRs", inFlight)],
     ["Returned / Cancelled", fN(exceptions.length), "exception journeys", ["#c0392b", "#7e1f14"], () => openList("Exception journeys", exceptions)],
@@ -618,11 +623,16 @@ export default function PrToPoPage() {
             style={{ ...BANNER_CTL, width: 210, cursor: "text", color: "#14213d" } as React.CSSProperties} />
         </div>
         <div>
+          <div style={BANNER_LBL}>Flow</div>
+          <BannerPills items={[["sap", "SAP → QMS → SAP"], ["qms", `QMS-direct (${fN(qmsDirectCount)})`]] as const}
+            value={flow} onChange={k => { setFlow(k); setStageF(-1); setPage(1); }} />
+        </div>
+        <div>
           <div style={BANNER_LBL}>Status</div>
           <BannerPills items={[["all", "All"], ["flight", "In-flight"], ["done", "Completed"], ["exc", "Exceptions"]] as const}
             value={statusF} onChange={k => { setStatusF(k); setStageF(-1); setPage(1); }} />
         </div>
-        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
+        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
