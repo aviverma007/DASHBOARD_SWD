@@ -365,8 +365,10 @@ export function BookingsPage() {
           <Zoomable title="Bookings by configuration">
           <div style={CARD}>
             <h3 style={H3}>Bookings by configuration</h3>
-            <div style={CAP}>unit mix by BHK · click a config → drill drawer</div>
-            <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={openDrill("cfg")} sortable />
+            <div style={CAP}>unit mix by BHK · click a config → drill drawer · scroll for more</div>
+            <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+              <HBarList items={listFrom(b => b.cfg, PDRN.CFG)} total={total} color={GOLD} onPick={openDrill("cfg")} sortable />
+            </div>
           </div>
           </Zoomable>
         </div>
