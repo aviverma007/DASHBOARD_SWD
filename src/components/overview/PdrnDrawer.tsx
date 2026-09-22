@@ -59,19 +59,31 @@ function DkpiRow({ k, v, onClick }: { k: string; v: string; onClick?: () => void
   );
 }
 
+/** BBA day offset -> display date (epoch 2022-01-01) */
+function bbaDate(day: number): string {
+  if (day < 0) return "—";
+  const d = new Date(new Date("2022-01-01T00:00:00").getTime() + day * 86400000);
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
 /** Unit-wise breakup behind the KPI tiles: every sold unit with its
  * value, and (for stock tiles) the available units from INVR. */
 function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onClose }: {
-  mode: "sold" | "available" | "all";
+  mode: "sold" | "available" | "all" | "bba" | "nobba";
   records: SalesRecord[];
   invProjIdx: number;
   projectName: string;
   onUnitClick: (r: SalesRecord) => void;
   onClose: () => void;
 }) {
-  const soldRows = useMemo(() => [...records].sort((a, b) => b.tsv - a.tsv), [records]);
+  const soldRows = useMemo(() => {
+    let a = [...records];
+    if (mode === "bba") a = a.filter(r => r.bba >= 0);
+    if (mode === "nobba") a = a.filter(r => r.bba < 0);
+    return a.sort((x, y) => y.tsv - x.tsv);
+  }, [records, mode]);
   const availRows = useMemo(() => {
-    if (mode === "sold") return [];
+    if (mode !== "available" && mode !== "all") return [];
     const pdrnProjIdx = PDRN.P.indexOf(projectName);
     const soldNos = pdrnProjIdx >= 0
       ? new Set(PDRN.R.filter(r => r.projIdx === pdrnProjIdx).map(r => r.unitNo))
@@ -82,12 +94,14 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
   }, [mode, invProjIdx, projectName]);
   const title = mode === "sold" ? "Sold units — unit-wise value"
     : mode === "available" ? "Available units"
+    : mode === "bba" ? "BBA-registered units"
+    : mode === "nobba" ? "BBA pending units"
     : "All units — sold & available";
   return (
     <CollapsibleCard defaultOpen title={<>{title} <span className="hint">
-      {mode !== "available" ? `${soldRows.length.toLocaleString("en-IN")} sold` : ""}
+      {mode !== "available" ? `${soldRows.length.toLocaleString("en-IN")} units` : ""}
       {mode === "all" ? " · " : ""}
-      {mode !== "sold" ? `${availRows.length.toLocaleString("en-IN")} available` : ""}
+      {mode === "all" || mode === "available" ? `${availRows.length.toLocaleString("en-IN")} available` : ""}
       {" · "}<a onClick={e => { e.stopPropagation(); onClose(); }} style={{ cursor: "pointer", textDecoration: "underline" }}>hide</a>
     </span></>}>
       <div style={{ maxHeight: 420, overflowY: "auto" }}>
@@ -96,6 +110,7 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
             <tr>
               <th>Unit</th>
               <th>Status</th>
+              <th>BBA</th>
               <th>Config</th>
               <th className="n">Area</th>
               <th className="n">Sold for (TSV)</th>
@@ -107,6 +122,9 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
               <tr key={`s${i}`} onClick={() => onUnitClick(r)} style={{ cursor: "pointer" }}>
                 <td>{r.unitNo}</td>
                 <td><span className="pill pbk">Sold</span></td>
+                <td style={{ whiteSpace: "nowrap", color: r.bba >= 0 ? "#1a7a4a" : "#c0392b", fontWeight: 600 }}>
+                  {r.bba >= 0 ? `✓ ${bbaDate(r.bba)}` : "Pending"}
+                </td>
                 <td>{PDRN.CFG[r.cfgIdx]}</td>
                 <td className="n">{r.area.toLocaleString("en-IN")} sq ft</td>
                 <td className="n" style={{ fontWeight: 700 }}>{fCr(r.tsv)}</td>
@@ -117,6 +135,7 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
               <tr key={`a${i}`}>
                 <td>{u.unitNo}</td>
                 <td><span className="pill pav">Available</span></td>
+                <td>—</td>
                 <td>—</td>
                 <td className="n">{u.area.toLocaleString("en-IN")} sq ft</td>
                 <td className="n" style={{ color: "var(--mut)" }}>—</td>
@@ -232,7 +251,10 @@ interface DrillContentProps {
 }
 
 function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, invProjIdx, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
-  const [unitsPanel, setUnitsPanel] = useState<null | "sold" | "available" | "all">(null);
+  const [unitsPanel, setUnitsPanel] = useState<null | "sold" | "available" | "all" | "bba" | "nobba">(null);
+  const bbaReg = records.filter(r => r.bba >= 0);
+  const bbaTsv = bbaReg.reduce((s, r) => s + r.tsv, 0);
+  const noBbaTsv = scoped.tsv - bbaTsv;
   return (
     <>
       {/* Insight */}
@@ -247,6 +269,10 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUn
         <DkpiRow k="Sold units" v={scoped.units.toLocaleString("en-IN")} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
         <DkpiRow k="Sold area" v={fArea(scoped.area)} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
         <DkpiRow k="TSV" v={fCr(scoped.tsv)} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
+        <DkpiRow k="BBA registered" v={`${bbaReg.length.toLocaleString("en-IN")} (${scoped.units ? Math.round((bbaReg.length / scoped.units) * 100) : 0}%)`} onClick={() => setUnitsPanel(p => p === "bba" ? null : "bba")} />
+        <DkpiRow k="BBA regd. TCV" v={fCr(bbaTsv)} onClick={() => setUnitsPanel(p => p === "bba" ? null : "bba")} />
+        <DkpiRow k="BBA pending" v={`${(scoped.units - bbaReg.length).toLocaleString("en-IN")} units`} onClick={() => setUnitsPanel(p => p === "nobba" ? null : "nobba")} />
+        <DkpiRow k="BBA pend. TCV" v={fCr(noBbaTsv)} onClick={() => setUnitsPanel(p => p === "nobba" ? null : "nobba")} />
         {level === "project" && (
           <>
             <DkpiRow k="Total units" v={totalUnits.toLocaleString("en-IN")} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
@@ -475,6 +501,10 @@ function UnitDetail({ record, onBack }: { record: SalesRecord; onBack: () => voi
           <div style={{ color: "#0e7490", fontWeight: 600 }}>{fRate(unitRate(record))}</div>
           <div className="k">Total BSP (TSV)</div>
           <div style={{ color: "var(--gold)", fontWeight: 600 }}>{fCr(record.tsv)}</div>
+          <div className="k">BBA registration</div>
+          <div style={{ color: record.bba >= 0 ? "#1a7a4a" : "#b0483a", fontWeight: 600 }}>
+            {record.bba >= 0 ? `Registered · ${bbaDate(record.bba)}` : "Pending"}
+          </div>
           <div className="k">Customer</div>
           <div>{record.customerName || "—"}</div>
           <div className="k">Payment plan</div>
