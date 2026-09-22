@@ -337,7 +337,8 @@ export function BookingsPage() {
                     onMouseLeave={hideTip}>
                     <rect x={x} y={0} width={bw + gap - 4} height={TH - padB} fill="transparent" />
                     <rect x={x} y={TH - padB - bh} width={bw} height={bh} rx="3" fill="#D7E2F0" />
-                    <text x={x + bw / 2} y={TH - padB - bh - 5} textAnchor="middle" fontSize="8.5" fill="#3d4a63">{(t.v / 1e7).toFixed(0)}</text>
+                    <text x={x + bw / 2} y={TH - padB - bh - 15} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#3d4a63">₹{(t.v / 1e7).toFixed(0)} Cr</text>
+                    <text x={x + bw / 2} y={TH - padB - bh - 5} textAnchor="middle" fontSize="8" fill="#B8893C" fontWeight="700">{fN(t.n)} u</text>
                     <text x={x + bw / 2} y={TH - 8} textAnchor="middle" fontSize="8.5" fill="#8a94a6">{t.label}</text>
                   </g>
                 );
