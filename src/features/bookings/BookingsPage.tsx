@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import {
-  type Bk, type Dim, BROKERS, ROWS, CANCELLED, AS_ON,
+  type Bk, type Dim, BROKERS, ROWS, CANCELLED, AS_ON, CPD,
   MON, fN, CRf, ymKey, qKey, fyKey, ymLbl, PSHORT, BANDS, bandOf,
 } from "../../components/bookings/bookingsShared";
 import { BookingsDrillDrawer, type BkDrillSeed } from "../../components/bookings/BookingsDrillDrawer";
@@ -373,6 +373,70 @@ export function BookingsPage() {
           </div>
           </Zoomable>
         </div>
+
+        {/* BBA registration bifurcation */}
+        <Zoomable title="BBA registration">
+        <div style={{ ...CARD, marginBottom: 14 }}>
+          <h3 style={H3}>BBA Registration — registered vs unregistered</h3>
+          <div style={CAP}>a booking counts as BBA-registered when PDRN carries a BBA date · TCV = with tax after credit/debit adj · click a project → full drill</div>
+          {(() => {
+            const reg = rows.filter(b => b.bba >= 0);
+            const unreg = rows.filter(b => b.bba < 0);
+            const tcv = (a: Bk[]) => a.reduce((s, b) => s + (b.tcvT || b.tsv), 0);
+            const tiles: [string, string, string, string][] = [
+              ["BBA registered", fN(reg.length) + " units", CRf(tcv(reg)), "#1e9a6c"],
+              ["Not registered", fN(unreg.length) + " units", CRf(tcv(unreg)), "#c0392b"],
+              ["Registration %", rows.length ? ((reg.length / rows.length) * 100).toFixed(1) + "%" : "—", `of ${fN(rows.length)} active bookings`, "#B8893C"],
+            ];
+            const byProj = new Map<number, { reg: Bk[]; unreg: Bk[] }>();
+            rows.forEach(b => {
+              if (!byProj.has(b.p)) byProj.set(b.p, { reg: [], unreg: [] });
+              (b.bba >= 0 ? byProj.get(b.p)!.reg : byProj.get(b.p)!.unreg).push(b);
+            });
+            const ents = [...byProj.entries()].sort((a, b) => (b[1].reg.length + b[1].unreg.length) - (a[1].reg.length + a[1].unreg.length));
+            return (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
+                  {tiles.map(([k, v, sub, c]) => (
+                    <div key={k} style={{ background: "#faf9f6", border: "1px solid #eee9dd", borderLeft: `5px solid ${c}`, borderRadius: 10, padding: "10px 14px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 21, fontWeight: 700, color: c, marginTop: 2 }}>{v}</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>{sub}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 720 }}>
+                    <thead><tr>
+                      {["Project", "Booked", "BBA registered", "BBA TCV", "Unregistered", "Unreg. TCV", "% registered"].map((h, i) => (
+                        <th key={h} style={{ textAlign: i === 0 ? "left" : "right", padding: "7px 10px", fontSize: 10.5, fontWeight: 800, letterSpacing: ".6px", textTransform: "uppercase", color: "var(--mut)", borderBottom: "2px solid #eee9dd" }}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {ents.map(([pi, e]) => {
+                        const tot = e.reg.length + e.unreg.length;
+                        return (
+                          <tr key={pi} onClick={() => openProject(pi)} style={{ cursor: "pointer" }}
+                            onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
+                            <td style={{ padding: "7px 10px", fontWeight: 700, color: "var(--ink)", borderBottom: "1px solid #f0ede5" }}>{PSHORT[pi] ?? CPD.P[pi]}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 800, borderBottom: "1px solid #f0ede5" }}>{fN(tot)}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 800, color: "#1e9a6c", borderBottom: "1px solid #f0ede5" }}>{fN(e.reg.length)}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{CRf(tcv(e.reg))}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 800, color: "#c0392b", borderBottom: "1px solid #f0ede5" }}>{fN(e.unreg.length)}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{CRf(tcv(e.unreg))}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 800, borderBottom: "1px solid #f0ede5" }}>{tot ? ((e.reg.length / tot) * 100).toFixed(1) : "0"}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+        </Zoomable>
 
         {/* Direct vs channel-partner — from booked walk-ins */}
         <div style={ROW}>

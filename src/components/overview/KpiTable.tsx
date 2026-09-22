@@ -111,6 +111,20 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         </div>
       </div>
 
+      {/* BBA REGISTERED — subset of sold with a BBA date */}
+      <div className="ov-row-metric" style={colStyle}>
+        <div style={labelStyle}>BBA regd</div>
+        <div className="ov-num" style={{ fontFamily: "Georgia,serif", fontSize: numSize, fontWeight: 700, color: "#0e7490", whiteSpace: "nowrap", lineHeight: 1.1 }}>
+          <AnimatedNumber value={stats.bba.units} />
+          <span style={{ fontSize: metaSize, fontWeight: 400, color: "#0e7490", opacity: 0.75, marginLeft: 4 }}>units</span>
+        </div>
+        <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, fontWeight: 700, color: "#0e7490" }}>
+            {sold.units ? Math.round((stats.bba.units / sold.units) * 100) : 0}% of sold
+          </span>
+        </div>
+      </div>
+
       {/* AVAILABLE (stock without a sale record) — orange */}
       <div className="ov-row-metric" style={colStyle}>
         <div style={labelStyle}>AVAILABLE</div>

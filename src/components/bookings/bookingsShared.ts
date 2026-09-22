@@ -25,6 +25,8 @@ export interface Bk {
   demN: number;
   /** ₹ total demand raised, with tax */
   demT: number;
+  /** BBA registration day offset from 2022-01-01 (−1 = not registered) */
+  bba: number;
 }
 export interface CpRawFile { P: string[]; TW: string[]; FL: string[]; CFG: string[]; CP: string[]; R: (number | string)[][] }
 export const CPD = raw as unknown as CpRawFile;
@@ -37,6 +39,7 @@ export const ROWS: Bk[] = CPD.R.filter(r => r[13] === 0).map(r => ({
   broker: r[12] as number, reb: (r[14] as number) ?? 0,
   rec: (r[15] as number) ?? 0, tcvT: (r[16] as number) ?? 0, due: (r[17] as number) ?? 0, day: (r[18] as number) ?? -1,
   recN: (r[19] as number) ?? 0, valN: (r[20] as number) ?? 0, demN: (r[21] as number) ?? 0, demT: (r[22] as number) ?? 0,
+  bba: (r[23] as number) ?? -1,
 }));
 export const CANCELLED: Bk[] = CPD.R.filter(r => r[13] === 1).map(r => ({
   p: r[0] as number, tw: r[1] as number, cfg: r[4] as number, area: r[5] as number, tsv: r[6] as number,
@@ -44,6 +47,7 @@ export const CANCELLED: Bk[] = CPD.R.filter(r => r[13] === 1).map(r => ({
   broker: r[12] as number, reb: (r[14] as number) ?? 0,
   rec: (r[15] as number) ?? 0, tcvT: (r[16] as number) ?? 0, due: (r[17] as number) ?? 0, day: (r[18] as number) ?? -1,
   recN: (r[19] as number) ?? 0, valN: (r[20] as number) ?? 0, demN: (r[21] as number) ?? 0, demT: (r[22] as number) ?? 0,
+  bba: (r[23] as number) ?? -1,
 }));
 export const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 export const fN = (n: number) => n.toLocaleString("en-IN");

@@ -29,6 +29,8 @@ export interface SalesRecord {
   unitNo: string;
   customerName: string;
   paymentPlan: string;
+  /** BBA registration day offset (−1 = BBA not registered) */
+  bba: number;
 }
 
 export interface PdrnDataset {
@@ -59,6 +61,7 @@ export const PDRN: PdrnDataset = {
     projIdx: r[0], towerIdx: r[1], floorNum: r[2], floorLabelIdx: r[3],
     cfgIdx: r[4], area: r[5], tsv: r[6], year: r[7], month: r[8],
     unitNo: String(r[9]), customerName: String(r[10]), paymentPlan: String(r[11]),
+    bba: (r[12] as unknown as number) ?? -1,
   })),
 };
 
@@ -92,12 +95,15 @@ export interface ProjectStats {
   soldPct: number;   // % of total units sold
   management: number; // management units (from INVR, not in sold/unsold/total)
   rate: RateStats;
+  /** BBA-registered subset of sold (units + their TSV) */
+  bba: { units: number; tsv: number };
 }
 
 export interface OverallStats {
   sold: { units: number; area: number; tsv: number };
   unsold: { units: number; area: number };
   total: { units: number; area: number };
+  bba: { units: number; tsv: number };
   soldPct: number;
   management: number;
   projects: ProjectStats[];
@@ -221,6 +227,10 @@ export function calcProjectStats(
     soldPct: total.units ? Math.round((sold.units / total.units) * 100) : 0,
     management: invMgmt.length,
     rate: computeRateStats(soldRecords),
+    bba: (() => {
+      const b = soldRecords.filter((r) => r.bba >= 0);
+      return { units: b.length, tsv: b.reduce((x, r) => x + r.tsv, 0) };
+    })(),
   };
 }
 
@@ -239,6 +249,10 @@ export function calcOverall(period: PeriodFilter): OverallStats {
     total: {
       units: projects.reduce((s, p) => s + p.total.units, 0),
       area: projects.reduce((s, p) => s + p.total.area, 0),
+    },
+    bba: {
+      units: projects.reduce((s, p) => s + p.bba.units, 0),
+      tsv: projects.reduce((s, p) => s + p.bba.tsv, 0),
     },
     soldPct: (() => {
       const tu = projects.reduce((s, p) => s + p.total.units, 0);

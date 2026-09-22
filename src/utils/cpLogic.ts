@@ -11,6 +11,8 @@ export interface CpRecord {
   rebooked: 0 | 1; // only meaningful when status=1
   /** booking day offset from 2022-01-01 (−1 unknown) */
   day: number;
+  /** BBA registration day offset from 2022-01-01 (−1 = not registered) */
+  bba: number;
 }
 
 function toRecord(r: number[]): CpRecord {
@@ -20,6 +22,7 @@ function toRecord(r: number[]): CpRecord {
     unitNo: String(r[9]), customerName: String(r[10]), paymentPlan: String(r[11]),
     cpIdx: r[12], status: r[13] as 0 | 1, rebooked: r[14] as 0 | 1,
     day: (r[18] as number) ?? -1,
+    bba: (r[23] as number) ?? -1,
   };
 }
 

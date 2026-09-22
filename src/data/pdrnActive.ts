@@ -24,7 +24,8 @@ export const PDRN_ACTIVE = {
   TW: CD.TW,
   FL: CD.FL,
   CFG: CD.CFG,
-  R: ACTIVE.map(r => r.slice(0, 12)) as (number | string)[][],
+  /** fields 0-11 as salesPDRN + field 12 = bbaDay (−1 = BBA not registered) */
+  R: ACTIVE.map(r => [...r.slice(0, 12), (r[23] as number) ?? -1]) as (number | string)[][],
   meta: {
     rows: ACTIVE.length,
     source: "PDRN export",

@@ -53,7 +53,8 @@ export function InventoryOverviewPage() {
       max: maxes.length ? Math.max(...maxes) : null,
       min: mins.length ? Math.min(...mins) : null,
     };
-    return { sold, unsold, total, soldPct, management: 0, projects: projs, rate };
+    const bba = { units: projs.reduce((s,p)=>s+p.bba.units,0), tsv: projs.reduce((s,p)=>s+p.bba.tsv,0) };
+    return { sold, unsold, total, bba, soldPct, management: 0, projects: projs, rate };
   }, [overall, selectedProjects, location, visibleProjects]);
 
   /** Changing location clears any project picks that may not belong to
