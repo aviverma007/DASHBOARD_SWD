@@ -47,14 +47,86 @@ function summarise(records: SalesRecord[]) {
   };
 }
 
-function DkpiRow({ k, v }: { k: string; v: string }) {
+function DkpiRow({ k, v, onClick }: { k: string; v: string; onClick?: () => void }) {
   return (
-    <div className="dkpi">
+    <div className="dkpi" onClick={onClick} style={onClick ? { cursor: "pointer" } : undefined}
+      title={onClick ? "Click → unit-wise list" : undefined}>
       <div className="k">{k}</div>
       <div className="v" style={{ fontSize: 16 }}>
         {v}
       </div>
     </div>
+  );
+}
+
+/** Unit-wise breakup behind the KPI tiles: every sold unit with its
+ * value, and (for stock tiles) the available units from INVR. */
+function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onClose }: {
+  mode: "sold" | "available" | "all";
+  records: SalesRecord[];
+  invProjIdx: number;
+  projectName: string;
+  onUnitClick: (r: SalesRecord) => void;
+  onClose: () => void;
+}) {
+  const soldRows = useMemo(() => [...records].sort((a, b) => b.tsv - a.tsv), [records]);
+  const availRows = useMemo(() => {
+    if (mode === "sold") return [];
+    const pdrnProjIdx = PDRN.P.indexOf(projectName);
+    const soldNos = pdrnProjIdx >= 0
+      ? new Set(PDRN.R.filter(r => r.projIdx === pdrnProjIdx).map(r => r.unitNo))
+      : new Set<string>();
+    return INV.U.filter(u => (u[0] as number) === invProjIdx && !soldNos.has(u[12] as string))
+      .map(u => ({ unitNo: String(u[12]), area: u[6] as number }))
+      .sort((a, b) => b.area - a.area);
+  }, [mode, invProjIdx, projectName]);
+  const title = mode === "sold" ? "Sold units — unit-wise value"
+    : mode === "available" ? "Available units"
+    : "All units — sold & available";
+  return (
+    <CollapsibleCard defaultOpen title={<>{title} <span className="hint">
+      {mode !== "available" ? `${soldRows.length.toLocaleString("en-IN")} sold` : ""}
+      {mode === "all" ? " · " : ""}
+      {mode !== "sold" ? `${availRows.length.toLocaleString("en-IN")} available` : ""}
+      {" · "}<a onClick={e => { e.stopPropagation(); onClose(); }} style={{ cursor: "pointer", textDecoration: "underline" }}>hide</a>
+    </span></>}>
+      <div style={{ maxHeight: 420, overflowY: "auto" }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Status</th>
+              <th>Config</th>
+              <th className="n">Area</th>
+              <th className="n">Sold for (TSV)</th>
+              <th className="n">Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mode !== "available" && soldRows.map((r, i) => (
+              <tr key={`s${i}`} onClick={() => onUnitClick(r)} style={{ cursor: "pointer" }}>
+                <td>{r.unitNo}</td>
+                <td><span className="pill pbk">Sold</span></td>
+                <td>{PDRN.CFG[r.cfgIdx]}</td>
+                <td className="n">{r.area.toLocaleString("en-IN")} sq ft</td>
+                <td className="n" style={{ fontWeight: 700 }}>{fCr(r.tsv)}</td>
+                <td className="n">{fRate(unitRate(r))}</td>
+              </tr>
+            ))}
+            {mode !== "sold" && availRows.map((u, i) => (
+              <tr key={`a${i}`}>
+                <td>{u.unitNo}</td>
+                <td><span className="pill pav">Available</span></td>
+                <td>—</td>
+                <td className="n">{u.area.toLocaleString("en-IN")} sq ft</td>
+                <td className="n" style={{ color: "var(--mut)" }}>—</td>
+                <td className="n" style={{ color: "var(--mut)" }}>—</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </CollapsibleCard>
   );
 }
 
@@ -160,6 +232,7 @@ interface DrillContentProps {
 }
 
 function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, invProjIdx, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
+  const [unitsPanel, setUnitsPanel] = useState<null | "sold" | "available" | "all">(null);
   return (
     <>
       {/* Insight */}
@@ -171,19 +244,24 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUn
 
       {/* KPI strip */}
       <div className="dkpis">
-        <DkpiRow k="Sold units" v={scoped.units.toLocaleString("en-IN")} />
-        <DkpiRow k="Sold area" v={fArea(scoped.area)} />
-        <DkpiRow k="TSV" v={fCr(scoped.tsv)} />
+        <DkpiRow k="Sold units" v={scoped.units.toLocaleString("en-IN")} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
+        <DkpiRow k="Sold area" v={fArea(scoped.area)} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
+        <DkpiRow k="TSV" v={fCr(scoped.tsv)} onClick={() => setUnitsPanel(p => p === "sold" ? null : "sold")} />
         {level === "project" && (
           <>
-            <DkpiRow k="Total units" v={totalUnits.toLocaleString("en-IN")} />
-            <DkpiRow k="Total area" v={fArea(totalArea)} />
-            <DkpiRow k="Available" v={unsoldUnits.toLocaleString("en-IN") + " units"} />
-            <DkpiRow k="Available area" v={fArea(unsoldArea)} />
-            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits) / Math.max(totalUnits, 1)) * 100) + "%"} />
+            <DkpiRow k="Total units" v={totalUnits.toLocaleString("en-IN")} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
+            <DkpiRow k="Total area" v={fArea(totalArea)} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
+            <DkpiRow k="Available" v={unsoldUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
+            <DkpiRow k="Available area" v={fArea(unsoldArea)} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
+            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits) / Math.max(totalUnits, 1)) * 100) + "%"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
           </>
         )}
       </div>
+
+      {unitsPanel && (
+        <AllUnitsCard mode={unitsPanel} records={records} invProjIdx={invProjIdx}
+          projectName={INV.P[invProjIdx] ?? ""} onUnitClick={onUnitClick} onClose={() => setUnitsPanel(null)} />
+      )}
 
       {/* Highest / lowest rate units in the current scope — shown at
           every drill level, since the extremes change as you narrow in */}
