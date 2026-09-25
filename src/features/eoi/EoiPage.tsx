@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { PageBanner } from "../../components/layout/PageBanner";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
@@ -209,10 +209,53 @@ function EoiDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void })
   );
 }
 
+/** Multi-select project dropdown in the banner — same interaction as
+ * Target vs Actual's, with the EOI/Advance type badge per project. */
+function EoiProjectSelect({ selected, onChange }: { selected: string[]; onChange: (s: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggle = (name: string) => {
+    const next = selected.includes(name) ? selected.filter(x => x !== name) : [...selected, name];
+    onChange(next.length === D.PROJECTS.length ? [] : next);   // all picked = All
+  };
+  const label = selected.length === 0 ? "All projects"
+    : selected.length === 1 ? selected[0].replace("SMARTWORLD ", "")
+    : `${selected.length} projects`;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={BANNER_LBL}>Project</label>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...BANNER_CTL, minWidth: 200, textAlign: "left" }}>
+        {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 300, maxHeight: 320, overflowY: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All projects
+          </label>
+          {D.PROJECTS.map((name, pi) => (
+            <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.includes(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: TYPE_COL[typeLbl(pi)] }}>{typeLbl(pi).toUpperCase()}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export function EoiPage() {
   const [projF, setProjF] = useState<string[]>([]);
   const [typeF, setTypeF] = useState<"all" | "advance" | "eoi">("all");
+  const [periodType, setPeriodType] = useState<"all" | "custom">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
@@ -223,8 +266,8 @@ export function EoiPage() {
 
   /* scope = customers whose money we still hold */
   const scoped = useMemo(() => {
-    const fromD = from ? dayOfIso(from) : -1;
-    const toD = to ? dayOfIso(to) : Infinity;
+    const fromD = periodType === "custom" && from ? dayOfIso(from) : -1;
+    const toD = periodType === "custom" && to ? dayOfIso(to) : Infinity;
     const s = q.trim().toLowerCase();
     return HOLDING.filter(c => {
       if (projF.length && !projF.includes(D.PROJECTS[c.projIdx])) return false;
@@ -234,7 +277,11 @@ export function EoiPage() {
       if (s && !c.code.toLowerCase().includes(s)) return false;
       return true;
     });
-  }, [projF, typeF, from, to, q]);
+  }, [projF, typeF, periodType, from, to, q]);
+
+  function handleReset() {
+    setProjF([]); setTypeF("all"); setPeriodType("all"); setFrom(""); setTo(""); setQ("");
+  }
 
   const inHand = scoped.reduce((s, c) => s + c.net, 0);
   const paidTot = scoped.reduce((s, c) => s + c.cleared, 0);
@@ -255,46 +302,40 @@ export function EoiPage() {
     ["Avg ageing", avgAge !== null ? `${Math.round(avgAge)} d` : "—", "days since first payment, still not allotted", ["#6b5f8f", "#453a63"], () => openList("In-hand customers by ageing", scoped)],
   ];
 
-  const selCls = (on: boolean): React.CSSProperties => ({
-    padding: "6px 14px", borderRadius: 999, border: `1px solid ${on ? GOLD : "#d8d2c4"}`,
-    background: on ? "#fdf6e8" : "#fff", color: on ? "#96691c" : "var(--mut)",
-    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-  });
-
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
-      <PageBanner bleed title="EOI / Advance · Allotment Pending" sub={<>customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded</>} />
-      <div style={{ padding: "14px 20px 24px", flex: 1 }}>
-
-        {/* ---------- filters ---------- */}
-        <div style={{ ...CARD, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>Project</span>
-            <button style={selCls(projF.length === 0)} onClick={() => setProjF([])}>All projects</button>
-            {D.PROJECTS.map((p, pi) => (
-              <button key={p} style={selCls(projF.includes(p))}
-                onClick={() => setProjF(f => f.includes(p) ? f.filter(x => x !== p) : [...f, p])}>
-                {p.replace("SMARTWORLD ", "")}
-                <span style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 800, color: TYPE_COL[typeLbl(pi)], opacity: 0.85 }}>{typeLbl(pi).toUpperCase()}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: 6 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>Money type</span>
-            {([["all", "All"], ["advance", "Advance"], ["eoi", "EOI"]] as const).map(([v, l]) => (
-              <button key={v} style={selCls(typeF === v)} onClick={() => setTypeF(v)}>{l}</button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: 6 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>First EOI between</span>
-            <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12 }} />
-            <span style={{ color: "var(--mut)" }}>→</span>
-            <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12 }} />
-            {(from || to) && <button style={selCls(false)} onClick={() => { setFrom(""); setTo(""); }}>✕ clear</button>}
-          </div>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search customer code…"
-            style={{ marginLeft: "auto", width: 220, padding: "7px 12px", borderRadius: 9, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12.5, outline: "none" }} />
+      <PageBanner bleed title="EOI / Advance" sub={<>allotment-pending customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded</>}>
+        <EoiProjectSelect selected={projF} onChange={setProjF} />
+        <div>
+          <label style={BANNER_LBL}>Money type</label>
+          <BannerPills items={[["all", "All"], ["advance", "Advance"], ["eoi", "EOI"]] as const}
+            value={typeF} onChange={setTypeF} />
         </div>
+        <div>
+          <label style={BANNER_LBL}>Period · first payment</label>
+          <BannerPills items={[["all", "All time"], ["custom", "Custom"]] as const}
+            value={periodType} onChange={setPeriodType} />
+        </div>
+        {periodType === "custom" && (
+          <>
+            <div>
+              <label style={BANNER_LBL}>From</label>
+              <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ ...BANNER_CTL, cursor: "text" }} />
+            </div>
+            <div>
+              <label style={BANNER_LBL}>To</label>
+              <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...BANNER_CTL, cursor: "text" }} />
+            </div>
+          </>
+        )}
+        <div>
+          <label style={BANNER_LBL}>Search</label>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Customer code…"
+            style={{ ...BANNER_CTL, cursor: "text", width: 190 }} />
+        </div>
+        <button onClick={handleReset} className="pb-btn">⟲ Reset</button>
+      </PageBanner>
+      <div style={{ padding: "14px 20px 24px", flex: 1 }}>
 
         {/* ---------- in-hand KPI cards (the top of the page) ---------- */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(215px, 1fr))", gap: 12, marginBottom: 14 }}>
