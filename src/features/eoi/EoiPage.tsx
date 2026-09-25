@@ -182,7 +182,10 @@ function EoiDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void })
                   <tr key={c.code} onClick={() => setCust(c)} style={{ cursor: "pointer" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                    <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{c.code}</td>
+                    <td style={{ ...TD }}>
+                      <span style={{ fontWeight: 800, color: "var(--ink)" }}>{c.code}</span>
+                      <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 10.5 }}>{D.PROJECTS[c.projIdx].replace("SMARTWORLD ", "")}</span>
+                    </td>
                     <td style={{ ...TD, color: "var(--mut)" }}>{fD(c.firstDay)}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: TEAL }}>{fMoney(c.cleared)}</td>
                     <td style={{ ...TD, textAlign: "right", color: c.refunds < 0 ? RED : "var(--mut)" }}>{c.refunds < 0 ? fMoney(Math.abs(c.refunds)) : "—"}</td>
@@ -252,8 +255,9 @@ export function EoiPage() {
 
         {/* ---------- filters ---------- */}
         <div style={{ ...CARD, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>Project</span>
+            <button style={selCls(projF.length === 0)} onClick={() => setProjF([])}>All projects</button>
             {D.PROJECTS.map(p => (
               <button key={p} style={selCls(projF.includes(p))}
                 onClick={() => setProjF(f => f.includes(p) ? f.filter(x => x !== p) : [...f, p])}>
@@ -284,6 +288,56 @@ export function EoiPage() {
           ))}
         </div>
 
+        {/* ---------- project-wise bifurcation ---------- */}
+        {(() => {
+          const byProj = D.PROJECTS.map((p, pi) => {
+            const cs = scoped.filter(c => c.projIdx === pi);
+            if (!cs.length) return null;
+            const hand = cs.reduce((s, c) => s + c.net, 0);
+            const paid = cs.reduce((s, c) => s + c.cleared, 0);
+            const age = cs.reduce((s, c) => s + c.ageing, 0) / cs.length;
+            const old = Math.max(...cs.map(c => c.ageing));
+            return { p, cs, hand, paid, age, old };
+          }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => b.hand - a.hand);
+          if (byProj.length < 2) return null;
+          const mx = Math.max(...byProj.map(b => b.hand), 1);
+          return (
+            <Zoomable title="By project" collapsible>
+              <div style={CARD}>
+                <h3 style={H3}>Money In Hand — Project Wise</h3>
+                <div style={CAP}>allotment-pending money we hold, per project · click a row → that project's customers</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                  <thead><tr>
+                    <th style={TH}>Project</th><th style={{ ...TH, textAlign: "right" }}>Customers</th>
+                    <th style={{ ...TH, textAlign: "right" }}>They paid</th><th style={{ ...TH, textAlign: "right" }}>In hand</th>
+                    <th style={{ ...TH, width: "26%" }}></th>
+                    <th style={{ ...TH, textAlign: "right" }}>Avg ageing</th><th style={{ ...TH, textAlign: "right" }}>Oldest</th>
+                  </tr></thead>
+                  <tbody>
+                    {byProj.map(b => (
+                      <tr key={b.p} onClick={() => openList(`${b.p} — money in hand`, b.cs)} style={{ cursor: "pointer" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                        <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{b.p}</td>
+                        <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fN(b.cs.length)}</td>
+                        <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{fMoney(b.paid)}</td>
+                        <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 800, fontSize: 13 }}>{fMoney(b.hand)}</td>
+                        <td style={TD}>
+                          <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(b.hand / mx) * 100}%`, background: GREEN, borderRadius: 5 }} />
+                          </div>
+                        </td>
+                        <td style={{ ...TD, textAlign: "right", color: b.age > 365 ? RED : "#96691c", fontWeight: 700 }}>{Math.round(b.age)} d</td>
+                        <td style={{ ...TD, textAlign: "right", color: b.old > 365 ? RED : "var(--mut)", fontWeight: 700 }}>{b.old} d</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Zoomable>
+          );
+        })()}
+
         {/* ---------- the customers, one card, all details ---------- */}
         <Zoomable title="In-hand customers">
           <div style={CARD}>
@@ -292,7 +346,7 @@ export function EoiPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 900 }}>
                 <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  <th style={TH}>Customer code</th><th style={TH}>First EOI</th><th style={TH}>Last activity</th>
+                  <th style={TH}>Customer code</th><th style={TH}>Project</th><th style={TH}>First EOI</th><th style={TH}>Last activity</th>
                   <th style={{ ...TH, textAlign: "right" }}>Receipts</th><th style={{ ...TH, textAlign: "right" }}>Paid (cleared)</th>
                   <th style={{ ...TH, textAlign: "right" }}>Refunded</th><th style={{ ...TH, textAlign: "right" }}>Adjusted out</th>
                   <th style={{ ...TH, textAlign: "right" }}>In hand</th><th style={{ ...TH, textAlign: "right" }}>Ageing</th>
@@ -303,6 +357,7 @@ export function EoiPage() {
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                       <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{c.code}</td>
+                      <td style={{ ...TD, color: "var(--mut)", maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis" }}>{D.PROJECTS[c.projIdx].replace("SMARTWORLD ", "")}</td>
                       <td style={{ ...TD, color: "var(--mut)" }}>{fD(c.firstDay)}</td>
                       <td style={{ ...TD, color: "var(--mut)" }}>{fD(c.lastDay)}</td>
                       <td style={{ ...TD, textAlign: "right" }}>{c.n}</td>
