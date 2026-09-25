@@ -17,7 +17,7 @@ export interface AppUser {
 }
 
 /** The Sales section, as shown in the sidebar. */
-const SALES_PATHS = ["/overview", "/bookings", "/target", "/channel-partners", "/gallery-footfall", "/digital-leads"];
+const SALES_PATHS = ["/overview", "/bookings", "/eoi", "/target", "/channel-partners", "/gallery-footfall", "/digital-leads"];
 
 export const APP_USERS: AppUser[] = [
   { id: "admin@admin", password: "admin",        displayName: "Admin",       role: "admin",      access: "all" },

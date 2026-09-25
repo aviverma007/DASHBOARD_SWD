@@ -18,6 +18,7 @@ const load = {
   cp: () => import("./features/channelpartner/ChannelPartnerPage"),
   leads: () => import("./features/leads/LeadConversionPage"),
   bookings: () => import("./features/bookings/BookingsPage"),
+  eoi: () => import("./features/eoi/EoiPage"),
   cases: () => import("./features/cases/CaseManagementPage"),
   cost: () => import("./features/cost/CostPage"),
   pr2po: () => import("./features/pr2po/PrToPoPage"),
@@ -34,6 +35,7 @@ const TargetActualPage = lazy(() => load.target().then(m => ({ default: m.Target
 const ChannelPartnerPage = lazy(() => load.cp().then(m => ({ default: m.ChannelPartnerPage })));
 const LeadConversionPage = lazy(() => load.leads().then(m => ({ default: m.LeadConversionPage })));
 const BookingsPage = lazy(() => load.bookings().then(m => ({ default: m.BookingsPage })));
+const EoiPage = lazy(() => load.eoi().then(m => ({ default: m.EoiPage })));
 const CaseManagementPage = lazy(load.cases);
 const CostPage = lazy(load.cost);
 const PrToPoPage = lazy(load.pr2po);
@@ -78,6 +80,7 @@ function App() {
           <Route path="/target" element={<RequireAccess path="/target"><TargetActualPage /></RequireAccess>} />
           <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><ChannelPartnerPage /></RequireAccess>} />
           <Route path="/bookings" element={<RequireAccess path="/bookings"><BookingsPage /></RequireAccess>} />
+          <Route path="/eoi" element={<RequireAccess path="/eoi"><EoiPage /></RequireAccess>} />
           <Route path="/cost" element={<RequireAccess path="/cost"><CostPage /></RequireAccess>} />
           <Route path="/pr-to-po" element={<RequireAccess path="/pr-to-po"><PrToPoPage /></RequireAccess>} />
           <Route path="/case-management" element={<RequireAccess path="/case-management"><CaseManagementPage /></RequireAccess>} />
