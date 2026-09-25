@@ -21,7 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "Home", path: "/", icon: "House", status: "active", section: "Top" },
   { key: "overview", label: "Overview", path: "/overview", icon: "LayoutDashboard", status: "active", section: "Sales" },
   { key: "bookings", label: "Bookings", path: "/bookings", icon: "ReceiptText", status: "active", section: "Sales" },
-  { key: "eoi", label: "EOI", path: "/eoi", icon: "FileSignature", status: "active", section: "Sales" },
+  { key: "eoi", label: "EOI/Advance", path: "/eoi", icon: "FileSignature", status: "active", section: "Sales" },
   { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },
   { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active", section: "Sales" },

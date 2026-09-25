@@ -80,6 +80,13 @@ const ALL_CUSTS: Cust[] = (() => {
 })();
 
 const PENDING = ALL_CUSTS.filter(c => c.status === 0);
+
+/** Money type per project (business rule, 25-Sep-26): every RERA-
+ * registered project collects ADVANCE money; only CODE 67 is true EOI
+ * because its RERA registration has not come yet. */
+const isEoiProject = (projIdx: number) => D.PROJECTS[projIdx] === "CODE 67 GURGAON";
+const typeLbl = (projIdx: number) => isEoiProject(projIdx) ? "EOI" : "Advance";
+const TYPE_COL = { EOI: "#8a5aa8", Advance: "#0E7490" } as const;
 /** Pooled collection account (pass-through, not a customer): hundreds of
  * receipts, nearly every cleared rupee mirrored by an equal ADJUSTMENT
  * out. Kept apart from customer numbers. */
@@ -205,6 +212,7 @@ function EoiDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void })
 /* ---------------- page ---------------- */
 export function EoiPage() {
   const [projF, setProjF] = useState<string[]>([]);
+  const [typeF, setTypeF] = useState<"all" | "advance" | "eoi">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
@@ -220,12 +228,13 @@ export function EoiPage() {
     const s = q.trim().toLowerCase();
     return HOLDING.filter(c => {
       if (projF.length && !projF.includes(D.PROJECTS[c.projIdx])) return false;
+      if (typeF !== "all" && (typeF === "eoi") !== isEoiProject(c.projIdx)) return false;
       if (c.firstDay >= 0 && (c.firstDay < fromD || c.firstDay > toD)) return false;
       if (fromD >= 0 && c.firstDay < 0) return false;
       if (s && !c.code.toLowerCase().includes(s)) return false;
       return true;
     });
-  }, [projF, from, to, q]);
+  }, [projF, typeF, from, to, q]);
 
   const inHand = scoped.reduce((s, c) => s + c.net, 0);
   const paidTot = scoped.reduce((s, c) => s + c.cleared, 0);
@@ -234,12 +243,16 @@ export function EoiPage() {
   const avgAge = scoped.length ? scoped.reduce((s, c) => s + c.ageing, 0) / scoped.length : null;
   const oldest = [...scoped].sort((a, b) => b.ageing - a.ageing);
 
+  const advCs = scoped.filter(c => !isEoiProject(c.projIdx));
+  const eoiCs = scoped.filter(c => isEoiProject(c.projIdx));
   const KPIS: [string, string, string, [string, string], () => void][] = [
-    ["Allotment Pending", fN(scoped.length), "customers whose EOI money is still with us", ["#c8871d", "#96691c"], () => openList("Allotment pending — money in hand", scoped)],
-    ["Money in hand", fMoney(inHand), "held EOI money awaiting allotment", ["#1e9a6c", "#0f6647"], () => openList("Money in hand", scoped)],
+    ["Allotment Pending", fN(scoped.length), "customers whose money is still with us", ["#c8871d", "#96691c"], () => openList("Allotment pending — money in hand", scoped)],
+    ["Money in hand", fMoney(inHand), "total held, awaiting allotment", ["#1e9a6c", "#0f6647"], () => openList("Money in hand", scoped)],
+    ["Advance in hand", fMoney(advCs.reduce((s, c) => s + c.net, 0)), `${fN(advCs.length)} customers · RERA projects`, ["#1a7f9c", "#0e5468"], () => openList("Advance money in hand (RERA projects)", advCs)],
+    ["EOI in hand", fMoney(eoiCs.reduce((s, c) => s + c.net, 0)), `${fN(eoiCs.length)} customers · Code 67 (RERA awaited)`, ["#8a5aa8", "#5d3b75"], () => openList("EOI money in hand (Code 67)", eoiCs)],
     ["They paid in total", fMoney(paidTot), "cleared receipts from these customers", [NAVY, "#0f2547"], () => openList("Total paid by in-hand customers", scoped)],
     ["Part refunded / adjusted", fMoney(Math.abs(refTot + adjTot)), "portion of their money already returned or moved", ["#c0392b", "#7e1f14"], () => openList("In-hand customers with part refunded / adjusted", scoped.filter(c => c.refunds < 0 || c.adj < 0))],
-    ["Avg ageing", avgAge !== null ? `${Math.round(avgAge)} d` : "—", "days since first EOI payment, still not allotted", ["#1a7f9c", "#0e5468"], () => openList("In-hand customers by ageing", scoped)],
+    ["Avg ageing", avgAge !== null ? `${Math.round(avgAge)} d` : "—", "days since first payment, still not allotted", ["#6b5f8f", "#453a63"], () => openList("In-hand customers by ageing", scoped)],
   ];
 
   const selCls = (on: boolean): React.CSSProperties => ({
@@ -250,7 +263,7 @@ export function EoiPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
-      <PageBanner bleed title="EOI · Allotment Pending" sub={<>customers whose EOI money is still in hand · data as on {D.meta.asOn} · bounced instruments excluded</>} />
+      <PageBanner bleed title="EOI / Advance · Allotment Pending" sub={<>customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded</>} />
       <div style={{ padding: "14px 20px 24px", flex: 1 }}>
 
         {/* ---------- filters ---------- */}
@@ -258,11 +271,18 @@ export function EoiPage() {
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>Project</span>
             <button style={selCls(projF.length === 0)} onClick={() => setProjF([])}>All projects</button>
-            {D.PROJECTS.map(p => (
+            {D.PROJECTS.map((p, pi) => (
               <button key={p} style={selCls(projF.includes(p))}
                 onClick={() => setProjF(f => f.includes(p) ? f.filter(x => x !== p) : [...f, p])}>
                 {p.replace("SMARTWORLD ", "")}
+                <span style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 800, color: TYPE_COL[typeLbl(pi)], opacity: 0.85 }}>{typeLbl(pi).toUpperCase()}</span>
               </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: 6 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>Money type</span>
+            {([["all", "All"], ["advance", "Advance"], ["eoi", "EOI"]] as const).map(([v, l]) => (
+              <button key={v} style={selCls(typeF === v)} onClick={() => setTypeF(v)}>{l}</button>
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: 6 }}>
@@ -297,7 +317,7 @@ export function EoiPage() {
             const paid = cs.reduce((s, c) => s + c.cleared, 0);
             const age = cs.reduce((s, c) => s + c.ageing, 0) / cs.length;
             const old = Math.max(...cs.map(c => c.ageing));
-            return { p, cs, hand, paid, age, old };
+            return { p, pi, cs, hand, paid, age, old };
           }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => b.hand - a.hand);
           if (byProj.length < 2) return null;
           const mx = Math.max(...byProj.map(b => b.hand), 1);
@@ -308,7 +328,7 @@ export function EoiPage() {
                 <div style={CAP}>allotment-pending money we hold, per project · click a row → that project's customers</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                   <thead><tr>
-                    <th style={TH}>Project</th><th style={{ ...TH, textAlign: "right" }}>Customers</th>
+                    <th style={TH}>Project</th><th style={TH}>Type</th><th style={{ ...TH, textAlign: "right" }}>Customers</th>
                     <th style={{ ...TH, textAlign: "right" }}>They paid</th><th style={{ ...TH, textAlign: "right" }}>In hand</th>
                     <th style={{ ...TH, width: "26%" }}></th>
                     <th style={{ ...TH, textAlign: "right" }}>Avg ageing</th><th style={{ ...TH, textAlign: "right" }}>Oldest</th>
@@ -319,6 +339,11 @@ export function EoiPage() {
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                         <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{b.p}</td>
+                        <td style={TD}>
+                          <span style={{ background: `${TYPE_COL[typeLbl(b.pi)]}1c`, color: TYPE_COL[typeLbl(b.pi)], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 10px" }}>
+                            {typeLbl(b.pi)}
+                          </span>
+                        </td>
                         <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fN(b.cs.length)}</td>
                         <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{fMoney(b.paid)}</td>
                         <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 800, fontSize: 13 }}>{fMoney(b.hand)}</td>
@@ -401,7 +426,7 @@ export function EoiPage() {
         <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8" }}>
           <h3 style={H3}>How to read this page</h3>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.65 }}>
-            This page shows only the allotment-pending customers whose EOI money is <b>still with us</b> — paid, cleared, not yet adjusted onto a sale order and not refunded. <b>In hand</b> = cleared − adjusted − refunded, per customer. <b>Ageing</b> counts days since their first EOI payment. Bounced instruments are excluded everywhere. Codes whose money already left (adjusted or refunded) and the pass-through collection pool are kept out of the numbers and reachable from the links above. No name or unit shows because the ERP captures those only at allotment.
+            This page shows only the allotment-pending customers whose money is <b>still with us</b> — paid, cleared, not yet adjusted onto a sale order and not refunded. <b>Money type:</b> projects with RERA registration collect <b>Advance</b>; only <b>Code 67</b> collects <b>EOI</b>, because its RERA registration has not come yet. <b>In hand</b> = cleared − adjusted − refunded, per customer. <b>Ageing</b> counts days since their first EOI payment. Bounced instruments are excluded everywhere. Codes whose money already left (adjusted or refunded) and the pass-through collection pool are kept out of the numbers and reachable from the links above. No name or unit shows because the ERP captures those only at allotment.
           </div>
         </div>
       </div>
