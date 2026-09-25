@@ -279,6 +279,16 @@ export function EoiPage() {
     });
   }, [projF, typeF, periodType, from, to, q]);
 
+  /** Changing the project picks the matching money type on its own:
+   * only-EOI projects → EOI, only-RERA projects → Advance, mixed or
+   * All → All. The user can still override the pills afterwards. */
+  function handleProjects(next: string[]) {
+    setProjF(next);
+    if (next.length === 0) { setTypeF("all"); return; }
+    const eois = next.filter(p => isEoiProject(D.PROJECTS.indexOf(p))).length;
+    setTypeF(eois === next.length ? "eoi" : eois === 0 ? "advance" : "all");
+  }
+
   function handleReset() {
     setProjF([]); setTypeF("all"); setPeriodType("all"); setFrom(""); setTo(""); setQ("");
   }
@@ -305,7 +315,7 @@ export function EoiPage() {
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
       <PageBanner bleed title="EOI / Advance" sub={<>allotment-pending customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded</>}>
-        <EoiProjectSelect selected={projF} onChange={setProjF} />
+        <EoiProjectSelect selected={projF} onChange={handleProjects} />
         <div>
           <label style={BANNER_LBL}>Money type</label>
           <BannerPills items={[["all", "All"], ["advance", "Advance"], ["eoi", "EOI"]] as const}
