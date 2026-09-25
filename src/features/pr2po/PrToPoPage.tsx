@@ -657,6 +657,180 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
   );
 }
 
+/* ---------------- SAP PR reference tracker ---------------- */
+/** normalise a document number: "", "NA", "None", "0" → null */
+function refNum(v: string | null | undefined): string | null {
+  const s = String(v ?? "").trim();
+  return !s || s === "NA" || s === "None" || s === "0" ? null : s;
+}
+
+/** One row per PR with every cross-system number (PR ⟷ QMS ⟷ NFA ⟷ PO),
+ *  where it sits (stage n of N), and how long it has waited there.
+ *  Own search + sortable date columns + top-20 paging. */
+function RefTracker({ rows, onPick }: { rows: Journey[]; onPick: (j: Journey) => void }) {
+  const [rq, setRq] = useState("");
+  const [sort, setSort] = useState<{ k: "created" | "since" | "days"; d: 1 | -1 }>({ k: "days", d: -1 });
+  const [limit, setLimit] = useState(20);
+
+  const recs = useMemo(() => rows.map(j => {
+    const applicable = STAGES.filter(s => !j.skipStages.includes(s.k));
+    const total = applicable.length;
+    const curK = STAGES[Math.min(j.stageIdx, 7)]?.k;
+    const posIdx = j.done ? total : Math.max(0, applicable.findIndex(s => s.k === curK));
+    const qms = refNum(j.vg?.EPR_No);
+    const nfa = refNum(j.vg?.NFA_No) ?? refNum(j.vg?.ENFA_No);
+    const po = refNum(j.po?.EBELN);
+    const created = j.m.sap_created ?? j.m.qms_created;
+    const pendDays = !j.done && !j.exception && j.pendingSince !== null ? idleDays(j.pendingSince) : null;
+    const stageLbl = (j.exception && !j.done ? j.exception : null) ?? (j.done ? "Completed" : STAGES[Math.min(j.stageIdx, 7)].pend);
+    const stageCol = j.exception && !j.done ? RED : j.done ? GREEN : STAGE_COLS[Math.min(j.stageIdx, 7)];
+    const nfaSkipped = j.skipStages.includes("nfa_created");
+    const qmsSkipped = j.skipStages.includes("qms_created");
+    return { j, qms, nfa, po, created, pendDays, stageLbl, stageCol, total, posIdx, nfaSkipped, qmsSkipped };
+  }), [rows]);
+
+  const filtered = useMemo(() => {
+    const s = rq.trim().toLowerCase();
+    const f = !s ? recs : recs.filter(r =>
+      r.j.id.toLowerCase().includes(s) ||
+      (r.qms ?? "").toLowerCase().includes(s) ||
+      (r.nfa ?? "").toLowerCase().includes(s) ||
+      (r.po ?? "").toLowerCase().includes(s) ||
+      r.j.desc.toLowerCase().includes(s) ||
+      r.j.vendor.toLowerCase().includes(s) ||
+      r.j.dept.toLowerCase().includes(s) ||
+      (plantOf(r.j) ?? "").toLowerCase().includes(s));
+    const val = (r: typeof recs[number]) =>
+      sort.k === "created" ? r.created : sort.k === "since" ? r.j.pendingSince : r.pendDays;
+    return [...f].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1;           // blanks always sink to the bottom
+      if (vb === null) return -1;
+      return (va - vb) * sort.d;
+    });
+  }, [recs, rq, sort]);
+
+  const shown = filtered.slice(0, limit);
+  const withQms = filtered.filter(r => r.qms).length;
+  const withNfa = filtered.filter(r => r.nfa).length;
+  const withPo = filtered.filter(r => r.po).length;
+
+  const sortTh = (label: string, k: typeof sort.k) => (
+    <th
+      onClick={() => { setSort(s => s.k === k ? { k, d: s.d === 1 ? -1 : 1 } : { k, d: -1 }); setLimit(20); }}
+      style={{ ...TH, textAlign: "right", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", color: sort.k === k ? "var(--ink)" : undefined }}
+      title="Click to sort ascending / descending"
+    >
+      {label} <span style={{ fontSize: 9, opacity: sort.k === k ? 1 : 0.35 }}>{sort.k === k ? (sort.d === 1 ? "▲" : "▼") : "▲▼"}</span>
+    </th>
+  );
+
+  const chip = (label: string, n: number, col: string) => (
+    <span key={label} style={{ background: `${col}14`, color: col, border: `1px solid ${col}33`, fontWeight: 800, fontSize: 11, borderRadius: 999, padding: "3px 11px" }}>
+      {label}: {fN(n)} <span style={{ opacity: 0.65, fontWeight: 700 }}>/ {fN(filtered.length)}</span>
+    </span>
+  );
+
+  return (
+    <div style={CARD}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h3 style={H3}>PR Reference Tracker — PR ⟷ QMS ⟷ NFA ⟷ PO</h3>
+          <div style={CAP}>every number a PR picks up on its journey, where it sits now, and how long it has waited there · click a row → full timeline</div>
+        </div>
+        <input
+          value={rq}
+          onChange={e => { setRq(e.target.value); setLimit(20); }}
+          placeholder="Search PR / QMS / NFA / PO no., vendor, dept…"
+          style={{ width: 300, maxWidth: "100%", padding: "8px 13px", borderRadius: 9, border: "1px solid #d8d2c4", background: "#fff", fontFamily: "inherit", fontSize: 12.5, outline: "none" }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0 12px" }}>
+        {chip("Has QMS no.", withQms, TEAL)}
+        {chip("Has NFA no.", withNfa, AMBER)}
+        {chip("Has PO no.", withPo, GREEN)}
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 1080 }}>
+          <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+            <th style={TH}>PR No. (SAP)</th>
+            {sortTh("PR Date", "created")}
+            <th style={TH}>QMS No.</th>
+            <th style={TH}>NFA No.</th>
+            <th style={TH}>PO No.</th>
+            <th style={TH}>Stage</th>
+            <th style={TH}>Status</th>
+            {sortTh("Pending days", "days")}
+            {sortTh("Pending since", "since")}
+          </tr></thead>
+          <tbody>
+            {shown.map(r => (
+              <tr key={r.j.id} onClick={() => onPick(r.j)} style={{ cursor: "pointer" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                <td style={{ ...TD, fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap" }}>{r.j.id}</td>
+                <td style={{ ...TD, textAlign: "right", color: "var(--mut)", whiteSpace: "nowrap" }}>{fD(r.created)}</td>
+                <td style={{ ...TD, whiteSpace: "nowrap" }}>
+                  {r.qms
+                    ? <span style={{ fontWeight: 700, color: TEAL }}>{r.qms}</span>
+                    : r.qmsSkipped
+                      ? <span style={{ color: "#b0a890", fontSize: 11 }}>Not required</span>
+                      : <span style={{ color: RED, fontSize: 11, fontWeight: 700 }}>Not replicated</span>}
+                </td>
+                <td style={{ ...TD, whiteSpace: "nowrap" }}>
+                  {r.nfa
+                    ? <span style={{ fontWeight: 700, color: "#96691c" }}>{r.nfa}</span>
+                    : r.nfaSkipped
+                      ? <span style={{ color: "#b0a890", fontSize: 11 }}>Not required</span>
+                      : <span style={{ color: "var(--mut)" }}>—</span>}
+                </td>
+                <td style={{ ...TD, whiteSpace: "nowrap" }}>
+                  {r.po ? <span style={{ fontWeight: 700, color: GREEN }}>{r.po}</span> : <span style={{ color: "var(--mut)" }}>—</span>}
+                </td>
+                <td style={{ ...TD, whiteSpace: "nowrap", minWidth: 110 }}>
+                  <div style={{ fontWeight: 800, fontSize: 11, color: r.stageCol }}>
+                    {r.j.done ? `${r.total} / ${r.total}` : `${Math.min(r.posIdx + 1, r.total)} / ${r.total}`}
+                    <span style={{ color: "#b0a890", fontWeight: 600, marginLeft: 5 }}>steps</span>
+                  </div>
+                  <div style={{ height: 5, width: 86, background: "#f0ede5", borderRadius: 3, overflow: "hidden", marginTop: 3 }}>
+                    <div style={{ height: "100%", width: `${((r.j.done ? r.total : r.posIdx) / r.total) * 100}%`, background: r.stageCol }} />
+                  </div>
+                </td>
+                <td style={TD}>
+                  <span style={{ background: `${r.stageCol}1c`, color: r.stageCol, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{r.stageLbl}</span>
+                </td>
+                <td style={{ ...TD, textAlign: "right", whiteSpace: "nowrap", fontWeight: r.pendDays !== null && r.pendDays > 30 ? 800 : 600, color: r.pendDays === null ? "var(--mut)" : r.pendDays > 30 ? RED : r.pendDays > 10 ? "#96691c" : "var(--mut)" }}>
+                  {r.pendDays !== null ? `${r.pendDays} d` : "—"}
+                </td>
+                <td style={{ ...TD, textAlign: "right", color: "var(--mut)", whiteSpace: "nowrap" }}>{fD(r.j.pendingSince)}</td>
+              </tr>
+            ))}
+            {!shown.length && (
+              <tr><td colSpan={9} style={{ ...TD, textAlign: "center", color: "var(--mut)", padding: 24 }}>No PRs match “{rq}”</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 12 }}>
+        <span style={{ color: "var(--mut)" }}>Showing {fN(shown.length)} of {fN(filtered.length)} PRs</span>
+        {limit < filtered.length && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setLimit(l => l + 20)}
+              style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+              Show next 20 ›
+            </button>
+            <button onClick={() => setLimit(filtered.length)}
+              style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, color: "var(--mut)" }}>
+              Show all {fN(filtered.length)}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export default function PrToPoPage() {
   // POs + QMS are live from SAP OData / VendorGlobe; only the SAP PR
@@ -1446,6 +1620,11 @@ export default function PrToPoPage() {
                 </div>
               </div>
             </div>
+          </Zoomable>
+
+          {/* PR ⟷ QMS ⟷ NFA ⟷ PO cross-reference tracker — last card */}
+          <Zoomable title="PR reference tracker" collapsible>
+            <RefTracker rows={rows} onPick={j => setDrawer(j)} />
           </Zoomable>
         </>)}
       </div>
