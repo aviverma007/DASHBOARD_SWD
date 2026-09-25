@@ -298,7 +298,34 @@ export function EoiPage() {
   const refTot = scoped.reduce((s, c) => s + c.refunds, 0);
   const adjTot = scoped.reduce((s, c) => s + Math.min(c.adj, 0), 0);
   const avgAge = scoped.length ? scoped.reduce((s, c) => s + c.ageing, 0) / scoped.length : null;
-  const oldest = [...scoped].sort((a, b) => b.ageing - a.ageing);
+
+  /* in-hand table: own search + sortable columns (ageing desc default) */
+  type SortKey = "code" | "proj" | "first" | "last" | "n" | "paid" | "ref" | "adj" | "hand" | "age";
+  const [tSort, setTSort] = useState<{ k: SortKey; d: 1 | -1 }>({ k: "age", d: -1 });
+  const [tq, setTq] = useState("");
+  const oldest = useMemo(() => {
+    const s = tq.trim().toLowerCase();
+    const f = !s ? scoped : scoped.filter(c =>
+      c.code.toLowerCase().includes(s) || D.PROJECTS[c.projIdx].toLowerCase().includes(s));
+    const val = (c: Cust): number | string =>
+      tSort.k === "code" ? c.code : tSort.k === "proj" ? D.PROJECTS[c.projIdx] :
+      tSort.k === "first" ? c.firstDay : tSort.k === "last" ? c.lastDay :
+      tSort.k === "n" ? c.n : tSort.k === "paid" ? c.cleared :
+      tSort.k === "ref" ? Math.abs(c.refunds) : tSort.k === "adj" ? Math.abs(Math.min(c.adj, 0)) :
+      tSort.k === "hand" ? c.net : c.ageing;
+    return [...f].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      const cmp = typeof va === "string" ? String(va).localeCompare(String(vb)) : (va as number) - (vb as number);
+      return cmp * tSort.d;
+    });
+  }, [scoped, tq, tSort]);
+  const sortTh = (label: string, k: SortKey, right?: boolean) => (
+    <th onClick={() => setTSort(s => s.k === k ? { k, d: s.d === 1 ? -1 : 1 } : { k, d: -1 })}
+      title="Click to sort ascending / descending"
+      style={{ ...TH, textAlign: right ? "right" : "left", cursor: "pointer", userSelect: "none", color: tSort.k === k ? "var(--ink)" : undefined }}>
+      {label} <span style={{ fontSize: 8.5, opacity: tSort.k === k ? 1 : 0.35 }}>{tSort.k === k ? (tSort.d === 1 ? "▲" : "▼") : "▲▼"}</span>
+    </th>
+  );
 
   const advCs = scoped.filter(c => !isEoiProject(c.projIdx));
   const eoiCs = scoped.filter(c => isEoiProject(c.projIdx));
@@ -359,8 +386,9 @@ export function EoiPage() {
           ))}
         </div>
 
-        {/* ---------- project-wise bifurcation ---------- */}
+        {/* ---------- project-wise cards ---------- */}
         {(() => {
+          const ACCENTS = ["#3c6db0", "#2e7d6f", "#b8893c", "#c2674a", "#7a5c84", "#4b7b3f"];
           const byProj = D.PROJECTS.map((p, pi) => {
             const cs = scoped.filter(c => c.projIdx === pi);
             if (!cs.length) return null;
@@ -370,62 +398,162 @@ export function EoiPage() {
             const old = Math.max(...cs.map(c => c.ageing));
             return { p, pi, cs, hand, paid, age, old };
           }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => b.hand - a.hand);
-          if (byProj.length < 2) return null;
-          const mx = Math.max(...byProj.map(b => b.hand), 1);
+          if (!byProj.length) return null;
+          const totHand = byProj.reduce((s, b) => s + b.hand, 0) || 1;
           return (
-            <Zoomable title="By project" collapsible>
+            <Zoomable title="Project cards" collapsible>
               <div style={CARD}>
                 <h3 style={H3}>Money In Hand — Project Wise</h3>
-                <div style={CAP}>allotment-pending money we hold, per project · click a row → that project's customers</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-                  <thead><tr>
-                    <th style={TH}>Project</th><th style={TH}>Type</th><th style={{ ...TH, textAlign: "right" }}>Customers</th>
-                    <th style={{ ...TH, textAlign: "right" }}>They paid</th><th style={{ ...TH, textAlign: "right" }}>In hand</th>
-                    <th style={{ ...TH, width: "26%" }}></th>
-                    <th style={{ ...TH, textAlign: "right" }}>Avg ageing</th><th style={{ ...TH, textAlign: "right" }}>Oldest</th>
-                  </tr></thead>
-                  <tbody>
-                    {byProj.map(b => (
-                      <tr key={b.p} onClick={() => openList(`${b.p} — money in hand`, b.cs)} style={{ cursor: "pointer" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                        <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{b.p}</td>
-                        <td style={TD}>
-                          <span style={{ background: `${TYPE_COL[typeLbl(b.pi)]}1c`, color: TYPE_COL[typeLbl(b.pi)], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 10px" }}>
-                            {typeLbl(b.pi)}
-                          </span>
-                        </td>
-                        <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fN(b.cs.length)}</td>
-                        <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{fMoney(b.paid)}</td>
-                        <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 800, fontSize: 13 }}>{fMoney(b.hand)}</td>
-                        <td style={TD}>
-                          <div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${(b.hand / mx) * 100}%`, background: GREEN, borderRadius: 5 }} />
+                <div style={CAP}>each project's share of the {fMoney(totHand)} we hold · click a card → that project's customers</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
+                  {byProj.map(b => {
+                    const acc = ACCENTS[b.pi % ACCENTS.length];
+                    const share = (b.hand / totHand) * 100;
+                    return (
+                      <div key={b.p} onClick={() => openList(`${b.p} — money in hand`, b.cs)}
+                        onMouseEnter={e => { showTip(e, `<b>${b.p}</b><br/>${fN(b.cs.length)} customers · ${fMoney(b.hand)} in hand<br/>click → list`); (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+                        onMouseLeave={e => { hideTip(); (e.currentTarget as HTMLElement).style.transform = ""; }}
+                        style={{ background: "#fff", border: "1px solid #eae6da", borderLeft: `5px solid ${acc}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", boxShadow: "0 2px 8px rgba(20,33,61,.06)", transition: "transform .15s ease, box-shadow .15s ease" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <div style={{ fontFamily: "Georgia,serif", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.25 }}>
+                            {b.p.replace("SMARTWORLD ", "")}
                           </div>
-                        </td>
-                        <td style={{ ...TD, textAlign: "right", color: b.age > 365 ? RED : "#96691c", fontWeight: 700 }}>{Math.round(b.age)} d</td>
-                        <td style={{ ...TD, textAlign: "right", color: b.old > 365 ? RED : "var(--mut)", fontWeight: 700 }}>{b.old} d</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <span style={{ background: `${TYPE_COL[typeLbl(b.pi)]}1c`, color: TYPE_COL[typeLbl(b.pi)], fontWeight: 800, fontSize: 9.5, borderRadius: 999, padding: "2px 9px", flexShrink: 0 }}>
+                            {typeLbl(b.pi).toUpperCase()}
+                          </span>
+                        </div>
+                        <div style={{ fontFamily: "Georgia,serif", fontSize: 25, fontWeight: 700, color: GREEN, margin: "7px 0 1px" }}>{fMoney(b.hand)}</div>
+                        <div style={{ fontSize: 11, color: "var(--mut)", marginBottom: 8 }}>
+                          in hand · <b style={{ color: "var(--ink)" }}>{fN(b.cs.length)}</b> customers · paid {fMoney(b.paid)}
+                        </div>
+                        <div style={{ height: 7, background: "#f0ede5", borderRadius: 4, overflow: "hidden", marginBottom: 7 }}>
+                          <div style={{ height: "100%", width: `${share}%`, background: acc, borderRadius: 4 }} />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, fontWeight: 700 }}>
+                          <span style={{ color: acc }}>{share.toFixed(0)}% of held money</span>
+                          <span style={{ color: b.age > 365 ? RED : "#96691c" }}>avg {Math.round(b.age)} d · oldest {b.old} d</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </Zoomable>
           );
         })()}
 
+        {/* ---------- ageing + largest holdings + intake ---------- */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(330px, 1fr))", gap: 14, marginBottom: 14 }}>
+          <Zoomable title="Ageing" collapsible>
+            <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+              <h3 style={H3}>How Long Has Their Money Waited?</h3>
+              <div style={CAP}>days since first payment, still not allotted · count + money in hand · click → list</div>
+              {(() => {
+                const AGE_BANDS = [["0–90 d", 0, 90], ["91–180 d", 91, 180], ["181–270 d", 181, 270], ["271–365 d", 271, 365], ["> 1 year", 366, 1e9]] as const;
+                const bands = AGE_BANDS.map(([l, lo, hi]) => {
+                  const cs = scoped.filter(c => c.ageing >= lo && c.ageing <= hi);
+                  return { l, cs, amt: cs.reduce((s, c) => s + c.net, 0) };
+                });
+                const mx = Math.max(...bands.map(b => b.cs.length), 1);
+                return bands.map((b, i) => (
+                  <div key={b.l} className="barrow" style={{ padding: "5.5px 0", cursor: "pointer" }}
+                    onClick={() => openList(`Waiting ${b.l}`, b.cs)}
+                    onMouseEnter={e => showTip(e, `<b>${b.l}</b><br/>${fN(b.cs.length)} customers · ${fMoney(b.amt)} in hand<br/>click → list`)} onMouseLeave={hideTip}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                      <span style={{ fontWeight: 700, color: "var(--ink)" }}>{b.l}</span>
+                      <span style={{ fontWeight: 800, color: "var(--mut)" }}>{fN(b.cs.length)} <span style={{ color: GOLD }}>· {fMoney(b.amt)}</span></span>
+                    </div>
+                    <div style={{ height: 10, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(b.cs.length / mx) * 100}%`, background: i >= 3 ? RED : i >= 1 ? "#EDA100" : GREEN, borderRadius: 5 }} />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </Zoomable>
+
+          <Zoomable title="Largest holdings" collapsible>
+            <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+              <h3 style={H3}>Largest Amounts We Hold</h3>
+              <div style={CAP}>the customers holding the most money · click → their receipts</div>
+              {(() => {
+                const top = [...scoped].sort((a, b) => b.net - a.net).slice(0, 8);
+                const mx = Math.max(...top.map(c => c.net), 1);
+                return top.map(c => (
+                  <div key={c.code} className="barrow" style={{ padding: "4.5px 0", cursor: "pointer" }}
+                    onClick={() => setDrill({ title: "Pending customer", custs: [c] })}
+                    onMouseEnter={e => showTip(e, `<b>${c.code}</b> · ${D.PROJECTS[c.projIdx].replace("SMARTWORLD ", "")}<br/>${fMoney(c.net)} in hand · waiting ${c.ageing} d<br/>click → receipts`)} onMouseLeave={hideTip}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                      <span style={{ fontWeight: 700, color: "var(--ink)" }}>
+                        {c.code} <span style={{ color: "var(--mut)", fontWeight: 600, fontSize: 10.5 }}>· {D.PROJECTS[c.projIdx].replace("SMARTWORLD ", "")}</span>
+                      </span>
+                      <span style={{ fontWeight: 800, color: GREEN }}>{fMoney(c.net)} <span style={{ color: c.ageing > 365 ? RED : "#96691c", fontSize: 10.5 }}>· {c.ageing} d</span></span>
+                    </div>
+                    <div style={{ height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(c.net / mx) * 100}%`, background: TEAL, borderRadius: 4 }} />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </Zoomable>
+
+          <Zoomable title="When they paid" collapsible>
+            <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+              <h3 style={H3}>When Did This Money Come In?</h3>
+              <div style={CAP}>in-hand customers by month of first payment · older bars = longer-waiting money · click → list</div>
+              {(() => {
+                const m = new Map<string, Cust[]>();
+                scoped.forEach(c => {
+                  if (c.firstDay < 0) return;
+                  const k = new Date(dayMs(c.firstDay)).toISOString().slice(0, 7);
+                  if (!m.has(k)) m.set(k, []);
+                  m.get(k)!.push(c);
+                });
+                const months = [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+                const mx = Math.max(...months.map(([, cs]) => cs.length), 1);
+                return (
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 150, overflowX: "auto", paddingBottom: 4 }}>
+                    {months.map(([k, cs]) => {
+                      const lbl = new Date(k + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
+                      const amt = cs.reduce((s, c) => s + c.net, 0);
+                      return (
+                        <div key={k} onClick={() => openList(`Money in hand since ${lbl}`, cs)}
+                          onMouseEnter={ev => showTip(ev, `<b>${lbl}</b><br/>${fN(cs.length)} customers · ${fMoney(amt)} in hand<br/>click → list`)} onMouseLeave={hideTip}
+                          style={{ flex: "0 0 42px", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", height: "100%" }}>
+                          <div style={{ flex: 1, width: 26, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: "var(--ink)", textAlign: "center", marginBottom: 2 }}>{cs.length}</div>
+                            <div style={{ height: `${(cs.length / mx) * 100}%`, background: GOLD, borderRadius: "3px 3px 0 0", minHeight: 3 }} />
+                          </div>
+                          <div style={{ fontSize: 9, color: "var(--mut)", fontWeight: 700, marginTop: 4, whiteSpace: "nowrap" }}>{lbl}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </Zoomable>
+        </div>
+
         {/* ---------- the customers, one card, all details ---------- */}
         <Zoomable title="In-hand customers">
           <div style={CARD}>
-            <h3 style={H3}>Customers Whose Money We Hold — Oldest Wait First</h3>
-            <div style={CAP}>every allotment-pending customer with EOI money still in hand · click a row → full receipt ledger</div>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h3 style={H3}>Customers Whose Money We Hold</h3>
+                <div style={CAP}>{fN(oldest.length)} customers · click any column heading to sort ▲▼ · scroll for more · click a row → full receipt ledger</div>
+              </div>
+              <input value={tq} onChange={e => setTq(e.target.value)} placeholder="Search code / project…"
+                style={{ width: 230, padding: "7px 12px", borderRadius: 9, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12.5, outline: "none" }} />
+            </div>
+            <div style={{ overflowX: "auto", maxHeight: 430, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 900 }}>
                 <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  <th style={TH}>Customer code</th><th style={TH}>Project</th><th style={TH}>First EOI</th><th style={TH}>Last activity</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Receipts</th><th style={{ ...TH, textAlign: "right" }}>Paid (cleared)</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Refunded</th><th style={{ ...TH, textAlign: "right" }}>Adjusted out</th>
-                  <th style={{ ...TH, textAlign: "right" }}>In hand</th><th style={{ ...TH, textAlign: "right" }}>Ageing</th>
+                  {sortTh("Customer code", "code")}{sortTh("Project", "proj")}{sortTh("First EOI", "first")}{sortTh("Last activity", "last")}
+                  {sortTh("Receipts", "n", true)}{sortTh("Paid (cleared)", "paid", true)}
+                  {sortTh("Refunded", "ref", true)}{sortTh("Adjusted out", "adj", true)}
+                  {sortTh("In hand", "hand", true)}{sortTh("Ageing", "age", true)}
                 </tr></thead>
                 <tbody>
                   {oldest.map(c => (
