@@ -85,6 +85,16 @@ const ALL_CUSTS: Cust[] = (() => {
 /* the page is pending-only */
 const PENDING = ALL_CUSTS.filter(c => c.status === 0);
 
+/** Pooled collection account, not a real customer: hundreds of receipts
+ * where nearly every cleared rupee is mirrored by an equal ADJUSTMENT
+ * out days later — EOIs land here first and are journalled onward to
+ * the actual customer's code. Shown separately so it stops inflating
+ * the customer-level numbers (0080012292: ₹100.76 Cr in, ₹99.74 Cr
+ * moved out, 899 receipts). */
+const isPool = (c: Cust) => c.n >= 100 && c.cleared > 0 && Math.abs(c.adj) >= 0.9 * c.cleared;
+const POOLS = PENDING.filter(isPool);
+const REAL_PENDING = PENDING.filter(c => !isPool(c));
+
 /* ---------------- drill drawer ---------------- */
 interface Drill { title: string; sub?: string; custs: Cust[] }
 
@@ -200,6 +210,7 @@ export function EoiPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
+  const [incPool, setIncPool] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [showAllPending, setShowAllPending] = useState(false);
 
@@ -211,14 +222,24 @@ export function EoiPage() {
     const fromD = from ? dayOfIso(from) : -1;
     const toD = to ? dayOfIso(to) : Infinity;
     const s = q.trim().toLowerCase();
-    return PENDING.filter(c => {
+    return (incPool ? PENDING : REAL_PENDING).filter(c => {
       if (projF.length && !projF.includes(D.PROJECTS[c.projIdx])) return false;
       if (c.firstDay >= 0 && (c.firstDay < fromD || c.firstDay > toD)) return false;
       if (fromD >= 0 && c.firstDay < 0) return false;
       if (s && !c.code.toLowerCase().includes(s)) return false;
       return true;
     });
-  }, [projF, from, to, q]);
+  }, [projF, from, to, q, incPool]);
+
+  /* ---- money reconciliation by Receipt Status, on the scoped set ---- */
+  const recon = useMemo(() => {
+    const t = { cl: { n: 0, amt: 0, custs: new Set<Cust>() }, ad: { n: 0, amt: 0, custs: new Set<Cust>() }, pa: { n: 0, amt: 0, custs: new Set<Cust>() }, bo: { n: 0, amt: 0, custs: new Set<Cust>() } };
+    scoped.forEach(c => c.receipts.forEach(r => {
+      const e = r.rs === 0 ? t.cl : r.rs === 1 ? t.ad : r.rs === 3 ? t.pa : t.bo;
+      e.n++; e.amt += r.amt; e.custs.add(c);
+    }));
+    return t;
+  }, [scoped]);
 
   const sum = (cs: Cust[], k: "cleared" | "net" | "refunds" | "adj" | "bounced") => cs.reduce((s, c) => s + c[k], 0);
   /* THE headline: customers who actually paid (cleared money in) and still wait */
@@ -306,9 +327,38 @@ export function EoiPage() {
             <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12 }} />
             {(from || to) && <button style={selCls(false)} onClick={() => { setFrom(""); setTo(""); }}>✕ clear</button>}
           </div>
+          {POOLS.length > 0 && (
+            <button style={selCls(incPool)} onClick={() => setIncPool(v => !v)}
+              title="0080012292 is a pass-through collection account, not a real customer — kept out of the customer numbers unless you switch it on">
+              {incPool ? "✓ Pool account included" : "Pool account excluded"}
+            </button>
+          )}
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search customer code…"
             style={{ marginLeft: "auto", width: 220, padding: "7px 12px", borderRadius: 9, border: "1px solid #d8d2c4", fontFamily: "inherit", fontSize: 12.5, outline: "none" }} />
         </div>
+
+        {/* ---------- pooled collection account, shown apart ---------- */}
+        {POOLS.length > 0 && !incPool && (
+          <div style={{ ...CARD, borderColor: "#d8cfe8", background: "#faf8fd", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 18, cursor: "pointer" }}
+            onClick={() => openList("Collection pool account (pass-through)", POOLS, "EOIs land here first, then move to the customer's own code by journal voucher")}
+            onMouseEnter={e => showTip(e, "<b>Collection pool account</b><br/>not a real customer — click for its full ledger")} onMouseLeave={hideTip}>
+            <div style={{ minWidth: 260 }}>
+              <div style={{ fontFamily: "Georgia,serif", fontSize: 14.5, fontWeight: 700, color: "#453a63" }}>Collection pool account — kept separate</div>
+              <div style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 2 }}>
+                {POOLS.map(p => p.code).join(", ")} · EOI money lands here first and is moved to each customer's own code by journal voucher. It is <b>not a customer</b>, so it is excluded from every card below.
+              </div>
+            </div>
+            {[["Came in", fMoney(POOLS.reduce((s, c) => s + c.cleared, 0)), TEAL],
+              ["Moved onward", fMoney(Math.abs(POOLS.reduce((s, c) => s + Math.min(c.adj, 0), 0))), "#96691c"],
+              ["Refunded", fMoney(Math.abs(POOLS.reduce((s, c) => s + c.refunds, 0))), RED],
+              ["Sitting in pool", fMoney(POOLS.reduce((s, c) => s + c.net, 0)), GREEN]].map(([k, v, col]) => (
+                <div key={k as string}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.7px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 18, fontWeight: 700, color: col as string }}>{v}</div>
+                </div>
+              ))}
+          </div>
+        )}
 
         {/* ---------- headline KPI cards ---------- */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(215px, 1fr))", gap: 12, marginBottom: 14 }}>
@@ -321,6 +371,66 @@ export function EoiPage() {
             </div>
           ))}
         </div>
+
+        {/* ---------- money reconciliation: every rupee, every status ---------- */}
+        <Zoomable title="Money reconciliation" collapsible>
+          <div style={CARD}>
+            <h3 style={H3}>Money Reconciliation — Every Rupee by Receipt Status</h3>
+            <div style={CAP}>the four statuses in the ERP export, exactly as they add up · click any row → the customers behind it</div>
+            {(() => {
+              const inHand = recon.cl.amt + recon.ad.amt + recon.pa.amt;
+              const ROWS: [string, string, { n: number; amt: number; custs: Set<Cust> }, string, string][] = [
+                ["CLEARED", "Money received — payments that actually cleared", recon.cl, TEAL, "+"],
+                ["ADJUSTMENT", "Moved by journal voucher — onto a sale order / another customer code", recon.ad, "#96691c", "−"],
+                ["PAYMENT", "Refunded — money returned to the customer", recon.pa, RED, "−"],
+                ["BOUNCE", "Bounced — instrument failed, money never received (excluded from all totals)", recon.bo, "#6b5f8f", "×"],
+              ];
+              const seg = (w: number, col: string) => ({ height: "100%", width: `${Math.max(0, w)}%`, background: col } as React.CSSProperties);
+              const pct = (v: number) => recon.cl.amt > 0 ? (Math.abs(v) / recon.cl.amt) * 100 : 0;
+              return (
+                <>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, marginBottom: 14 }}>
+                    <thead><tr>
+                      <th style={TH}>Status</th><th style={TH}>What it means</th>
+                      <th style={{ ...TH, textAlign: "right" }}>Receipts</th><th style={{ ...TH, textAlign: "right" }}>Customers</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
+                    </tr></thead>
+                    <tbody>
+                      {ROWS.map(([st, desc, e, col, sign]) => (
+                        <tr key={st} onClick={() => openList(`${st} — ${desc.split(" — ")[0]}`, [...e.custs])} style={{ cursor: "pointer" }}
+                          onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                          onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = ""; }}>
+                          <td style={TD}><span style={{ background: `${col}1c`, color: col, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 10px" }}>{sign} {st}</span></td>
+                          <td style={{ ...TD, whiteSpace: "normal", color: "var(--ink-soft)" }}>{desc}</td>
+                          <td style={{ ...TD, textAlign: "right" }}>{fN(e.n)}</td>
+                          <td style={{ ...TD, textAlign: "right" }}>{fN(e.custs.size)}</td>
+                          <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: col }}>{fMoney(e.amt)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ background: "#f4f9f4" }}>
+                        <td style={{ ...TD, fontWeight: 800 }} colSpan={2}>= Still in hand (received − moved − refunded)</td>
+                        <td style={TD} colSpan={2}></td>
+                        <td style={{ ...TD, textAlign: "right", fontWeight: 800, fontSize: 14, color: inHand >= 0 ? GREEN : RED }}>{fMoney(inHand)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {/* waterfall: where the received money went */}
+                  <div style={{ fontSize: 11, color: "var(--mut)", fontWeight: 700, marginBottom: 4 }}>WHERE THE {fMoney(recon.cl.amt)} RECEIVED WENT</div>
+                  <div style={{ height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #eae6da" }}>
+                    <div style={seg(pct(recon.ad.amt), "#c8a24a")} title={`Moved by JV ${fMoney(Math.abs(recon.ad.amt))}`} />
+                    <div style={seg(pct(recon.pa.amt), "#d76a5b")} title={`Refunded ${fMoney(Math.abs(recon.pa.amt))}`} />
+                    <div style={seg(pct(inHand), GREEN)} title={`Still in hand ${fMoney(inHand)}`} />
+                  </div>
+                  <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 11.5, flexWrap: "wrap" }}>
+                    <span style={{ color: "#96691c", fontWeight: 700 }}>■ Moved to sale orders {fMoney(Math.abs(recon.ad.amt))} ({pct(recon.ad.amt).toFixed(0)}%)</span>
+                    <span style={{ color: RED, fontWeight: 700 }}>■ Refunded {fMoney(Math.abs(recon.pa.amt))} ({pct(recon.pa.amt).toFixed(0)}%)</span>
+                    <span style={{ color: GREEN, fontWeight: 700 }}>■ Still in hand {fMoney(inHand)} ({pct(inHand).toFixed(0)}%)</span>
+                    <span style={{ color: "#6b5f8f", fontWeight: 700 }}>■ Bounced {fMoney(recon.bo.amt)} — never received, kept outside the bar</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </Zoomable>
 
         {/* ---------- payment kinds (cleared money in, per mode) ---------- */}
         <Zoomable title="Payment kinds" collapsible>
@@ -464,7 +574,7 @@ export function EoiPage() {
         <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8" }}>
           <h3 style={H3}>How to read this page</h3>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.65 }}>
-            Every customer here is <b>ALLOTMENT PENDING</b> in the ERP — they expressed interest, but no unit is allotted, so no name or unit shows yet (the ERP captures those at allotment). <b>Paid</b> means cleared money actually came in. From there the money went one of three ways: it is <b>still in hand</b>, it was <b>adjusted</b> onto a sale order or another customer code by journal voucher, or it was <b>refunded</b>. <b>Ageing</b> counts days since the first EOI payment. Bounced cheques and failed transfers are excluded from every number on this page.
+            Every customer here is <b>ALLOTMENT PENDING</b> in the ERP — they expressed interest, but no unit is allotted, so no name or unit shows yet (the ERP captures those at allotment). Each receipt in the export carries one of four statuses: <b>CLEARED</b> (money actually received), <b>ADJUSTMENT</b> (moved by journal voucher onto a sale order or another customer code), <b>PAYMENT</b> (refunded back), and <b>BOUNCE</b> (instrument failed — money never arrived, excluded everywhere). The Money Reconciliation card shows exactly how they add up: received − moved − refunded = still in hand. The code <b>0080012292</b> is a pass-through collection pool, not a customer — EOIs land there and move onward — so it sits in its own card and stays out of the customer numbers unless you include it from the filter. <b>Ageing</b> counts days since the first EOI payment.
           </div>
         </div>
       </div>
