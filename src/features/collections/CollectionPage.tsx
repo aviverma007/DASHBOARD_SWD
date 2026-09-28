@@ -232,10 +232,10 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
 const CHART_CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
 
 interface Slice { label: string; value: number; onPick?: () => void }
-function Donut({ data, total, fmt, center }: { data: Slice[]; total?: number; fmt: (v: number) => string; center?: string }) {
+function Donut({ data, total, fmt, center, size = 156 }: { data: Slice[]; total?: number; fmt: (v: number) => string; center?: string; size?: number }) {
   const tot = total ?? data.reduce((s, d) => s + d.value, 0);
   if (tot <= 0) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 20 }}>no data for this selection</div>;
-  const R = 62, C = 78, W = 26;
+  const C = size / 2, R = C - 16, W = Math.round(size * 0.19);
   let a0 = -Math.PI / 2;
   const arcs = data.map((d, i) => {
     const frac = d.value / tot;
@@ -251,7 +251,7 @@ function Donut({ data, total, fmt, center }: { data: Slice[]; total?: number; fm
     return { d, i, dPath, frac, mid };
   });
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", flex: 1, justifyContent: "center" }}>
       <svg width={C * 2} height={C * 2} style={{ flexShrink: 0 }}>
         {arcs.map(a => (
           <path key={a.i} d={a.dPath} fill={CHART_CAT[a.i % CHART_CAT.length]}
@@ -260,23 +260,24 @@ function Donut({ data, total, fmt, center }: { data: Slice[]; total?: number; fm
             onMouseEnter={e => showTip(e, `<b>${a.d.label}</b><br/>${fmt(a.d.value)} · ${(a.frac * 100).toFixed(1)}%${a.d.onPick ? "<br/>click → list" : ""}`)}
             onMouseLeave={hideTip} />
         ))}
-        {arcs.filter(a => a.frac >= 0.07).map(a => (
+        {arcs.filter(a => a.frac >= 0.055).map(a => (
           <text key={"t" + a.i} x={C + (R - W / 2) * Math.cos(a.mid)} y={C + (R - W / 2) * Math.sin(a.mid)}
-            textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={800} fill="#fff" pointerEvents="none">
+            textAnchor="middle" dominantBaseline="central" fontSize={Math.max(10, size * 0.052)} fontWeight={800} fill="#fff" pointerEvents="none">
             {(a.frac * 100).toFixed(0)}%
           </text>
         ))}
-        {center && <text x={C} y={C} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={800} fill="var(--ink)">{center}</text>}
+        {center && <text x={C} y={C} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(13, size * 0.075)} fontWeight={800} fill="var(--ink)" fontFamily="Georgia,serif">{center}</text>}
       </svg>
-      <div style={{ flex: 1, minWidth: 170 }}>
+      <div style={{ flex: 1, minWidth: 190, display: "flex", flexDirection: "column", justifyContent: "center", alignSelf: "stretch" }}>
         {data.map((d, i) => (
           <div key={d.label} onClick={d.onPick}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 4px", fontSize: 11.5, cursor: d.onPick ? "pointer" : "default", borderRadius: 6 }}
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 6px", fontSize: 12, cursor: d.onPick ? "pointer" : "default", borderRadius: 6, borderBottom: i < data.length - 1 ? "1px solid #f4f1e9" : "none" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: CHART_CAT[i % CHART_CAT.length], flexShrink: 0 }} />
-            <span style={{ flex: 1, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.label}</span>
-            <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fmt(d.value)}</span>
+            <span style={{ width: 11, height: 11, borderRadius: 3, background: CHART_CAT[i % CHART_CAT.length], flexShrink: 0 }} />
+            <span style={{ flex: 1, color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.label}</span>
+            <span style={{ color: "var(--mut)", fontWeight: 600, width: 40, textAlign: "right" }}>{((d.value / tot) * 100).toFixed(1)}%</span>
+            <span style={{ color: "var(--ink)", fontWeight: 800, width: 88, textAlign: "right" }}>{fmt(d.value)}</span>
           </div>
         ))}
       </div>
@@ -602,10 +603,10 @@ export default function CollectionPage() {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 14, marginBottom: 14 }}>
                 <Zoomable title="Dues share" collapsible>
-                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
                     <h3 style={H3}>Net Dues — Share by Project</h3>
                     <div style={CAP}>who holds the outstanding money · click → customers</div>
-                    <Donut fmt={fMoney} data={(() => {
+                    <Donut size={240} fmt={fMoney} data={(() => {
                       const rows = byProj.map(g => ({ label: g.pj, value: Math.max(agg(g.ls).due, 0), ls: g.ls }))
                         .filter(x => x.value > 1e5).sort((a, b) => b.value - a.value);
                       const top = rows.slice(0, 7);
@@ -798,10 +799,10 @@ export default function CollectionPage() {
                   </div>
                 </Zoomable>
                 <Zoomable title="Month by project" collapsible>
-                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
                     <h3 style={H3}>This Month — Share by Project</h3>
                     <div style={CAP}>collections received this month · click → receipts</div>
-                    <Donut fmt={fMoney} data={(() => {
+                    <Donut size={200} fmt={fMoney} data={(() => {
                       const rows = [...new Set(mtd.map(r => r.proj))].map(pj => {
                         const rs = mtd.filter(r => r.proj === pj);
                         return { pj, rs, v: rs.reduce((sm, r) => sm + r.amt, 0) };
@@ -814,16 +815,16 @@ export default function CollectionPage() {
                   </div>
                 </Zoomable>
                 <Zoomable title="Payment modes" collapsible>
-                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
                     <h3 style={H3}>By Payment Mode</h3>
                     <div style={CAP}>this month's receipts · click → list</div>
-                    <HBars fmt={fMoney} data={(() => {
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}><HBars fmt={fMoney} data={(() => {
                       const rows = [...new Set(mtd.map(r => (r.mode || "Unknown").trim().toUpperCase()))].map(md => {
                         const rs = mtd.filter(r => (r.mode || "Unknown").trim().toUpperCase() === md);
                         return { label: md.charAt(0) + md.slice(1).toLowerCase(), value: rs.reduce((sm, r) => sm + r.amt, 0), onPick: () => open({ kind: "rcpts", title: `${md} receipts`, rows: rs }) };
                       }).sort((a, b) => b.value - a.value);
                       return rows;
-                    })()} />
+                    })()} /></div>
                   </div>
                 </Zoomable>
               </div>
