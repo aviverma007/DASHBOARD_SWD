@@ -85,7 +85,6 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
   const ls = sel.loans;
   const sanct = ls.reduce((s, l) => s + l.sanctAmt, 0);
   const disb = ls.reduce((s, l) => s + l.disbAmt, 0);
-  const due = ls.reduce((s, l) => s + l.due, 0);
   const tile = (k: string, v: string, col = "var(--ink)") => (
     <div key={k} style={{ background: "#faf9f6", border: "1px solid #eee9dd", borderRadius: 10, padding: "8px 12px", minWidth: 108 }}>
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.7px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
@@ -112,7 +111,6 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
               {tile("Sanctioned", fMoney(sanct), TEAL)}
               {tile("Disbursed", fMoney(disb), GREEN)}
               {tile("Undisbursed", fMoney(sanct - disb), "#96691c")}
-              {due > 0 ? tile("Dues pending", fMoney(due), RED) : null}
             </div>
           )}
         </div>
@@ -121,7 +119,6 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
             <div style={CARD}>
               <div style={{ marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
                 <StagePill l={cur} />
-                {cur.due > 1000 && cur.balance > 0 && <span style={{ background: `${RED}1c`, color: RED, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px" }}>Due {fMoney(cur.due)} · loan balance available</span>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: "6px 10px", fontSize: 12.5 }}>
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>Customer</div><div style={{ fontWeight: 700 }}>{cur.name} <span style={{ color: "var(--mut)", fontWeight: 400 }}>· {cur.regId}</span></div>
@@ -139,7 +136,6 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
                   </div>
                 </div>
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>Undisbursed balance</div><div style={{ color: "#96691c", fontWeight: 700 }}>{fMoney(cur.balance)}</div>
-                <div style={{ color: "var(--mut)", fontWeight: 700 }}>Dues (incl. tax)</div><div style={{ color: cur.due > 1000 ? RED : "var(--mut)", fontWeight: 700 }}>{fMoney(cur.due)}</div>
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>PTM / TPT</div><div>{fD(cur.ptmDay)} · {fD(cur.tptDay)}</div>
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>Handled by</div><div>{D.EMPS[cur.emp] || "—"}{D.EXECS[cur.exec] ? ` · ${D.EXECS[cur.exec]}` : ""}</div>
                 {cur.remark && <><div style={{ color: "var(--mut)", fontWeight: 700 }}>Remark</div><div style={{ whiteSpace: "normal" }}>{cur.remark}</div></>}
@@ -149,7 +145,7 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
                 <th style={TH}>Customer</th><th style={TH}>Bank</th><th style={TH}>Stage</th>
-                <th style={{ ...TH, textAlign: "right" }}>Sanctioned</th><th style={{ ...TH, textAlign: "right" }}>Disb %</th><th style={{ ...TH, textAlign: "right" }}>Due</th>
+                <th style={{ ...TH, textAlign: "right" }}>Sanctioned</th><th style={{ ...TH, textAlign: "right" }}>Disb %</th><th style={{ ...TH, textAlign: "right" }}>Balance</th>
               </tr></thead>
               <tbody>
                 {ls.map((l, i) => (
@@ -164,7 +160,7 @@ function LoanDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void }
                     <td style={TD}><StagePill l={l} /></td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: TEAL }}>{fMoney(l.sanctAmt)}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: l.disbPct > 0 ? GREEN : "var(--mut)" }}>{l.disbPct.toFixed(0)}%</td>
-                    <td style={{ ...TD, textAlign: "right", color: l.due > 1000 ? RED : "var(--mut)", fontWeight: l.due > 1000 ? 800 : 500 }}>{l.due > 1000 ? fMoney(l.due) : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right", color: l.balance > 0 ? "#96691c" : "var(--mut)", fontWeight: 700 }}>{l.balance > 0 ? fMoney(l.balance) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -221,7 +217,6 @@ export default function LoanDetailsPage() {
   const [stageF, setStageF] = useState<"all" | "0" | "1" | "2" | "3">("all");
   const [q, setQ] = useState("");
   const [drill, setDrill] = useState<Drill | null>(null);
-  const [showAllPriority, setShowAllPriority] = useState(false);
 
   const bankOpts = useMemo(() => D.BANKS.map((b, i) => ({ b, i })).filter(x => x.b && x.b !== "—").sort((a, b) => a.b.localeCompare(b.b)), []);
 
@@ -239,11 +234,10 @@ export default function LoanDetailsPage() {
   }, [projF, bankF, stageF, q]);
 
   const open = (title: string, loans: Loan[], sub?: string) =>
-    setDrill({ title, sub, loans: [...loans].sort((a, b) => b.due - a.due || b.balance - a.balance) });
+    setDrill({ title, sub, loans: [...loans].sort((a, b) => b.balance - a.balance) });
 
-  const sum = (ls: Loan[], k: "sanctAmt" | "disbAmt" | "balance" | "due") => ls.reduce((s, l) => s + l[k], 0);
+  const sum = (ls: Loan[], k: "sanctAmt" | "disbAmt" | "balance") => ls.reduce((s, l) => s + l[k], 0);
   const sanct = sum(scoped, "sanctAmt"), disb = sum(scoped, "disbAmt");
-  const priority = scoped.filter(l => l.due > 1000 && l.balance > 0);
   const stages = [0, 1, 2, 3].map(st => scoped.filter(l => l.stage === st));
 
   function handleReset() { setProjF([]); setBankF(-1); setStageF("all"); setQ(""); }
@@ -253,7 +247,6 @@ export default function LoanDetailsPage() {
     ["Sanctioned", fMoney(sanct), "approved by banks for our customers", ["#1a7f9c", "#0e5468"], () => open("Sanctioned loans", scoped.filter(l => l.sanctAmt > 0))],
     ["Disbursed", fMoney(disb), `${sanct ? ((disb / sanct) * 100).toFixed(0) : 0}% of sanctioned received`, ["#1e9a6c", "#0f6647"], () => open("Customers with disbursements", scoped.filter(l => l.disbAmt > 0))],
     ["Undisbursed balance", fMoney(sanct - disb), "sanctioned money still with banks", ["#c8871d", "#96691c"], () => open("Undisbursed loan balance", scoped.filter(l => l.balance > 0))],
-    ["Collect now", fMoney(sum(priority, "due")), `${fN(priority.length)} customers owe dues with loan balance available`, ["#c0392b", "#7e1f14"], () => open("Priority: dues pending, loan available", priority, "customer owes an instalment AND their sanctioned loan has undisbursed balance")],
   ];
 
   /* bank-wise */
@@ -263,7 +256,7 @@ export default function LoanDetailsPage() {
     return [...m.entries()].map(([bi, ls]) => {
       const sa = sum(ls, "sanctAmt"), da = sum(ls, "disbAmt");
       const ages = ls.filter(l => l.stage === 1 || l.stage === 2).map(l => l.sanctAge);
-      return { bi, ls, sa, da, pct: sa ? (da / sa) * 100 : 0, due: sum(ls, "due"), avgAge: ages.length ? ages.reduce((s, x) => s + x, 0) / ages.length : 0 };
+      return { bi, ls, sa, da, pct: sa ? (da / sa) * 100 : 0, avgAge: ages.length ? ages.reduce((s, x) => s + x, 0) / ages.length : 0 };
     }).sort((a, b) => b.sa - a.sa);
   }, [scoped]);
 
@@ -271,7 +264,7 @@ export default function LoanDetailsPage() {
   const projCards = useMemo(() => D.PROJECTS.map((p, pi) => {
     const ls = scoped.filter(l => l.proj === pi);
     if (!ls.length) return null;
-    return { p, pi, ls, sa: sum(ls, "sanctAmt"), da: sum(ls, "disbAmt"), due: sum(ls, "due"), prio: ls.filter(l => l.due > 1000 && l.balance > 0).length };
+    return { p, pi, ls, sa: sum(ls, "sanctAmt"), da: sum(ls, "disbAmt") };
   }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => b.sa - a.sa), [scoped]);
 
   /* ageing of undisbursed sanctions */
@@ -293,12 +286,10 @@ export default function LoanDetailsPage() {
     return [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
   }, [scoped]);
 
-  const prioRows = showAllPriority ? priority : priority.slice(0, 15);
-  const prioSorted = [...prioRows].sort((a, b) => b.due - a.due);
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
-      <PageBanner bleed title="Loan Details" sub={<>bank-loan funded bookings — sanction to disbursement, and the dues we can collect from sanctioned money · data as on {D.meta.asOn}</>}>
+      <PageBanner bleed title="Loan Details" sub={<>bank-loan funded bookings — sanction to disbursement, bank-wise and project-wise · data as on {D.meta.asOn}</>}>
         <ProjSelect selected={projF} onChange={setProjF} />
         <div>
           <label style={BANNER_LBL}>Bank</label>
@@ -382,48 +373,6 @@ export default function LoanDetailsPage() {
           </Zoomable>
         </div>
 
-        {/* priority table */}
-        <Zoomable title="Collect now">
-          <div style={CARD}>
-            <h3 style={H3}>Collect Now — Dues Pending, Loan Money Available</h3>
-            <div style={CAP}>{fN(priority.length)} customers owe instalments while their sanctioned loan balance sits undisbursed · biggest dues first · click a row → full loan detail</div>
-            <div style={{ overflowX: "auto", maxHeight: 430, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
-                <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  <th style={TH}>Customer</th><th style={TH}>Project · Unit</th><th style={TH}>Bank</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Due (incl. tax)</th><th style={{ ...TH, textAlign: "right" }}>Loan balance</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Disb %</th><th style={{ ...TH, textAlign: "right" }}>Sanction age</th><th style={TH}>Handler</th>
-                </tr></thead>
-                <tbody>
-                  {prioSorted.map((l, i) => (
-                    <tr key={i} onClick={() => setDrill({ title: "Priority customer", loans: [l] })} style={{ cursor: "pointer" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                      <td style={{ ...TD, fontWeight: 800, color: "var(--ink)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{l.name}</td>
-                      <td style={{ ...TD, color: "var(--mut)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{D.PROJECTS[l.proj].replace("SMARTWORLD ", "")} · {l.unit}</td>
-                      <td style={{ ...TD, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", color: "var(--mut)" }}>{D.BANKS[l.bank]}</td>
-                      <td style={{ ...TD, textAlign: "right", color: RED, fontWeight: 800, fontSize: 12.5 }}>{fMoney(l.due)}</td>
-                      <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{fMoney(l.balance)}</td>
-                      <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{l.disbPct.toFixed(0)}%</td>
-                      <td style={{ ...TD, textAlign: "right", color: l.sanctAge > 180 ? RED : "#96691c", fontWeight: 700 }}>{l.sanctDay >= 0 ? `${l.sanctAge} d` : "—"}</td>
-                      <td style={{ ...TD, color: "var(--mut)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis" }}>{D.EMPS[l.emp] || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {priority.length > 15 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 12 }}>
-                <span style={{ color: "var(--mut)" }}>Showing {fN(prioSorted.length)} of {fN(priority.length)}</span>
-                <button onClick={() => setShowAllPriority(v => !v)}
-                  style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid #d8d2c4", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-                  {showAllPriority ? "Show top 15" : `Show all ${fN(priority.length)}`}
-                </button>
-              </div>
-            )}
-          </div>
-        </Zoomable>
-
         {/* project cards */}
         <Zoomable title="Project cards" collapsible>
           <div style={CARD}>
@@ -445,7 +394,7 @@ export default function LoanDetailsPage() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, fontWeight: 700 }}>
                       <span style={{ color: GREEN }}>{pct.toFixed(0)}% disbursed</span>
-                      <span style={{ color: b.prio ? RED : "var(--mut)" }}>{b.prio ? `${fN(b.prio)} to collect` : "no pending dues"}</span>
+                      <span style={{ color: "#96691c" }}>{fMoney(b.sa - b.da)} undisbursed</span>
                     </div>
                   </div>
                 );
@@ -518,7 +467,7 @@ export default function LoanDetailsPage() {
         <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8" }}>
           <h3 style={H3}>How to read this page</h3>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.65 }}>
-            Every customer here funds their booking through a bank loan. The bank first <b>sanctions</b> an amount, then <b>disburses</b> it to us in tranches as instalments fall due. <b>Undisbursed balance</b> is sanctioned money still sitting with the bank. The <b>Collect Now</b> card is the action list: customers who owe us an instalment <i>and</i> have loan balance available — a disbursement demand to their bank realises that money. Bank names are normalised (the export carries the same bank in different spellings), and rows where the executive shows "CRM IT" are treated as <b>Unassigned</b>. Loan stage per customer: sanction pending → awaiting first disbursement → partly → fully disbursed.
+            Every customer here funds their booking through a bank loan. The bank first <b>sanctions</b> an amount, then <b>disburses</b> it to us in tranches as instalments fall due. <b>Undisbursed balance</b> is sanctioned money still sitting with the bank. Bank names are normalised (the export carries the same bank in different spellings), and rows where the executive shows "CRM IT" are treated as <b>Unassigned</b>. Loan stage per customer: sanction pending → awaiting first disbursement → partly → fully disbursed.
           </div>
         </div>
       </div>
