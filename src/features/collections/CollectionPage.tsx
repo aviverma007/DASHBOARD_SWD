@@ -44,7 +44,7 @@ interface Led {
   plan: string | null; planType: string | null; broker: string | null; area: number; rate: number;
   tcv: number; dem: number; rec: number; due: number; recPct: number;
   letter: string | null; letterDate: string | null; letterDue: string | null;
-  rm: string | null; remarks: string | null; rmStatus: string | null;
+  rm: string | null; rmFinal: string | null; remarks: string | null; rmStatus: string | null;
   funding: string | null; bank: string | null; sanctDate: string | null; sanctAmt: number;
   bba: string | null; bbaDate: string | null; possession: string | null;
   statusV: string | null; benefit: number;
@@ -464,7 +464,7 @@ export default function CollectionPage() {
             };
             const byProj = [...new Set(led.map(l => l.proj))].map(pj => ({ pj, ls: led.filter(l => l.proj === pj) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
             const byStatus = [...new Set(led.map(l => l.statusV || "—"))].map(st => ({ st, ls: led.filter(l => (l.statusV || "—") === st) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
-            const byRm = [...new Set(led.map(l => l.rm || "Unassigned"))].map(rm => ({ rm, ls: led.filter(l => (l.rm || "Unassigned") === rm) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            const byRm = [...new Set(led.map(l => l.rmFinal || "Unassigned"))].map(rm => ({ rm, ls: led.filter(l => (l.rmFinal || "Unassigned") === rm) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
             return (<>
               <Zoomable title="Project summary">
                 <div style={CARD}>
@@ -502,7 +502,7 @@ export default function CollectionPage() {
                 <Zoomable title="RM summary" collapsible>
                   <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
                     <h3 style={H3}>RM Summary — All Projects</h3>
-                    <div style={CAP}>each RM's book · figures in ₹ Cr · click → their customers</div>
+                    <div style={CAP}>by Final Collection RM · figures in ₹ Cr · click → their customers</div>
                     <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>{HEAD}</thead>
