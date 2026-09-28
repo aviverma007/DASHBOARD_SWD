@@ -224,6 +224,119 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
   );
 }
 
+
+/* ---------------- charts ----------------
+ * Categorical palette: the dataviz reference set, validated for CVD
+ * separation & normal-vision floors (adjacent pairs); low-contrast
+ * slots get relief via direct labels + the tables alongside. */
+const CHART_CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+
+interface Slice { label: string; value: number; onPick?: () => void }
+function Donut({ data, total, fmt, center }: { data: Slice[]; total?: number; fmt: (v: number) => string; center?: string }) {
+  const tot = total ?? data.reduce((s, d) => s + d.value, 0);
+  if (tot <= 0) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 20 }}>no data for this selection</div>;
+  const R = 62, C = 78, W = 26;
+  let a0 = -Math.PI / 2;
+  const arcs = data.map((d, i) => {
+    const frac = d.value / tot;
+    const a1 = a0 + frac * Math.PI * 2;
+    const pad = Math.min(0.028, (a1 - a0) * 0.25);           // ~2px surface gap
+    const s0 = a0 + pad / 2, s1 = Math.max(a1 - pad / 2, s0 + 0.004);
+    const p = (a: number, r: number) => [C + r * Math.cos(a), C + r * Math.sin(a)];
+    const [x0, y0] = p(s0, R), [x1, y1] = p(s1, R), [x2, y2] = p(s1, R - W), [x3, y3] = p(s0, R - W);
+    const lg = s1 - s0 > Math.PI ? 1 : 0;
+    const dPath = `M${x0},${y0} A${R},${R} 0 ${lg} 1 ${x1},${y1} L${x2},${y2} A${R - W},${R - W} 0 ${lg} 0 ${x3},${y3} Z`;
+    const mid = (s0 + s1) / 2;
+    a0 = a1;
+    return { d, i, dPath, frac, mid };
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <svg width={C * 2} height={C * 2} style={{ flexShrink: 0 }}>
+        {arcs.map(a => (
+          <path key={a.i} d={a.dPath} fill={CHART_CAT[a.i % CHART_CAT.length]}
+            style={{ cursor: a.d.onPick ? "pointer" : "default" }}
+            onClick={a.d.onPick}
+            onMouseEnter={e => showTip(e, `<b>${a.d.label}</b><br/>${fmt(a.d.value)} · ${(a.frac * 100).toFixed(1)}%${a.d.onPick ? "<br/>click → list" : ""}`)}
+            onMouseLeave={hideTip} />
+        ))}
+        {arcs.filter(a => a.frac >= 0.07).map(a => (
+          <text key={"t" + a.i} x={C + (R - W / 2) * Math.cos(a.mid)} y={C + (R - W / 2) * Math.sin(a.mid)}
+            textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={800} fill="#fff" pointerEvents="none">
+            {(a.frac * 100).toFixed(0)}%
+          </text>
+        ))}
+        {center && <text x={C} y={C} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={800} fill="var(--ink)">{center}</text>}
+      </svg>
+      <div style={{ flex: 1, minWidth: 170 }}>
+        {data.map((d, i) => (
+          <div key={d.label} onClick={d.onPick}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 4px", fontSize: 11.5, cursor: d.onPick ? "pointer" : "default", borderRadius: 6 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: CHART_CAT[i % CHART_CAT.length], flexShrink: 0 }} />
+            <span style={{ flex: 1, color: "var(--ink)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.label}</span>
+            <span style={{ color: "var(--mut)", fontWeight: 700 }}>{fmt(d.value)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CumLine({ days, month }: { days: [string, number][]; month: string }) {
+  if (!days.length) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 20 }}>no receipts yet</div>;
+  const Wd = 560, Hd = 170, PL = 46, PB = 20, PT = 12;
+  let run = 0;
+  const pts = days.map(([k, v]) => { run += v; return { k, v, cum: run }; });
+  const mx = run || 1;
+  const X = (i: number) => PL + (i / Math.max(pts.length - 1, 1)) * (Wd - PL - 8);
+  const Y = (v: number) => PT + (1 - v / mx) * (Hd - PT - PB);
+  const line = pts.map((pt, i) => `${X(i)},${Y(pt.cum)}`).join(" ");
+  const area = `${PL},${Hd - PB} ${line} ${X(pts.length - 1)},${Hd - PB}`;
+  const gridVals = [0.25, 0.5, 0.75, 1].map(f => mx * f);
+  return (
+    <svg viewBox={`0 0 ${Wd} ${Hd}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      {gridVals.map((gv, i) => (
+        <g key={i}>
+          <line x1={PL} x2={Wd - 8} y1={Y(gv)} y2={Y(gv)} stroke="#eee9dd" strokeWidth={1} />
+          <text x={PL - 5} y={Y(gv)} textAnchor="end" dominantBaseline="central" fontSize={9} fill="var(--mut)">{(gv / 1e7).toFixed(0)}</text>
+        </g>
+      ))}
+      <polygon points={area} fill="#2a78d6" opacity={0.12} />
+      <polyline points={line} fill="none" stroke="#2a78d6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((pt, i) => (
+        <g key={pt.k}>
+          <circle cx={X(i)} cy={Y(pt.cum)} r={3} fill="#2a78d6" stroke="#fff" strokeWidth={2} pointerEvents="none" />
+          <rect x={X(i) - 9} y={PT} width={18} height={Hd - PT - PB} fill="transparent"
+            onMouseEnter={e => showTip(e, `<b>${fD(pt.k)}</b><br/>day ${fMoney(pt.v)}<br/>month so far ${fMoney(pt.cum)}`)} onMouseLeave={hideTip} />
+          {(i % Math.ceil(pts.length / 10) === 0 || i === pts.length - 1) &&
+            <text x={X(i)} y={Hd - 6} textAnchor="middle" fontSize={9} fill="var(--mut)">{pt.k.slice(8)}</text>}
+        </g>
+      ))}
+      <text x={PL} y={PT - 2} fontSize={9} fill="var(--mut)">₹ Cr cumulative · {month}</text>
+    </svg>
+  );
+}
+
+function HBars({ data, fmt }: { data: Slice[]; fmt: (v: number) => string }) {
+  const mx = Math.max(...data.map(d => d.value), 1);
+  return (<>
+    {data.map((d, i) => (
+      <div key={d.label} onClick={d.onPick} className="barrow" style={{ padding: "4.5px 0", cursor: d.onPick ? "pointer" : "default" }}
+        onMouseEnter={e => showTip(e, `<b>${d.label}</b><br/>${fmt(d.value)}${d.onPick ? "<br/>click → list" : ""}`)} onMouseLeave={hideTip}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 110, fontSize: 11.5, fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.label}</div>
+          <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(d.value / mx) * 100}%`, background: CHART_CAT[i % CHART_CAT.length], borderRadius: "0 4px 4px 0", minWidth: 2 }} />
+          </div>
+          <div style={{ width: 78, textAlign: "right", fontSize: 11.5, fontWeight: 800, color: "var(--ink)" }}>{fmt(d.value)}</div>
+        </div>
+      </div>
+    ))}
+  </>);
+}
+
 const _npj = (x: string) => x.toUpperCase().split(/\s+/).join(" ").replace(/ - | -|- /g, "-");
 
 /* ---------------- page ---------------- */
@@ -233,10 +346,13 @@ export default function CollectionPage() {
   const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; allot: Allot[]; targets: Tgt[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("master");
+  const [view, setViewRaw] = useState<View>("master");
   const [projF, setProjF] = useState<string[]>([]);
   const [rmF, setRmF] = useState("");
   const [q, setQ] = useState("");
+  /* The two files have their own project & RM vocabularies, so switching
+   * the view clears the filters instead of carrying mismatched names over. */
+  const setView = (v: View) => { setViewRaw(v); setProjF([]); setRmF(""); setQ(""); };
   const [sugOpen, setSugOpen] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
 
@@ -255,8 +371,17 @@ export default function CollectionPage() {
   }, []);
 
   const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], allotAll = raw?.allot ?? [], targets = raw?.targets ?? [];
-  const projOpts = useMemo(() => [...new Set([...ledger.map(l => l.proj), ...receipts.map(r => r.proj)])].filter(Boolean).sort(), [ledger, receipts]);
-  const rmOpts = useMemo(() => [...new Set(ledger.map(l => l.rm).filter((x): x is string => !!x))].sort(), [ledger]);
+  /* Each toggle gets its own file's project list — no mixing */
+  const projOpts = useMemo(() =>
+    view === "master"
+      ? [...new Set(ledger.map(l => l.proj))].filter(Boolean).sort()
+      : [...new Set([...receipts.map(r => r.proj), ...targets.map(t => t.proj)])].filter(Boolean).sort(),
+    [view, ledger, receipts, targets]);
+  const rmOpts = useMemo(() =>
+    view === "master"
+      ? [...new Set(ledger.map(l => l.rm).filter((x): x is string => !!x))].sort()
+      : [...new Set(targets.map(t => t.rm))].sort(),
+    [view, ledger, targets]);
 
   /* Search suggestions: customers, reg nos, units and banks that contain
    * the typed text, respecting the project filter. Picking one fills the
@@ -264,7 +389,8 @@ export default function CollectionPage() {
   const sugs = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (t.length < 2) return [];
-    const pool = projF.length ? ledger.filter(l => projF.includes(l.proj)) : ledger;
+    const base = view === "master" ? ledger : receipts.map(r => ({ name: r.name, reg: r.reg, unit: r.unit, proj: r.proj, bank: r.bank }));
+    const pool = projF.length ? base.filter(l => projF.includes(l.proj)) : base;
     const out: { label: string; sub: string; term: string }[] = [];
     const seen = new Set<string>();
     for (const l of pool) {
@@ -283,7 +409,7 @@ export default function CollectionPage() {
       for (const b of [...banks].sort().slice(0, 8 - out.length)) out.push({ label: b, sub: "bank", term: b });
     }
     return out;
-  }, [q, ledger, projF]);
+  }, [q, ledger, receipts, view, projF]);
 
   const match = (proj: string, texts: (string | null)[]) => {
     if (projF.length && !projF.includes(proj)) return false;
@@ -292,7 +418,10 @@ export default function CollectionPage() {
     return true;
   };
   const led = useMemo(() => ledger.filter(l => match(l.proj, [l.reg, l.name, l.unit, l.rm, l.bank]) && (!rmF || l.rm === rmF)), [ledger, projF, rmF, q]);
-  const rcp = useMemo(() => receipts.filter(r => match(r.proj, [r.reg, r.name, r.unit, r.rm, r.bank]) && (!rmF || r.rm === rmF)), [receipts, projF, rmF, q]);
+  const rmHit = (rrm: string | null) => !rmF || (rrm || "").toLowerCase().includes(rmF.split("/")[0].toLowerCase().trim());
+  const rcp = useMemo(() => receipts.filter(r => match(r.proj, [r.reg, r.name, r.unit, r.rm, r.bank]) && rmHit(r.rm)), [receipts, projF, rmF, q]);
+  /* Targets filtered by the daily view's project & RM selection */
+  const tgts = useMemo(() => targets.filter(t => (!projF.length || projF.includes(t.proj)) && (!rmF || t.rm === rmF)), [targets, projF, rmF]);
   /* Allotment pivot rows, respecting the project filter */
   const allot = useMemo(() => {
     const rows = allotAll.filter(a => a.kind !== "total" && (!projF.length || (a.proj && projF.includes(a.proj))));
@@ -316,12 +445,28 @@ export default function CollectionPage() {
   const mtd = rcp.filter(r => (r.rcptDate || "").startsWith(monthKey));
   const mtdAmt = mtd.reduce((s, r) => s + r.amt, 0);
 
-  const KPIS: [string, string, string, [string, string], () => void][] = [
+  type Kpi = [string, string, string, [string, string], () => void];
+  const futDue = led.reduce((s, l) => s + Math.max(l.tcv - l.dem, 0), 0);
+  const KPIS_M: Kpi[] = [
     ["Net dues outstanding", fMoney(totDue), `${fN(withDue.length)} units with dues`, ["#c0392b", "#7e1f14"], () => openCusts("Units with net dues", withDue)],
     ["Recovery", `${totDem ? ((totRec / totDem) * 100).toFixed(1) : 0}%`, `${fMoney(totRec)} received of ${fMoney(totDem)} demanded`, ["#1e9a6c", "#0f6647"], () => openCusts("All customers", led)],
-    ["Collected · " + new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }), fMoney(mtdAmt), `${fN(mtd.length)} receipts this month`, [NAVY, "#0f2547"], () => open({ kind: "rcpts", title: "Receipts this month", rows: [...mtd].sort((a, b) => (b.rcptDate || "").localeCompare(a.rcptDate || "")) })],
+    ["Future dues", fMoney(futDue), "TCV not yet demanded", [NAVY, "#0f2547"], () => openCusts("Units with future dues", led.filter(l => l.tcv - l.dem > 1000))],
     ["Allotment pending", fN(allot.filter(a => a.kind === "proj").reduce((s, a) => s + a.pending, 0)), `of ${fN(allot.filter(a => a.kind === "proj").reduce((s, a) => s + a.total, 0))} total units`, ["#1a7f9c", "#0e5468"], () => {}],
   ];
+  const dayTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    mtd.forEach(r => m.set(r.rcptDate!, (m.get(r.rcptDate!) || 0) + r.amt));
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [mtd]);
+  const bestDay = dayTotals.reduce<[string, number]>((b, d) => d[1] > b[1] ? d : b, ["", 0]);
+  const monthLbl = new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
+  const KPIS_D: Kpi[] = [
+    ["Collected · " + monthLbl, fMoney(mtdAmt), `${fN(mtd.length)} receipts this month`, ["#1e9a6c", "#0f6647"], () => open({ kind: "rcpts", title: "Receipts this month", rows: [...mtd].sort((a, b) => (b.rcptDate || "").localeCompare(a.rcptDate || "")) })],
+    ["Best day", bestDay[0] ? fMoney(bestDay[1]) : "—", bestDay[0] ? `on ${fD(bestDay[0])}` : "no receipts yet", [NAVY, "#0f2547"], () => bestDay[0] && open({ kind: "rcpts", title: `Receipts on ${fD(bestDay[0])}`, rows: mtd.filter(r => r.rcptDate === bestDay[0]) })],
+    ["Daily average", dayTotals.length ? fMoney(mtdAmt / dayTotals.length) : "—", `${fN(dayTotals.length)} collection days`, ["#c8871d", "#96691c"], () => {}],
+    ["Avg receipt", mtd.length ? fMoney(mtdAmt / mtd.length) : "—", "per receipt this month", ["#1a7f9c", "#0e5468"], () => {}],
+  ];
+  const KPIS = view === "master" ? KPIS_M : KPIS_D;
 
   const D_ASON = raw?.asOf.master?.slice(0, 10) ?? TODAY;
   const asOfLine = raw ? `Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
@@ -455,6 +600,46 @@ export default function CollectionPage() {
                 </div>
               </Zoomable>
 
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 14, marginBottom: 14 }}>
+                <Zoomable title="Dues share" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Net Dues — Share by Project</h3>
+                    <div style={CAP}>who holds the outstanding money · click → customers</div>
+                    <Donut fmt={fMoney} data={(() => {
+                      const rows = byProj.map(g => ({ label: g.pj, value: Math.max(agg(g.ls).due, 0), ls: g.ls }))
+                        .filter(x => x.value > 1e5).sort((a, b) => b.value - a.value);
+                      const top = rows.slice(0, 7);
+                      const rest = rows.slice(7);
+                      const out: Slice[] = top.map(x => ({ label: x.label, value: x.value, onPick: () => openCusts(`${x.label} — net dues`, x.ls.filter(l => l.due > 1000)) }));
+                      if (rest.length) out.push({ label: "Other", value: rest.reduce((sm, x) => sm + x.value, 0), onPick: () => openCusts("Other projects — net dues", rest.flatMap(x => x.ls).filter(l => l.due > 1000)) });
+                      return out;
+                    })()} center={`₹${(byProj.reduce((sm, g) => sm + Math.max(agg(g.ls).due, 0), 0) / 1e7).toFixed(0)} Cr`} />
+                  </div>
+                </Zoomable>
+                <Zoomable title="Recovery by project" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Recovery % by Project</h3>
+                    <div style={CAP}>received ÷ demanded · click → customers</div>
+                    {(() => {
+                      const rows = byProj.map(g => { const a = agg(g.ls); return { pj: g.pj, ls: g.ls, pct: a.dem ? (a.rec / a.dem) * 100 : 0 }; })
+                        .sort((a, b) => a.pct - b.pct);
+                      return rows.map(x => (
+                        <div key={x.pj} className="barrow" style={{ padding: "4px 0", cursor: "pointer" }} onClick={() => openCusts(x.pj, x.ls)}
+                          onMouseEnter={e => showTip(e, `<b>${x.pj}</b><br/>${x.pct.toFixed(1)}% recovered<br/>click → customers`)} onMouseLeave={hideTip}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 130, fontSize: 11.5, fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.pj}</div>
+                            <div style={{ flex: 1, height: 14, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${Math.min(x.pct, 100)}%`, background: x.pct >= 95 ? GREEN : x.pct >= 80 ? "#eda100" : RED, borderRadius: "0 4px 4px 0", minWidth: 2 }} />
+                            </div>
+                            <div style={{ width: 52, textAlign: "right", fontSize: 11.5, fontWeight: 800, color: "var(--ink)" }}>{x.pct.toFixed(1)}%</div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </Zoomable>
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: 14, marginBottom: 14 }}>
                 <Zoomable title="Status summary" collapsible>
                   <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
@@ -548,8 +733,8 @@ export default function CollectionPage() {
           {/* ================ DAILY COLLECTION ================ */}
           {view === "daily" && (() => {
             const fx = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const tgtTot = targets.reduce((s, t) => s + t.tgt, 0);
-            const recTot = targets.reduce((s, t) => s + t.recd, 0);
+            const tgtTot = tgts.reduce((s, t) => s + t.tgt, 0);
+            const recTot = tgts.reduce((s, t) => s + t.recd, 0);
             const pct = tgtTot ? (recTot / tgtTot) * 100 : 0;
             const tiles: [string, string, string][] = [
               ["Target (month)", `₹${fx(tgtTot)} Cr`, NAVY],
@@ -557,12 +742,12 @@ export default function CollectionPage() {
               ["Balance", `₹${fx(tgtTot - recTot)} Cr`, RED],
               ["% Achieved", `${pct.toFixed(0)}%`, pct >= 60 ? GREEN : pct >= 35 ? "#96691c" : RED],
             ];
-            const byP = [...new Set(targets.map(t => t.proj))].map(pj => {
-              const ts = targets.filter(t => t.proj === pj);
+            const byP = [...new Set(tgts.map(t => t.proj))].map(pj => {
+              const ts = tgts.filter(t => t.proj === pj);
               return { pj, tgt: ts.reduce((s, t) => s + t.tgt, 0), rec: ts.reduce((s, t) => s + t.recd, 0) };
             }).sort((a, b) => b.tgt - a.tgt);
-            const byRm = [...new Set(targets.map(t => t.rm))].map(rm => {
-              const ts = targets.filter(t => t.rm === rm);
+            const byRm = [...new Set(tgts.map(t => t.rm))].map(rm => {
+              const ts = tgts.filter(t => t.rm === rm);
               return { rm, tgt: ts.reduce((s, t) => s + t.tgt, 0), rec: ts.reduce((s, t) => s + t.recd, 0) };
             }).sort((a, b) => b.tgt - a.tgt);
             const pctCell = (v: number) => (
@@ -584,12 +769,9 @@ export default function CollectionPage() {
                   <div style={CAP}>amounts received per day (₹ Cr on bars) · click a bar → that day's receipts</div>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 180, overflowX: "auto", paddingBottom: 4 }}>
                     {(() => {
-                      const m = new Map<string, Rcpt[]>();
-                      mtd.forEach(r => { const k = r.rcptDate!; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); });
-                      const days = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-                      const mx = Math.max(...days.map(([, rs]) => rs.reduce((s, r) => s + r.amt, 0)), 1);
-                      return days.map(([k, rs]) => {
-                        const amt = rs.reduce((s, r) => s + r.amt, 0);
+                      const mx = Math.max(...dayTotals.map(([, v]) => v), 1);
+                      return dayTotals.map(([k, amt]) => {
+                        const rs = mtd.filter(r => r.rcptDate === k);
                         return (
                           <div key={k} onClick={() => open({ kind: "rcpts", title: `Receipts on ${fD(k)}`, rows: rs })}
                             onMouseEnter={ev => showTip(ev, `<b>${fD(k)}</b><br/>${fMoney(amt)} · ${fN(rs.length)} receipts<br/>click → list`)} onMouseLeave={hideTip}
@@ -606,6 +788,45 @@ export default function CollectionPage() {
                   </div>
                 </div>
               </Zoomable>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 14, marginBottom: 14 }}>
+                <Zoomable title="Cumulative trend" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Month-to-Date — Cumulative Line</h3>
+                    <div style={CAP}>how the month is building up, day by day</div>
+                    <CumLine days={dayTotals} month={monthLbl} />
+                  </div>
+                </Zoomable>
+                <Zoomable title="Month by project" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>This Month — Share by Project</h3>
+                    <div style={CAP}>collections received this month · click → receipts</div>
+                    <Donut fmt={fMoney} data={(() => {
+                      const rows = [...new Set(mtd.map(r => r.proj))].map(pj => {
+                        const rs = mtd.filter(r => r.proj === pj);
+                        return { pj, rs, v: rs.reduce((sm, r) => sm + r.amt, 0) };
+                      }).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+                      const top = rows.slice(0, 7), rest = rows.slice(7);
+                      const out: Slice[] = top.map(x => ({ label: x.pj, value: x.v, onPick: () => open({ kind: "rcpts", title: `${x.pj} — receipts this month`, rows: x.rs }) }));
+                      if (rest.length) out.push({ label: "Other", value: rest.reduce((sm, x) => sm + x.v, 0), onPick: () => open({ kind: "rcpts", title: "Other projects — receipts", rows: rest.flatMap(x => x.rs) }) });
+                      return out;
+                    })()} center={fMoney(mtdAmt)} />
+                  </div>
+                </Zoomable>
+                <Zoomable title="Payment modes" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>By Payment Mode</h3>
+                    <div style={CAP}>this month's receipts · click → list</div>
+                    <HBars fmt={fMoney} data={(() => {
+                      const rows = [...new Set(mtd.map(r => (r.mode || "Unknown").trim().toUpperCase()))].map(md => {
+                        const rs = mtd.filter(r => (r.mode || "Unknown").trim().toUpperCase() === md);
+                        return { label: md.charAt(0) + md.slice(1).toLowerCase(), value: rs.reduce((sm, r) => sm + r.amt, 0), onPick: () => open({ kind: "rcpts", title: `${md} receipts`, rows: rs }) };
+                      }).sort((a, b) => b.value - a.value);
+                      return rows;
+                    })()} />
+                  </div>
+                </Zoomable>
+              </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14 }}>
                 <Zoomable title="Project target" collapsible>
