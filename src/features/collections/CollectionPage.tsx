@@ -15,7 +15,7 @@ import "../../components/inventory/smartworldInventory.css";
 const API_BASE = "http://192.168.66.28:5002";
 
 /* ---------------- styles ---------------- */
-const TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e", AMBER = "#EDA100";
+const TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBottom: 10 };
@@ -36,7 +36,6 @@ const fMoney = (v: number) => {
 };
 const fD = (iso: string | null) => !iso ? "—" : new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
 const TODAY = new Date().toISOString().slice(0, 10);
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 /* ---------------- data types ---------------- */
 interface Led {
@@ -129,7 +128,6 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
                   <div style={{ color: "var(--mut)", fontWeight: 700 }}>Net due</div><div style={{ color: cust.due > 1000 ? RED : "var(--mut)", fontWeight: 800 }}>{fMoney(cust.due)}</div>
                   <div style={{ color: "var(--mut)", fontWeight: 700 }}>Funding</div><div>{cust.funding || "—"}{cust.bank ? ` · ${cust.bank}` : ""}{cust.sanctAmt > 0 ? ` · sanctioned ${fMoney(cust.sanctAmt)}` : ""}</div>
                   <div style={{ color: "var(--mut)", fontWeight: 700 }}>Last letter</div><div>{cust.letter || "—"}{cust.letterDate ? ` · ${fD(cust.letterDate)}` : ""}{cust.letterDue ? ` · due ${fD(cust.letterDue)}` : ""}</div>
-                  <div style={{ color: "var(--mut)", fontWeight: 700 }}>PTP date</div><div style={{ fontWeight: 700, color: cust.ptpDate && cust.ptpDate < TODAY ? RED : "var(--ink)" }}>{fD(cust.ptpDate)}{cust.ptpDate && cust.ptpDate < TODAY ? " · overdue" : ""}</div>
                   <div style={{ color: "var(--mut)", fontWeight: 700 }}>RM</div><div>{cust.rm || "—"}{cust.rmStatus ? ` · ${cust.rmStatus}` : ""}</div>
                   <div style={{ color: "var(--mut)", fontWeight: 700 }}>BBA</div><div>{cust.bba || "—"}{cust.bbaDate ? ` · ${fD(cust.bbaDate)}` : ""}</div>
                   {cust.remarks && <><div style={{ color: "var(--mut)", fontWeight: 700 }}>Remarks</div><div style={{ whiteSpace: "normal" }}>{cust.remarks}</div></>}
@@ -162,7 +160,7 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
                 <th style={TH}>Customer</th><th style={TH}>Project</th><th style={TH}>RM</th>
-                <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={{ ...TH, textAlign: "right" }}>Recd %</th><th style={{ ...TH, textAlign: "right" }}>PTP</th>
+                <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={{ ...TH, textAlign: "right" }}>Recd %</th><th style={TH}>Status</th>
               </tr></thead>
               <tbody>
                 {sel.rows.slice(0, 400).map((l, i) => (
@@ -177,7 +175,7 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
                     <td style={{ ...TD, color: "var(--mut)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rm || "—"}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: l.due > 1000 ? RED : "var(--mut)" }}>{fMoney(l.due)}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: GREEN }}>{l.dem ? ((l.rec / l.dem) * 100).toFixed(0) : 0}%</td>
-                    <td style={{ ...TD, textAlign: "right", color: l.ptpDate && l.ptpDate < TODAY ? RED : "var(--mut)", fontWeight: 700 }}>{fD(l.ptpDate)}</td>
+                    <td style={{ ...TD, color: "var(--mut)", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rmStatus || "—"}</td>
                   </tr>
                 ))}
                 {sel.rows.length > 400 && <tr><td colSpan={6} style={{ ...TD, textAlign: "center", color: "var(--mut)" }}>showing first 400 of {fN(sel.rows.length)} — narrow with filters</td></tr>}
@@ -263,7 +261,7 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
 }
 
 /* ---------------- page ---------------- */
-type View = "master" | "daily" | "ptp";
+type View = "master" | "daily";
 
 export default function CollectionPage() {
   const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; pdc: Pdc[]; targets: Tgt[] } | null>(null);
@@ -319,39 +317,23 @@ export default function CollectionPage() {
   const mtd = rcp.filter(r => (r.rcptDate || "").startsWith(monthKey));
   const mtdAmt = mtd.reduce((s, r) => s + r.amt, 0);
   const pdcAmt = pdc.reduce((s, p) => s + p.amt, 0);
-  const ptpSet = withDue.filter(l => l.ptpDate);
-  const ptpOver = ptpSet.filter(l => l.ptpDate! < TODAY);
 
   const KPIS: [string, string, string, [string, string], () => void][] = [
     ["Net dues outstanding", fMoney(totDue), `${fN(withDue.length)} units with dues`, ["#c0392b", "#7e1f14"], () => openCusts("Units with net dues", withDue)],
     ["Recovery", `${totDem ? ((totRec / totDem) * 100).toFixed(1) : 0}%`, `${fMoney(totRec)} received of ${fMoney(totDem)} demanded`, ["#1e9a6c", "#0f6647"], () => openCusts("All customers", led)],
     ["Collected · " + new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }), fMoney(mtdAmt), `${fN(mtd.length)} receipts this month`, [NAVY, "#0f2547"], () => open({ kind: "rcpts", title: "Receipts this month", rows: [...mtd].sort((a, b) => (b.rcptDate || "").localeCompare(a.rcptDate || "")) })],
     ["PDCs in hand", fMoney(pdcAmt), `${fN(pdc.length)} post-dated cheques`, ["#1a7f9c", "#0e5468"], () => open({ kind: "pdcs", title: "Post-dated cheques in hand", rows: [...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")) })],
-    ["PTPs given", fN(ptpSet.length), `${fN(ptpOver.length)} already overdue`, ["#c8871d", "#96691c"], () => openCusts("Customers with a PTP date", ptpSet, "promise-to-pay commitments")],
   ];
 
-  const barRow = (label: string, n: number, amt: number, mx: number, col: string, onClick: () => void, tip?: string) => (
-    <div key={label} className="barrow" style={{ padding: "4.5px 0", cursor: "pointer" }} onClick={onClick}
-      onMouseEnter={e => showTip(e, tip || `<b>${label}</b><br/>${fN(n)} · ${fMoney(amt)}<br/>click → list`)} onMouseLeave={hideTip}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
-        <span style={{ fontWeight: 700, color: "var(--ink)", maxWidth: "62%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-        <span style={{ fontWeight: 800, color: "var(--mut)" }}>{fN(n)} <span style={{ color: GOLD }}>· {fMoney(amt)}</span></span>
-      </div>
-      <div style={{ height: 10, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${(amt / mx) * 100}%`, background: col, borderRadius: 5 }} />
-      </div>
-    </div>
-  );
-
   const D_ASON = raw?.asOf.ptp?.slice(0, 10) ?? TODAY;
-  const asOfLine = raw ? `PTP ${raw.asOf.ptp?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"} · Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
+  const asOfLine = raw ? `Ledger ${raw.asOf.ptp?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"} · Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
       <PageBanner bleed title="Collection" sub={<>live from the CRM shared-folder files — save the Excel, refresh this page · files saved: {asOfLine}</>}>
         <div>
           <label style={BANNER_LBL}>View</label>
-          <BannerPills items={[["master", "Collection Master"], ["daily", "Daily Collection"], ["ptp", "PTP"]] as const}
+          <BannerPills items={[["master", "Monthly Collection"], ["daily", "Daily Collection"]] as const}
             value={view} onChange={setView} />
         </div>
         <ProjSelect options={projOpts} selected={projF} onChange={setProjF} />
@@ -640,130 +622,6 @@ export default function CollectionPage() {
             </>);
           })()}
 
-          {/* ================ PTP ================ */}
-          {view === "ptp" && (() => {
-            const cr = (v: number) => (v / 1e7).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const netB = (l: Led) => l.due - l.benefit;
-            const dued = led.filter(l => l.due > 1000);
-            const cats = [...new Set(dued.map(l => l.rmStatus || "Uncategorised"))]
-              .map(c => ({ c, tot: dued.filter(l => (l.rmStatus || "Uncategorised") === c).reduce((s, l) => s + netB(l), 0) }))
-              .sort((a, b) => b.tot - a.tot).map(x => x.c);
-            const projs = [...new Set(dued.map(l => l.proj))].sort();
-            return (<>
-              <Zoomable title="Category matrix">
-                <div style={CARD}>
-                  <h3 style={H3}>Non-Collectable / Workable — Project × Status</h3>
-                  <div style={CAP}>net-of-benefit dues in ₹ Cr, bucketed by the RM status dropdown · click any cell → those customers</div>
-                  <div style={{ overflowX: "auto", maxHeight: 480, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 1100 }}>
-                      <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 2 }}>
-                        <th style={{ ...TH, position: "sticky", left: 0, background: "#faf9f6", zIndex: 3 }}>Project</th>
-                        {cats.map(c => <th key={c} style={{ ...TH, textAlign: "right", maxWidth: 110, whiteSpace: "normal" }}>{c}</th>)}
-                        <th style={{ ...TH, textAlign: "right" }}>Total</th>
-                      </tr></thead>
-                      <tbody>
-                        {projs.map(pj => {
-                          const pls = dued.filter(l => l.proj === pj);
-                          return (
-                            <tr key={pj}>
-                              <td style={{ ...TD, fontWeight: 800, color: "var(--ink)", position: "sticky", left: 0, background: "#fff" }}>{pj}</td>
-                              {cats.map(c => {
-                                const cls = pls.filter(l => (l.rmStatus || "Uncategorised") === c);
-                                const v = cls.reduce((s, l) => s + netB(l), 0);
-                                return (
-                                  <td key={c} onClick={() => cls.length && openCusts(`${pj} · ${c}`, cls)}
-                                    style={{ ...TD, textAlign: "right", cursor: cls.length ? "pointer" : "default", color: v > 1e6 ? RED : v !== 0 ? "var(--ink)" : "#d0c9b8", fontWeight: v > 1e6 ? 800 : 500, background: v > 1e7 ? "#fdecea" : "" }}>
-                                    {v !== 0 ? cr(v) : "—"}
-                                  </td>
-                                );
-                              })}
-                              <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{cr(pls.reduce((s, l) => s + netB(l), 0))}</td>
-                            </tr>
-                          );
-                        })}
-                        <tr style={{ background: "#14213D" }}>
-                          <td style={{ ...TD, color: "#fff", fontWeight: 800, position: "sticky", left: 0, background: "#14213D" }}>Total</td>
-                          {cats.map(c => {
-                            const cls = dued.filter(l => (l.rmStatus || "Uncategorised") === c);
-                            return <td key={c} onClick={() => openCusts(`Status: ${c}`, cls)} style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800, cursor: "pointer" }}>{cr(cls.reduce((s, l) => s + netB(l), 0))}</td>;
-                          })}
-                          <td style={{ ...TD, textAlign: "right", color: "#ffd9a0", fontWeight: 800 }}>{cr(dued.reduce((s, l) => s + netB(l), 0))}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </Zoomable>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14 }}>
-                <Zoomable title="PTP buckets" collapsible>
-                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                    <h3 style={H3}>Promise-to-Pay — Where Do They Stand?</h3>
-                    <div style={CAP}>PTP date vs today · click → customers</div>
-                    {(() => {
-                      const wk = new Date(Date.parse(TODAY) + 7 * 86400000).toISOString().slice(0, 10);
-                      const B = [
-                        ["Overdue PTP", ptpSet.filter(l => l.ptpDate! < TODAY), RED],
-                        ["Due today", ptpSet.filter(l => l.ptpDate === TODAY), AMBER],
-                        ["This week", ptpSet.filter(l => l.ptpDate! > TODAY && l.ptpDate! <= wk), GOLD],
-                        ["Later", ptpSet.filter(l => l.ptpDate! > wk), GREEN],
-                        ["Dues, no PTP taken", withDue.filter(l => !l.ptpDate), "#9a927e"],
-                      ] as const;
-                      const mx = Math.max(...B.map(([, ls]) => ls.reduce((s, x) => s + x.due, 0)), 1);
-                      return B.filter(([, ls]) => ls.length).map(([l, ls, c]) =>
-                        barRow(l as string, ls.length, ls.reduce((s, x) => s + x.due, 0), mx, c as string, () => openCusts(l as string, ls as Led[])));
-                    })()}
-                  </div>
-                </Zoomable>
-                <Zoomable title="Letter ageing" collapsible>
-                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                    <h3 style={H3}>Dunning — Days Since Last Letter</h3>
-                    <div style={CAP}>units with dues · click → customers</div>
-                    {(() => {
-                      const B = [["0–15 d", 0, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
-                      const withL = withDue.filter(l => l.letterDate);
-                      const bands = B.map(([l, lo, hi]) => { const ls = withL.filter(x => { const d = daysBetween(x.letterDate!, TODAY); return d >= lo && d <= hi; }); return { l, ls }; }).filter(b => b.ls.length);
-                      const noL = withDue.filter(l => !l.letterDate);
-                      const mx = Math.max(...bands.map(b => b.ls.reduce((s, x) => s + x.due, 0)), noL.reduce((s, x) => s + x.due, 0), 1);
-                      return (<>
-                        {bands.map((b, i) => barRow(b.l as string, b.ls.length, b.ls.reduce((s, x) => s + x.due, 0), mx, i >= 2 ? RED : AMBER, () => openCusts(`Last letter ${b.l} ago`, b.ls)))}
-                        {noL.length > 0 && barRow("No letter recorded", noL.length, noL.reduce((s, x) => s + x.due, 0), mx, "#9a927e", () => openCusts("Dues with no letter recorded", noL))}
-                      </>);
-                    })()}
-                  </div>
-                </Zoomable>
-              </div>
-
-              <Zoomable title="PTP list">
-                <div style={CARD}>
-                  <h3 style={H3}>PTP Commitments — Earliest First</h3>
-                  <div style={CAP}>click a row → full customer detail</div>
-                  <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
-                      <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                        <th style={TH}>PTP date</th><th style={TH}>Customer</th><th style={TH}>Project · Unit</th><th style={TH}>RM</th>
-                        <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={TH}>Remarks</th>
-                      </tr></thead>
-                      <tbody>
-                        {[...ptpSet].sort((a, b) => a.ptpDate!.localeCompare(b.ptpDate!)).map((l, i) => (
-                          <tr key={i} onClick={() => open({ kind: "custs", title: "PTP customer", rows: [l] })} style={{ cursor: "pointer" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                            <td style={{ ...TD, fontWeight: 800, color: l.ptpDate! < TODAY ? RED : "var(--ink)" }}>{fD(l.ptpDate)}{l.ptpDate! < TODAY ? " ⚠" : ""}</td>
-                            <td style={{ ...TD, fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{l.name || l.reg}</td>
-                            <td style={{ ...TD, color: "var(--mut)" }}>{l.proj} · {l.unit}</td>
-                            <td style={{ ...TD, color: "var(--mut)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rm || "—"}</td>
-                            <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: RED }}>{fMoney(l.due)}</td>
-                            <td style={{ ...TD, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", color: "var(--mut)" }}>{l.remarks || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </Zoomable>
-            </>);
-          })()}
         </>)}
       </div>
 
