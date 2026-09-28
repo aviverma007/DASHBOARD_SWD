@@ -450,12 +450,15 @@ export function EoiPage() {
               <div style={CAP}>days since first payment, still not allotted · count + money in hand · click → list</div>
               {(() => {
                 const AGE_BANDS = [["0–90 d", 0, 90], ["91–180 d", 91, 180], ["181–270 d", 181, 270], ["271–365 d", 271, 365], ["> 1 year", 366, 1e9]] as const;
+                /* only bands that actually hold customers — empty "0 · ₹0"
+                   rows are noise, especially with one project selected */
                 const bands = AGE_BANDS.map(([l, lo, hi]) => {
                   const cs = scoped.filter(c => c.ageing >= lo && c.ageing <= hi);
-                  return { l, cs, amt: cs.reduce((s, c) => s + c.net, 0) };
-                });
+                  return { l, cs, amt: cs.reduce((s, c) => s + c.net, 0), col: lo >= 271 ? RED : lo >= 91 ? "#EDA100" : GREEN };
+                }).filter(b => b.cs.length > 0);
+                if (!bands.length) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 12 }}>No customers in the current filters</div>;
                 const mx = Math.max(...bands.map(b => b.cs.length), 1);
-                return bands.map((b, i) => (
+                return bands.map(b => (
                   <div key={b.l} className="barrow" style={{ padding: "5.5px 0", cursor: "pointer" }}
                     onClick={() => openList(`Waiting ${b.l}`, b.cs)}
                     onMouseEnter={e => showTip(e, `<b>${b.l}</b><br/>${fN(b.cs.length)} customers · ${fMoney(b.amt)} in hand<br/>click → list`)} onMouseLeave={hideTip}>
@@ -464,7 +467,7 @@ export function EoiPage() {
                       <span style={{ fontWeight: 800, color: "var(--mut)" }}>{fN(b.cs.length)} <span style={{ color: GOLD }}>· {fMoney(b.amt)}</span></span>
                     </div>
                     <div style={{ height: 10, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${(b.cs.length / mx) * 100}%`, background: i >= 3 ? RED : i >= 1 ? "#EDA100" : GREEN, borderRadius: 5 }} />
+                      <div style={{ height: "100%", width: `${(b.cs.length / mx) * 100}%`, background: b.col, borderRadius: 5 }} />
                     </div>
                   </div>
                 ));
@@ -512,20 +515,23 @@ export function EoiPage() {
                 });
                 const months = [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
                 const mx = Math.max(...months.map(([, cs]) => cs.length), 1);
+                /* bars stretch to fill the card — few months means wider
+                   bars, never a blank right half */
                 return (
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 150, overflowX: "auto", paddingBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 170, paddingBottom: 4 }}>
                     {months.map(([k, cs]) => {
                       const lbl = new Date(k + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
                       const amt = cs.reduce((s, c) => s + c.net, 0);
                       return (
                         <div key={k} onClick={() => openList(`Money in hand since ${lbl}`, cs)}
                           onMouseEnter={ev => showTip(ev, `<b>${lbl}</b><br/>${fN(cs.length)} customers · ${fMoney(amt)} in hand<br/>click → list`)} onMouseLeave={hideTip}
-                          style={{ flex: "0 0 42px", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", height: "100%" }}>
-                          <div style={{ flex: 1, width: 26, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                            <div style={{ fontSize: 10, fontWeight: 800, color: "var(--ink)", textAlign: "center", marginBottom: 2 }}>{cs.length}</div>
-                            <div style={{ height: `${(cs.length / mx) * 100}%`, background: GOLD, borderRadius: "3px 3px 0 0", minHeight: 3 }} />
+                          style={{ flex: "1 1 0", minWidth: 30, maxWidth: 110, display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", height: "100%" }}>
+                          <div style={{ flex: 1, width: "70%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--ink)", textAlign: "center", marginBottom: 2 }}>{cs.length}</div>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: GOLD, textAlign: "center", marginBottom: 2, whiteSpace: "nowrap" }}>{fMoney(amt)}</div>
+                            <div style={{ height: `${(cs.length / mx) * 100}%`, background: GOLD, borderRadius: "4px 4px 0 0", minHeight: 4 }} />
                           </div>
-                          <div style={{ fontSize: 9, color: "var(--mut)", fontWeight: 700, marginTop: 4, whiteSpace: "nowrap" }}>{lbl}</div>
+                          <div style={{ fontSize: 9.5, color: "var(--mut)", fontWeight: 700, marginTop: 4, whiteSpace: "nowrap" }}>{lbl}</div>
                         </div>
                       );
                     })}
