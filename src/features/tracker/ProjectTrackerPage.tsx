@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -398,27 +399,98 @@ export default function ProjectTrackerPage() {
                   </button>
                 ))}
               </div>
-              <div style={{ maxHeight: 380, overflowY: "auto", paddingRight: 4 }}>
-                {floors.map(f => {
-                  const pct = f.ts.reduce((s, t) => s + t.pct, 0) / f.ts.length;
-                  const od = f.ts.filter(t => t.overdue).length;
-                  return (
-                    <div key={f.lbl} className="barrow" style={{ padding: "3.5px 0", cursor: "pointer" }}
-                      onClick={() => open(`${heatTower} · ${f.lbl}`, f.ts)}
-                      onMouseEnter={e => showTip(e, `<b>${f.lbl}</b><br/>${pct.toFixed(0)}% · ${fN(f.ts.length)} activities${od ? ` · <span style="color:#e57373">${od} overdue</span>` : ""}<br/>click → list`)} onMouseLeave={hideTip}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ width: 108, fontSize: 11, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.lbl}</span>
-                        <div style={{ flex: 1, height: 12, background: "#f0ede5", borderRadius: 6, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${pct}%`, background: pct >= 99 ? GREEN : pct > 0 ? TEAL : "#e4dfd2", borderRadius: 6 }} />
-                        </div>
-                        <span style={{ width: 74, textAlign: "right", fontSize: 11, fontWeight: 800, color: pct >= 99 ? GREEN : "var(--mut)" }}>
-                          {pct.toFixed(0)}%{od ? <span style={{ color: RED }}> ·{od}!</span> : ""}
+              {/* the building: floors as slabs, filled by completion —
+                  re-keyed per tower so the fill "constructs" bottom-up */}
+              <style>{`
+                @keyframes trkStripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
+              `}</style>
+              <div style={{ maxHeight: 470, overflowY: "auto", paddingRight: 4 }} key={heatTower}>
+                {(() => {
+                  if (!floors.length) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 10 }}>No floor-level activities for {heatTower} in the current filters</div>;
+                  const rows = floors.map(f => {
+                    const pct = f.ts.reduce((s, t) => s + t.pct, 0) / f.ts.length;
+                    const od = f.ts.filter(t => t.overdue).length;
+                    const below = /basement|raft/i.test(f.lbl);
+                    return { ...f, pct, od, below };
+                  });
+                  const groundIdx = rows.findIndex(r => r.below);          // first below-ground row (list is top-first)
+                  const craneIdx = rows.findIndex(r => r.pct > 0 && r.pct < 99); // highest floor being worked on
+                  const n = rows.length;
+                  const slab = (r: typeof rows[number], i: number) => {
+                    const full = r.pct >= 99, none = r.pct <= 0;
+                    const fill = full ? GREEN : TEAL;
+                    return (
+                      <div key={r.lbl} onClick={() => open(`${heatTower} · ${r.lbl}`, r.ts)}
+                        onMouseEnter={e => showTip(e, `<b>${r.lbl}</b><br/>${r.pct.toFixed(0)}% · ${fN(r.ts.length)} activities${r.od ? ` · <span style="color:#e57373">${r.od} overdue</span>` : ""}<br/>click → list`)} onMouseLeave={hideTip}
+                        style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "1px 0" }}>
+                        <span style={{ width: 96, textAlign: "right", fontSize: 10, fontWeight: 700, color: r.below ? "#8a7f6a" : "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
+                          {i === craneIdx ? "🏗 " : ""}{r.lbl}
                         </span>
+                        {/* the slab — building walls + morphing fill */}
+                        <div style={{
+                          flex: 1, maxWidth: 300, height: r.below ? 12 : 13, position: "relative",
+                          background: none ? "transparent" : "#f0ede5",
+                          border: none ? "1.5px dashed #d8d2c4" : `1px solid ${r.below ? "#c9bfa8" : "#d8d2c4"}`,
+                          borderRadius: 2, overflow: "hidden",
+                          margin: r.below ? "0 10px" : "0",   /* basements: wider footprint illusion via inset walls */
+                        }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(r.pct, 100)}%` }}
+                            transition={{ delay: (n - 1 - i) * 0.035, duration: 0.55, ease: "easeOut" }}
+                            style={{
+                              position: "absolute", inset: 0, width: `${Math.min(r.pct, 100)}%`,
+                              background: r.below ? (full ? "#7a6f56" : "#a89a7c") : fill,
+                              /* windows on completed above-ground floors */
+                              ...(full && !r.below ? { backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,.45) 0 3px, transparent 3px 14px)" } : {}),
+                              /* animated stripes = under construction */
+                              ...(!full && !none ? {
+                                backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 7px, transparent 7px 14px)",
+                                animation: "trkStripes 1.1s linear infinite",
+                              } : {}),
+                            }}
+                          />
+                        </div>
+                        <span style={{ width: 66, fontSize: 10.5, fontWeight: 800, color: full ? GREEN : none ? "#b0a890" : "#96691c", flexShrink: 0 }}>
+                          {r.pct.toFixed(0)}%{r.od ? <span style={{ color: RED }}> ·{r.od}!</span> : ""}
+                        </span>
+                      </div>
+                    );
+                  };
+                  return (
+                    <div>
+                      {/* roof cap */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 96, flexShrink: 0 }} />
+                        <div style={{ flex: 1, maxWidth: 300, display: "flex", justifyContent: "center" }}>
+                          <div style={{ width: "58%", height: 0, borderLeft: "14px solid transparent", borderRight: "14px solid transparent", borderBottom: "11px solid #c9bfa8" }} />
+                        </div>
+                        <span style={{ width: 66, flexShrink: 0 }} />
+                      </div>
+                      {rows.map((r, i) => (
+                        <div key={r.lbl}>
+                          {/* ground line between above-ground and basements */}
+                          {i === groundIdx && groundIdx > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0" }}>
+                              <span style={{ width: 96, textAlign: "right", fontSize: 8.5, fontWeight: 800, letterSpacing: "1px", color: "#8a7f6a", flexShrink: 0 }}>GROUND</span>
+                              <div style={{ flex: 1, maxWidth: 300, borderTop: "2px solid #8a7f6a", position: "relative" }}>
+                                <div style={{ position: "absolute", top: -1, left: -14, right: -14, borderTop: "2px dashed #c9bfa8" }} />
+                              </div>
+                              <span style={{ width: 66, flexShrink: 0 }} />
+                            </div>
+                          )}
+                          {slab(r, i)}
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 10, color: "var(--mut)", marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                        <span><span style={{ color: GREEN, fontWeight: 800 }}>■</span> complete (windows)</span>
+                        <span><span style={{ color: TEAL, fontWeight: 800 }}>▨</span> under construction</span>
+                        <span style={{ color: "#b0a890" }}>▢ not started</span>
+                        <span>🏗 current working floor</span>
                       </div>
                     </div>
                   );
-                })}
-                {!floors.length && <div style={{ color: "var(--mut)", fontSize: 12, padding: 10 }}>No floor-level activities for {heatTower} in the current filters</div>}
+                })()}
               </div>
             </div>
           </Zoomable>
