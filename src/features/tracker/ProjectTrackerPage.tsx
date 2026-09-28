@@ -391,10 +391,10 @@ export default function ProjectTrackerPage() {
             <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
               <h3 style={H3}>Floor-by-Floor — {heatTower}</h3>
               <div style={CAP}>how far each floor has progressed, top floor first · click a floor → its activities</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "2px 0 10px" }}>
                 {towerNames.map(tn => (
                   <button key={tn} onClick={() => setHeatTower(tn)}
-                    style={{ padding: "4px 11px", borderRadius: 999, border: `1px solid ${heatTower === tn ? GOLD : "#d8d2c4"}`, background: heatTower === tn ? "#fdf6e8" : "#fff", color: heatTower === tn ? "#96691c" : "var(--mut)", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                    style={{ height: 26, padding: "0 13px", borderRadius: 999, border: `1px solid ${heatTower === tn ? GOLD : "#e0dacb"}`, background: heatTower === tn ? "#fdf6e8" : "#fff", color: heatTower === tn ? "#96691c" : "var(--mut)", fontWeight: heatTower === tn ? 800 : 600, fontSize: 11, cursor: "pointer", fontFamily: "inherit", boxShadow: heatTower === tn ? "0 1px 4px rgba(184,137,60,.25)" : "none" }}>
                     {tn}
                   </button>
                 ))}
@@ -403,9 +403,13 @@ export default function ProjectTrackerPage() {
                   re-keyed per tower so the fill "constructs" bottom-up */}
               <style>{`
                 @keyframes trkStripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
+                .trk-floors::-webkit-scrollbar { width: 6px; }
+                .trk-floors::-webkit-scrollbar-track { background: transparent; }
+                .trk-floors::-webkit-scrollbar-thumb { background: #ddd6c6; border-radius: 3px; }
+                .trk-row:hover { background: #faf8f2; }
               `}</style>
-              {/* fills whatever height the card row gives it — no dead space */}
-              <div style={{ flex: 1, minHeight: 0, maxHeight: 640, overflowY: "auto", paddingRight: 4 }} key={heatTower}>
+              {/* only the floor list scrolls; fills the card row's height */}
+              <div className="trk-floors" style={{ flex: 1, minHeight: 420, maxHeight: 640, overflowY: "auto", overflowX: "hidden", paddingRight: 6, scrollbarWidth: "thin" }} key={heatTower}>
                 {(() => {
                   if (!floors.length) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 10 }}>No floor-level activities for {heatTower} in the current filters</div>;
                   const rows = floors.map(f => {
@@ -421,19 +425,19 @@ export default function ProjectTrackerPage() {
                     const full = r.pct >= 99, none = r.pct <= 0;
                     const fill = full ? GREEN : TEAL;
                     return (
-                      <div key={r.lbl} onClick={() => open(`${heatTower} · ${r.lbl}`, r.ts)}
+                      <div key={r.lbl} className="trk-row" onClick={() => open(`${heatTower} · ${r.lbl}`, r.ts)}
                         onMouseEnter={e => showTip(e, `<b>${r.lbl}</b><br/>${r.pct.toFixed(0)}% · ${fN(r.ts.length)} activities${r.od ? ` · <span style="color:#e57373">${r.od} overdue</span>` : ""}<br/>click → list`)} onMouseLeave={hideTip}
-                        style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "1px 0" }}>
-                        <span style={{ width: 96, textAlign: "right", fontSize: 10, fontWeight: 700, color: r.below ? "#8a7f6a" : "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
+                        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "4px 4px", borderRadius: 6 }}>
+                        <span style={{ width: 100, textAlign: "right", fontSize: 11, fontWeight: 700, color: none ? "#b0a890" : r.below ? "#8a7f6a" : "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0 }}>
                           {i === craneIdx ? "🏗 " : ""}{r.lbl}
                         </span>
-                        {/* the slab — building walls + morphing fill */}
+                        {/* the slab — building walls + morphing fill, full content width */}
                         <div style={{
-                          flex: 1, maxWidth: 300, height: r.below ? 12 : 13, position: "relative",
-                          background: none ? "transparent" : "#f0ede5",
-                          border: none ? "1.5px dashed #d8d2c4" : `1px solid ${r.below ? "#c9bfa8" : "#d8d2c4"}`,
-                          borderRadius: 2, overflow: "hidden",
-                          margin: r.below ? "0 10px" : "0",   /* basements: wider footprint illusion via inset walls */
+                          flex: 1, height: r.below ? 15 : 17, position: "relative",
+                          background: none ? "#faf9f5" : "#f0ede5",
+                          border: none ? "1px dashed #e2dccc" : `1px solid ${r.below ? "#c9bfa8" : "#d8d2c4"}`,
+                          borderRadius: 3, overflow: "hidden",
+                          margin: r.below ? "0 12px" : "0",   /* basements: wider footprint illusion via inset walls */
                         }}>
                           <motion.div
                             initial={{ width: 0 }}
@@ -452,8 +456,8 @@ export default function ProjectTrackerPage() {
                             }}
                           />
                         </div>
-                        <span style={{ width: 66, fontSize: 10.5, fontWeight: 800, color: full ? GREEN : none ? "#b0a890" : "#96691c", flexShrink: 0 }}>
-                          {r.pct.toFixed(0)}%{r.od ? <span style={{ color: RED }}> ·{r.od}!</span> : ""}
+                        <span style={{ width: 72, paddingLeft: 8, textAlign: "right", fontSize: 11, fontWeight: none ? 600 : 800, color: full ? GREEN : none ? "#c4bca8" : "#96691c", flexShrink: 0, whiteSpace: "nowrap" }}>
+                          {r.pct.toFixed(0)}%{r.od ? <span style={{ color: RED, fontSize: 10 }} title={`${r.od} overdue activities`}> {r.od}⚠</span> : ""}
                         </span>
                       </div>
                     );
@@ -461,23 +465,21 @@ export default function ProjectTrackerPage() {
                   return (
                     <div>
                       {/* roof cap */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ width: 96, flexShrink: 0 }} />
-                        <div style={{ flex: 1, maxWidth: 300, display: "flex", justifyContent: "center" }}>
-                          <div style={{ width: "58%", height: 0, borderLeft: "14px solid transparent", borderRight: "14px solid transparent", borderBottom: "11px solid #c9bfa8" }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 4px" }}>
+                        <span style={{ width: 100, flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                          <div style={{ width: "62%", height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderBottom: "12px solid #c9bfa8" }} />
                         </div>
-                        <span style={{ width: 66, flexShrink: 0 }} />
+                        <span style={{ width: 72, flexShrink: 0 }} />
                       </div>
                       {rows.map((r, i) => (
                         <div key={r.lbl}>
                           {/* ground line between above-ground and basements */}
                           {i === groundIdx && groundIdx > 0 && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0" }}>
-                              <span style={{ width: 96, textAlign: "right", fontSize: 8.5, fontWeight: 800, letterSpacing: "1px", color: "#8a7f6a", flexShrink: 0 }}>GROUND</span>
-                              <div style={{ flex: 1, maxWidth: 300, borderTop: "2px solid #8a7f6a", position: "relative" }}>
-                                <div style={{ position: "absolute", top: -1, left: -14, right: -14, borderTop: "2px dashed #c9bfa8" }} />
-                              </div>
-                              <span style={{ width: 66, flexShrink: 0 }} />
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0", padding: "0 4px" }}>
+                              <span style={{ width: 100, textAlign: "right", fontSize: 8.5, fontWeight: 800, letterSpacing: "1px", color: "#8a7f6a", flexShrink: 0 }}>GROUND</span>
+                              <div style={{ flex: 1, borderTop: "2px solid #8a7f6a" }} />
+                              <span style={{ width: 72, flexShrink: 0 }} />
                             </div>
                           )}
                           {slab(r, i)}
