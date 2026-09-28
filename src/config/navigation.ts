@@ -31,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "projecttracker", label: "Project Tracker", path: "/project-tracker", icon: "HardHat", status: "active", section: "Inventory Tracker" },
   { key: "casemanagement", label: "Case Management", path: "/case-management", icon: "Headset", status: "active", section: "CRM" },
   { key: "loandetails", label: "Loan Details", path: "/loan-details", icon: "Landmark", status: "active", section: "CRM" },
+  { key: "collection", label: "Collection", path: "/collections", icon: "Banknote", status: "active", section: "CRM" },
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Procurement" },
   { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Procurement" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
