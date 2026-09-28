@@ -46,7 +46,7 @@ interface Led {
   letter: string | null; letterDate: string | null; letterDue: string | null;
   rm: string | null; remarks: string | null; rmStatus: string | null;
   funding: string | null; bank: string | null; sanctDate: string | null; sanctAmt: number;
-  bba: string | null; bbaDate: string | null; ptpDate: string | null; possession: string | null;
+  bba: string | null; bbaDate: string | null; possession: string | null;
   statusV: string | null; benefit: number;
 }
 interface Tgt { rm: string; proj: string; tgt: number; recd: number }
@@ -307,7 +307,8 @@ export default function CollectionPage() {
 
   /* ---- derived ---- */
   const withDue = led.filter(l => l.due > 1000);
-  const totDue = withDue.reduce((s, l) => s + l.due, 0);
+  // sum ALL rows (credits net off) so the figure equals the sheet's Grand Total
+  const totDue = led.reduce((s, l) => s + l.due, 0);
   const totDem = led.reduce((s, l) => s + l.dem, 0);
   const totRec = led.reduce((s, l) => s + l.rec, 0);
   const monthKey = useMemo(() => {
@@ -325,8 +326,8 @@ export default function CollectionPage() {
     ["PDCs in hand", fMoney(pdcAmt), `${fN(pdc.length)} post-dated cheques`, ["#1a7f9c", "#0e5468"], () => open({ kind: "pdcs", title: "Post-dated cheques in hand", rows: [...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")) })],
   ];
 
-  const D_ASON = raw?.asOf.ptp?.slice(0, 10) ?? TODAY;
-  const asOfLine = raw ? `Ledger ${raw.asOf.ptp?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"} · Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
+  const D_ASON = raw?.asOf.master?.slice(0, 10) ?? TODAY;
+  const asOfLine = raw ? `Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
