@@ -388,7 +388,7 @@ export default function ProjectTrackerPage() {
         {/* floor progress + trade progress */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14 }}>
           <Zoomable title="Floor progress" collapsible>
-            <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+            <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
               <h3 style={H3}>Floor-by-Floor — {heatTower}</h3>
               <div style={CAP}>how far each floor has progressed, top floor first · click a floor → its activities</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
@@ -404,7 +404,8 @@ export default function ProjectTrackerPage() {
               <style>{`
                 @keyframes trkStripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
               `}</style>
-              <div style={{ maxHeight: 470, overflowY: "auto", paddingRight: 4 }} key={heatTower}>
+              {/* fills whatever height the card row gives it — no dead space */}
+              <div style={{ flex: 1, minHeight: 0, maxHeight: 640, overflowY: "auto", paddingRight: 4 }} key={heatTower}>
                 {(() => {
                   if (!floors.length) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 10 }}>No floor-level activities for {heatTower} in the current filters</div>;
                   const rows = floors.map(f => {
