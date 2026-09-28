@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "galleryfootfall", label: "Gallery Footfall", path: "/gallery-footfall", icon: "Filter", status: "active", section: "Sales" },
   { key: "digitalleads", label: "Digital Leads", path: "/digital-leads", icon: "Zap", status: "active", section: "Sales" },
   { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
+  { key: "projecttracker", label: "Project Tracker", path: "/project-tracker", icon: "HardHat", status: "active", section: "Inventory" },
   { key: "casemanagement", label: "Case Management", path: "/case-management", icon: "Headset", status: "active", section: "CRM" },
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Management" },
   { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Management" },

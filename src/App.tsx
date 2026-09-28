@@ -22,6 +22,7 @@ const load = {
   cases: () => import("./features/cases/CaseManagementPage"),
   cost: () => import("./features/cost/CostPage"),
   pr2po: () => import("./features/pr2po/PrToPoPage"),
+  tracker: () => import("./features/tracker/ProjectTrackerPage"),
   settings: () => import("./features/settings/SettingsPage"),
   changePw: () => import("./features/settings/ChangePasswordPage"),
   notes: () => import("./features/workspace/NotesPage"),
@@ -39,6 +40,7 @@ const EoiPage = lazy(() => load.eoi().then(m => ({ default: m.EoiPage })));
 const CaseManagementPage = lazy(load.cases);
 const CostPage = lazy(load.cost);
 const PrToPoPage = lazy(load.pr2po);
+const ProjectTrackerPage = lazy(load.tracker);
 const SettingsPage = lazy(() => load.settings().then(m => ({ default: m.SettingsPage })));
 const ChangePasswordPage = lazy(() => load.changePw().then(m => ({ default: m.ChangePasswordPage })));
 const NotesPage = lazy(() => load.notes().then(m => ({ default: m.NotesPage })));
@@ -88,6 +90,7 @@ function App() {
           <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><LeadConversionPage mode="digital" /></RequireAccess>} />
           <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage mode="footfall" /></RequireAccess>} />
           <Route path="/projects" element={<RequireAccess path="/projects"><ProjectsPage /></RequireAccess>} />
+          <Route path="/project-tracker" element={<RequireAccess path="/project-tracker"><ProjectTrackerPage /></RequireAccess>} />
           <Route path="/reports" element={<RequireAccess path="/reports"><ReportsPage /></RequireAccess>} />
           <Route path="/notes" element={<RequireAccess path="/notes"><NotesPage /></RequireAccess>} />
           <Route path="/guide" element={<RequireAccess path="/guide"><GuidePage /></RequireAccess>} />
