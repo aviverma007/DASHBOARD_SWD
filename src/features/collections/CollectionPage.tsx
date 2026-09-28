@@ -15,7 +15,7 @@ import "../../components/inventory/smartworldInventory.css";
 const API_BASE = "http://192.168.66.28:5002";
 
 /* ---------------- styles ---------------- */
-const TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e", BLUE = "#1a7f9c", PURPLE = "#6b5f8f", AMBER = "#EDA100";
+const TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e", AMBER = "#EDA100";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBottom: 10 };
@@ -48,7 +48,9 @@ interface Led {
   rm: string | null; remarks: string | null; rmStatus: string | null;
   funding: string | null; bank: string | null; sanctDate: string | null; sanctAmt: number;
   bba: string | null; bbaDate: string | null; ptpDate: string | null; possession: string | null;
+  statusV: string | null; benefit: number;
 }
+interface Tgt { rm: string; proj: string; tgt: number; recd: number }
 interface Rcpt { proj: string; reg: string | null; name: string | null; unit: string | null; amt: number; mode: string | null; chq: string | null; bank: string | null; rcptDate: string | null; chqDate: string | null; clearDate: string | null; created: string | null; rm: string | null; milestone: string | null; dueDate: string | null }
 interface Pdc { proj: string; reg: string | null; given: string | null; unit: string | null; mode: string | null; chq: string | null; chqDate: string | null; bank: string | null; amt: number; allotDate: string | null; phase: string | null; tower: string | null; received: string | null }
 
@@ -261,13 +263,13 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
 }
 
 /* ---------------- page ---------------- */
-type View = "overview" | "outstanding" | "daily" | "ptp" | "pdc";
+type View = "master" | "daily" | "ptp";
 
 export default function CollectionPage() {
-  const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; pdc: Pdc[] } | null>(null);
+  const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; pdc: Pdc[]; targets: Tgt[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>("master");
   const [projF, setProjF] = useState<string[]>([]);
   const [rmF, setRmF] = useState("");
   const [q, setQ] = useState("");
@@ -280,14 +282,14 @@ export default function CollectionPage() {
       .then(j => {
         if (!alive) return;
         if (!j.ok) throw new Error(j.error || "backend error");
-        setRaw({ asOf: j.asOf, errors: j.errors || [], ledger: unpack<Led>(j.ledger), receipts: unpack<Rcpt>(j.receipts), pdc: unpack<Pdc>(j.pdc) });
+        setRaw({ asOf: j.asOf, errors: j.errors || [], ledger: unpack<Led>(j.ledger), receipts: unpack<Rcpt>(j.receipts), pdc: unpack<Pdc>(j.pdc), targets: j.targets ? unpack<Tgt>(j.targets) : [] });
         setLoading(false);
       })
       .catch(e => { if (alive) { setError(String(e.message || e)); setLoading(false); } });
     return () => { alive = false; };
   }, []);
 
-  const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], pdcAll = raw?.pdc ?? [];
+  const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], pdcAll = raw?.pdc ?? [], targets = raw?.targets ?? [];
   const projOpts = useMemo(() => [...new Set([...ledger.map(l => l.proj), ...receipts.map(r => r.proj), ...pdcAll.map(p => p.proj)])].filter(Boolean).sort(), [ledger, receipts, pdcAll]);
   const rmOpts = useMemo(() => [...new Set(ledger.map(l => l.rm).filter((x): x is string => !!x))].sort(), [ledger]);
 
@@ -341,6 +343,7 @@ export default function CollectionPage() {
     </div>
   );
 
+  const D_ASON = raw?.asOf.ptp?.slice(0, 10) ?? TODAY;
   const asOfLine = raw ? `PTP ${raw.asOf.ptp?.slice(0, 16).replace("T", " ") ?? "—"} · Daily ${raw.asOf.daily?.slice(0, 16).replace("T", " ") ?? "—"} · Master ${raw.asOf.master?.slice(0, 16).replace("T", " ") ?? "—"}` : "";
 
   return (
@@ -348,7 +351,7 @@ export default function CollectionPage() {
       <PageBanner bleed title="Collection" sub={<>live from the CRM shared-folder files — save the Excel, refresh this page · files saved: {asOfLine}</>}>
         <div>
           <label style={BANNER_LBL}>View</label>
-          <BannerPills items={[["overview", "Overview"], ["outstanding", "Outstanding"], ["daily", "Daily"], ["ptp", "PTP"], ["pdc", "PDC"]] as const}
+          <BannerPills items={[["master", "Collection Master"], ["daily", "Daily Collection"], ["ptp", "PTP"]] as const}
             value={view} onChange={setView} />
         </div>
         <ProjSelect options={projOpts} selected={projF} onChange={setProjF} />
@@ -385,306 +388,382 @@ export default function CollectionPage() {
             ))}
           </div>
 
-          {/* ---------------- OVERVIEW ---------------- */}
-          {view === "overview" && (
-            <Zoomable title="Project-wise">
-              <div style={CARD}>
-                <h3 style={H3}>Project-Wise — Dues, Recovery & This Month</h3>
-                <div style={CAP}>click a row → that project's customers with dues</div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 860 }}>
-                    <thead><tr>
-                      <th style={TH}>Project</th><th style={{ ...TH, textAlign: "right" }}>Units w/ dues</th>
-                      <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={{ ...TH, width: "22%" }}></th>
-                      <th style={{ ...TH, textAlign: "right" }}>Recovery %</th><th style={{ ...TH, textAlign: "right" }}>Collected {new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" })}</th><th style={{ ...TH, textAlign: "right" }}>PDCs</th>
-                    </tr></thead>
-                    <tbody>
-                      {(() => {
-                        const projs = [...new Set(led.map(l => l.proj))].map(p => {
-                          const ls = led.filter(l => l.proj === p);
-                          const wd = ls.filter(l => l.due > 1000);
-                          const dem = ls.reduce((s, l) => s + l.dem, 0), rec = ls.reduce((s, l) => s + l.rec, 0);
-                          const m = mtd.filter(r => r.proj === p).reduce((s, r) => s + r.amt, 0);
-                          const pd = pdc.filter(x => x.proj === p).reduce((s, x) => s + x.amt, 0);
-                          return { p, wd, due: wd.reduce((s, l) => s + l.due, 0), pct: dem ? (rec / dem) * 100 : 0, m, pd };
-                        }).sort((a, b) => b.due - a.due);
-                        const mx = Math.max(...projs.map(x => x.due), 1);
-                        return projs.map(x => (
-                          <tr key={x.p} onClick={() => openCusts(`${x.p} — units with dues`, x.wd)} style={{ cursor: "pointer" }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                            <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{x.p}</td>
-                            <td style={{ ...TD, textAlign: "right" }}>{fN(x.wd.length)}</td>
-                            <td style={{ ...TD, textAlign: "right", color: RED, fontWeight: 800 }}>{fMoney(x.due)}</td>
-                            <td style={TD}><div style={{ height: 9, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}><div style={{ height: "100%", width: `${(x.due / mx) * 100}%`, background: RED, opacity: 0.75, borderRadius: 5 }} /></div></td>
-                            <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: x.pct >= 95 ? GREEN : x.pct >= 85 ? "#96691c" : RED }}>{x.pct.toFixed(1)}%</td>
-                            <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 700 }}>{x.m ? fMoney(x.m) : "—"}</td>
-                            <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{x.pd ? fMoney(x.pd) : "—"}</td>
-                          </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </Zoomable>
-          )}
-
-          {/* ---------------- OUTSTANDING ---------------- */}
-          {view === "outstanding" && (<>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14, marginBottom: 14 }}>
-              <Zoomable title="Due slabs" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>Dues by Size</h3>
-                  <div style={CAP}>net due per unit · click → list</div>
-                  {(() => {
-                    const SLABS = [["Up to ₹5 L", 0, 5e5], ["₹5 L – ₹25 L", 5e5, 25e5], ["₹25 L – ₹1 Cr", 25e5, 1e7], ["Above ₹1 Cr", 1e7, 1e15]] as const;
-                    const bands = SLABS.map(([l, lo, hi]) => { const ls = withDue.filter(x => x.due > lo && x.due <= hi); return { l, ls, amt: ls.reduce((s, x) => s + x.due, 0) }; }).filter(b => b.ls.length);
-                    const mx = Math.max(...bands.map(b => b.amt), 1);
-                    return bands.map(b => barRow(b.l as string, b.ls.length, b.amt, mx, RED, () => openCusts(`Dues ${b.l}`, b.ls)));
-                  })()}
+          {/* ================ COLLECTION MASTER ================ */}
+          {view === "master" && (() => {
+            const cr = (v: number) => (v / 1e7).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const agg = (ls: Led[]) => ({
+              n: ls.length,
+              tcv: ls.reduce((s, l) => s + l.tcv, 0), dem: ls.reduce((s, l) => s + l.dem, 0),
+              rec: ls.reduce((s, l) => s + l.rec, 0), due: ls.reduce((s, l) => s + l.due, 0),
+              fut: ls.reduce((s, l) => s + Math.max(l.tcv - l.dem, 0), 0),
+            });
+            const HEAD = (
+              <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                <th style={TH}>Row</th><th style={{ ...TH, textAlign: "right" }}>Units</th>
+                <th style={{ ...TH, textAlign: "right" }}>TCV</th><th style={{ ...TH, textAlign: "right" }}>Demanded</th>
+                <th style={{ ...TH, textAlign: "right" }}>Recd.</th><th style={{ ...TH, textAlign: "right" }}>Net Dues</th>
+                <th style={{ ...TH, textAlign: "right" }}>Future Dues</th>
+              </tr>
+            );
+            const row = (label: string, ls: Led[], sub: boolean, key: string) => {
+              const a = agg(ls);
+              return (
+                <tr key={key} onClick={() => openCusts(label, ls)} style={{ cursor: "pointer", background: sub ? "" : "#f7f5ef" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = sub ? "" : "#f7f5ef"; }}>
+                  <td style={{ ...TD, fontWeight: sub ? 500 : 800, color: "var(--ink)", paddingLeft: sub ? 26 : 10 }}>{label}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: sub ? 500 : 700 }}>{fN(a.n)}</td>
+                  <td style={{ ...TD, textAlign: "right" }}>{cr(a.tcv)}</td>
+                  <td style={{ ...TD, textAlign: "right" }}>{cr(a.dem)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: GREEN }}>{cr(a.rec)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: a.due > 1e5 ? RED : "var(--mut)", fontWeight: 800 }}>{cr(a.due)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#96691c", fontWeight: 700 }}>{cr(a.fut)}</td>
+                </tr>
+              );
+            };
+            const totalRow = (ls: Led[]) => {
+              const a = agg(ls);
+              return (
+                <tr style={{ background: "#14213D" }}>
+                  <td style={{ ...TD, color: "#fff", fontWeight: 800 }}>Grand Total</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{fN(a.n)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{cr(a.tcv)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{cr(a.dem)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#9be8c5", fontWeight: 800 }}>{cr(a.rec)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#ffb3a7", fontWeight: 800 }}>{cr(a.due)}</td>
+                  <td style={{ ...TD, textAlign: "right", color: "#ffd9a0", fontWeight: 800 }}>{cr(a.fut)}</td>
+                </tr>
+              );
+            };
+            const byProj = [...new Set(led.map(l => l.proj))].map(pj => ({ pj, ls: led.filter(l => l.proj === pj) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            const byStatus = [...new Set(led.map(l => l.statusV || "—"))].map(st => ({ st, ls: led.filter(l => (l.statusV || "—") === st) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            const byRm = [...new Set(led.map(l => l.rm || "Unassigned"))].map(rm => ({ rm, ls: led.filter(l => (l.rm || "Unassigned") === rm) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            return (<>
+              <Zoomable title="Project summary">
+                <div style={CARD}>
+                  <h3 style={H3}>Project Summary — {D_ASON}</h3>
+                  <div style={CAP}>figures in ₹ Cr · Future Dues = TCV − Demanded · phase rows indented · click any row → its customers</div>
+                  <div style={{ overflowX: "auto", maxHeight: 520, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 860 }}>
+                      <thead>{HEAD}</thead>
+                      <tbody>
+                        {byProj.map(g => (<>
+                          {row(g.pj, g.ls, false, g.pj)}
+                          {[...new Set(g.ls.map(l => l.phase).filter((x): x is string => !!x))].sort().map(ph =>
+                            row(ph, g.ls.filter(l => l.phase === ph), true, g.pj + ph))}
+                        </>))}
+                        {totalRow(led)}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </Zoomable>
-              <Zoomable title="By RM" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>Dues by RM</h3>
-                  <div style={CAP}>who is chasing how much · click → their customers</div>
-                  <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: 14, marginBottom: 14 }}>
+                <Zoomable title="Status summary" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Status Summary — All Projects</h3>
+                    <div style={CAP}>by collection status · figures in ₹ Cr · click → customers</div>
+                    <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>{HEAD}</thead>
+                        <tbody>{byStatus.map(g => row(g.st, g.ls, false, g.st))}{totalRow(led)}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Zoomable>
+                <Zoomable title="RM summary" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>RM Summary — All Projects</h3>
+                    <div style={CAP}>each RM's book · figures in ₹ Cr · click → their customers</div>
+                    <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>{HEAD}</thead>
+                        <tbody>{byRm.map(g => row(g.rm, g.ls, false, g.rm))}{totalRow(led)}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Zoomable>
+              </div>
+
+              <Zoomable title="PDC register" collapsible>
+                <div style={CARD}>
+                  <h3 style={H3}>Post-Dated Cheques in Hand</h3>
+                  <div style={CAP}>{fN(pdc.length)} cheques · {fMoney(pdcAmt)} · earliest maturity first</div>
+                  <div style={{ overflowX: "auto", maxHeight: 360, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 800 }}>
+                      <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                        <th style={TH}>Cheque date</th><th style={TH}>Reg</th><th style={TH}>Unit</th><th style={TH}>Project</th><th style={TH}>Bank</th><th style={TH}>Cheque no.</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
+                      </tr></thead>
+                      <tbody>
+                        {[...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")).map((x, i) => (
+                          <tr key={i}>
+                            <td style={{ ...TD, fontWeight: 700 }}>{fD(x.chqDate)}</td>
+                            <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{x.reg}</td>
+                            <td style={{ ...TD, color: "var(--mut)" }}>{x.unit || "—"}</td>
+                            <td style={{ ...TD, color: "var(--mut)" }}>{x.proj}</td>
+                            <td style={{ ...TD, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis" }}>{x.bank || "—"}</td>
+                            <td style={{ ...TD, color: "var(--mut)" }}>{x.chq || "—"}</td>
+                            <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: TEAL }}>{fMoney(x.amt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </Zoomable>
+            </>);
+          })()}
+
+          {/* ================ DAILY COLLECTION ================ */}
+          {view === "daily" && (() => {
+            const fx = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const tgtTot = targets.reduce((s, t) => s + t.tgt, 0);
+            const recTot = targets.reduce((s, t) => s + t.recd, 0);
+            const pct = tgtTot ? (recTot / tgtTot) * 100 : 0;
+            const tiles: [string, string, string][] = [
+              ["Target (month)", `₹${fx(tgtTot)} Cr`, NAVY],
+              ["Received till date", `₹${fx(recTot)} Cr`, GREEN],
+              ["Balance", `₹${fx(tgtTot - recTot)} Cr`, RED],
+              ["% Achieved", `${pct.toFixed(0)}%`, pct >= 60 ? GREEN : pct >= 35 ? "#96691c" : RED],
+            ];
+            const byP = [...new Set(targets.map(t => t.proj))].map(pj => {
+              const ts = targets.filter(t => t.proj === pj);
+              return { pj, tgt: ts.reduce((s, t) => s + t.tgt, 0), rec: ts.reduce((s, t) => s + t.recd, 0) };
+            }).sort((a, b) => b.tgt - a.tgt);
+            const byRm = [...new Set(targets.map(t => t.rm))].map(rm => {
+              const ts = targets.filter(t => t.rm === rm);
+              return { rm, tgt: ts.reduce((s, t) => s + t.tgt, 0), rec: ts.reduce((s, t) => s + t.recd, 0) };
+            }).sort((a, b) => b.tgt - a.tgt);
+            const pctCell = (v: number) => (
+              <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: v >= 60 ? GREEN : v >= 35 ? "#96691c" : RED }}>{v.toFixed(0)}%</td>
+            );
+            return (<>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
+                {tiles.map(([k, v, c]) => (
+                  <div key={k} style={{ ...CARD, marginBottom: 0, borderLeft: `5px solid ${c}` }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--mut)" }}>{k}</div>
+                    <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, color: c, marginTop: 4 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <Zoomable title="Daily trend">
+                <div style={CARD}>
+                  <h3 style={H3}>Day-Wise Collections — {new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}</h3>
+                  <div style={CAP}>amounts received per day (₹ Cr on bars) · click a bar → that day's receipts</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 180, overflowX: "auto", paddingBottom: 4 }}>
                     {(() => {
-                      const m = new Map<string, Led[]>();
-                      withDue.forEach(l => { const k = l.rm || "Unassigned"; if (!m.has(k)) m.set(k, []); m.get(k)!.push(l); });
-                      const rows = [...m.entries()].map(([k, ls]) => ({ k, ls, amt: ls.reduce((s, x) => s + x.due, 0) })).sort((a, b) => b.amt - a.amt);
-                      const mx = Math.max(...rows.map(r => r.amt), 1);
-                      return rows.map(r => barRow(r.k, r.ls.length, r.amt, mx, PURPLE, () => openCusts(`RM: ${r.k} — dues`, r.ls)));
+                      const m = new Map<string, Rcpt[]>();
+                      mtd.forEach(r => { const k = r.rcptDate!; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); });
+                      const days = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+                      const mx = Math.max(...days.map(([, rs]) => rs.reduce((s, r) => s + r.amt, 0)), 1);
+                      return days.map(([k, rs]) => {
+                        const amt = rs.reduce((s, r) => s + r.amt, 0);
+                        return (
+                          <div key={k} onClick={() => open({ kind: "rcpts", title: `Receipts on ${fD(k)}`, rows: rs })}
+                            onMouseEnter={ev => showTip(ev, `<b>${fD(k)}</b><br/>${fMoney(amt)} · ${fN(rs.length)} receipts<br/>click → list`)} onMouseLeave={hideTip}
+                            style={{ flex: "1 1 0", minWidth: 26, maxWidth: 64, display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", height: "100%" }}>
+                            <div style={{ flex: 1, width: "72%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                              <div style={{ fontSize: 9, fontWeight: 800, color: GREEN, textAlign: "center", marginBottom: 2, whiteSpace: "nowrap" }}>{(amt / 1e7).toFixed(1)}</div>
+                              <div style={{ height: `${(amt / mx) * 100}%`, background: GREEN, borderRadius: "4px 4px 0 0", minHeight: 3 }} />
+                            </div>
+                            <div style={{ fontSize: 9, color: "var(--mut)", fontWeight: 700, marginTop: 4 }}>{k.slice(8)}</div>
+                          </div>
+                        );
+                      });
                     })()}
                   </div>
                 </div>
               </Zoomable>
-            </div>
-            <Zoomable title="Top dues">
-              <div style={CARD}>
-                <h3 style={H3}>Biggest Dues</h3>
-                <div style={CAP}>{fN(withDue.length)} units · largest first · click a row → full customer detail with receipts & PDCs</div>
-                <div style={{ overflowX: "auto", maxHeight: 440, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
-                    <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                      <th style={TH}>Customer</th><th style={TH}>Project · Unit</th><th style={TH}>RM</th>
-                      <th style={{ ...TH, textAlign: "right" }}>TCV</th><th style={{ ...TH, textAlign: "right" }}>Recd %</th>
-                      <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={TH}>Last letter</th><th style={{ ...TH, textAlign: "right" }}>PTP</th>
-                    </tr></thead>
-                    <tbody>
-                      {[...withDue].sort((a, b) => b.due - a.due).slice(0, 200).map((l, i) => (
-                        <tr key={i} onClick={() => open({ kind: "custs", title: "Customer", rows: [l] })} style={{ cursor: "pointer" }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                          <td style={{ ...TD, fontWeight: 800, color: "var(--ink)", maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis" }}>{l.name || l.reg}</td>
-                          <td style={{ ...TD, color: "var(--mut)" }}>{l.proj} · {l.unit}</td>
-                          <td style={{ ...TD, color: "var(--mut)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rm || "—"}</td>
-                          <td style={{ ...TD, textAlign: "right" }}>{fMoney(l.tcv)}</td>
-                          <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: GREEN }}>{l.dem ? ((l.rec / l.dem) * 100).toFixed(0) : 0}%</td>
-                          <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: RED, fontSize: 12.5 }}>{fMoney(l.due)}</td>
-                          <td style={{ ...TD, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", color: "var(--mut)" }}>{l.letter || "—"}</td>
-                          <td style={{ ...TD, textAlign: "right", color: l.ptpDate && l.ptpDate < TODAY ? RED : "var(--mut)", fontWeight: 700 }}>{fD(l.ptpDate)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </Zoomable>
-          </>)}
 
-          {/* ---------------- DAILY ---------------- */}
-          {view === "daily" && (<>
-            <Zoomable title="Daily trend">
-              <div style={CARD}>
-                <h3 style={H3}>Day-Wise Collections — {new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}</h3>
-                <div style={CAP}>amounts received per day · click a bar → that day's receipts</div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 180, overflowX: "auto", paddingBottom: 4 }}>
-                  {(() => {
-                    const m = new Map<string, Rcpt[]>();
-                    mtd.forEach(r => { const k = r.rcptDate!; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); });
-                    const days = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-                    const mx = Math.max(...days.map(([, rs]) => rs.reduce((s, r) => s + r.amt, 0)), 1);
-                    return days.map(([k, rs]) => {
-                      const amt = rs.reduce((s, r) => s + r.amt, 0);
-                      return (
-                        <div key={k} onClick={() => open({ kind: "rcpts", title: `Receipts on ${fD(k)}`, rows: rs })}
-                          onMouseEnter={ev => showTip(ev, `<b>${fD(k)}</b><br/>${fMoney(amt)} · ${fN(rs.length)} receipts<br/>click → list`)} onMouseLeave={hideTip}
-                          style={{ flex: "1 1 0", minWidth: 26, maxWidth: 64, display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", height: "100%" }}>
-                          <div style={{ flex: 1, width: "72%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                            <div style={{ fontSize: 9, fontWeight: 800, color: GREEN, textAlign: "center", marginBottom: 2, whiteSpace: "nowrap" }}>{(amt / 1e7).toFixed(1)}</div>
-                            <div style={{ height: `${(amt / mx) * 100}%`, background: GREEN, borderRadius: "4px 4px 0 0", minHeight: 3 }} />
-                          </div>
-                          <div style={{ fontSize: 9, color: "var(--mut)", fontWeight: 700, marginTop: 4 }}>{k.slice(8)}</div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-                <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 4 }}>bar labels in ₹ Cr</div>
-              </div>
-            </Zoomable>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14 }}>
-              <Zoomable title="Project MTD" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>Project-Wise This Month</h3>
-                  <div style={CAP}>click → receipts</div>
-                  {(() => {
-                    const m = new Map<string, Rcpt[]>();
-                    mtd.forEach(r => { if (!m.has(r.proj)) m.set(r.proj, []); m.get(r.proj)!.push(r); });
-                    const rows = [...m.entries()].map(([k, rs]) => ({ k, rs, amt: rs.reduce((s, r) => s + r.amt, 0) })).sort((a, b) => b.amt - a.amt);
-                    const mx = Math.max(...rows.map(r => r.amt), 1);
-                    return rows.map(r => barRow(r.k, r.rs.length, r.amt, mx, GREEN, () => open({ kind: "rcpts", title: `${r.k} — receipts this month`, rows: r.rs })));
-                  })()}
-                </div>
-              </Zoomable>
-              <Zoomable title="Mode split" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>How the Money Came In</h3>
-                  <div style={CAP}>by payment mode · click → receipts</div>
-                  {(() => {
-                    const m = new Map<string, Rcpt[]>();
-                    mtd.forEach(r => { const k = (r.mode || "—").trim().toUpperCase(); if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); });
-                    const rows = [...m.entries()].map(([k, rs]) => ({ k, rs, amt: rs.reduce((s, r) => s + r.amt, 0) })).sort((a, b) => b.amt - a.amt);
-                    const mx = Math.max(...rows.map(r => r.amt), 1);
-                    return rows.map(r => barRow(r.k, r.rs.length, r.amt, mx, BLUE, () => open({ kind: "rcpts", title: `Mode: ${r.k}`, rows: r.rs })));
-                  })()}
-                </div>
-              </Zoomable>
-            </div>
-          </>)}
-
-          {/* ---------------- PTP ---------------- */}
-          {view === "ptp" && (<>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14, marginBottom: 14 }}>
-              <Zoomable title="PTP buckets" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>Promise-to-Pay — Where Do They Stand?</h3>
-                  <div style={CAP}>PTP date vs today · click → customers</div>
-                  {(() => {
-                    const wk = new Date(Date.parse(TODAY) + 7 * 86400000).toISOString().slice(0, 10);
-                    const B = [
-                      ["Overdue PTP", ptpSet.filter(l => l.ptpDate! < TODAY), RED],
-                      ["Due today", ptpSet.filter(l => l.ptpDate === TODAY), AMBER],
-                      ["This week", ptpSet.filter(l => l.ptpDate! > TODAY && l.ptpDate! <= wk), GOLD],
-                      ["Later", ptpSet.filter(l => l.ptpDate! > wk), GREEN],
-                      ["Dues, no PTP taken", withDue.filter(l => !l.ptpDate), "#9a927e"],
-                    ] as const;
-                    const mx = Math.max(...B.map(([, ls]) => ls.reduce((s, x) => s + x.due, 0)), 1);
-                    return B.filter(([, ls]) => ls.length).map(([l, ls, c]) =>
-                      barRow(l as string, ls.length, ls.reduce((s, x) => s + x.due, 0), mx, c as string, () => openCusts(l as string, ls as Led[])));
-                  })()}
-                </div>
-              </Zoomable>
-              <Zoomable title="Letter ageing" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>Dunning — Days Since Last Letter</h3>
-                  <div style={CAP}>units with dues, by how long ago the last letter went · click → customers</div>
-                  {(() => {
-                    const B = [["0–15 d", 0, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
-                    const withL = withDue.filter(l => l.letterDate);
-                    const bands = B.map(([l, lo, hi]) => { const ls = withL.filter(x => { const d = daysBetween(x.letterDate!, TODAY); return d >= lo && d <= hi; }); return { l, ls }; }).filter(b => b.ls.length);
-                    const noL = withDue.filter(l => !l.letterDate);
-                    const mx = Math.max(...bands.map(b => b.ls.reduce((s, x) => s + x.due, 0)), noL.reduce((s, x) => s + x.due, 0), 1);
-                    return (<>
-                      {bands.map((b, i) => barRow(b.l as string, b.ls.length, b.ls.reduce((s, x) => s + x.due, 0), mx, i >= 2 ? RED : AMBER, () => openCusts(`Last letter ${b.l} ago`, b.ls)))}
-                      {noL.length > 0 && barRow("No letter recorded", noL.length, noL.reduce((s, x) => s + x.due, 0), mx, "#9a927e", () => openCusts("Dues with no letter recorded", noL))}
-                    </>);
-                  })()}
-                </div>
-              </Zoomable>
-            </div>
-            <Zoomable title="PTP list">
-              <div style={CARD}>
-                <h3 style={H3}>PTP Commitments — Earliest First</h3>
-                <div style={CAP}>click a row → full customer detail</div>
-                <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
-                    <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                      <th style={TH}>PTP date</th><th style={TH}>Customer</th><th style={TH}>Project · Unit</th><th style={TH}>RM</th>
-                      <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={TH}>Remarks</th>
-                    </tr></thead>
-                    <tbody>
-                      {[...ptpSet].sort((a, b) => a.ptpDate!.localeCompare(b.ptpDate!)).map((l, i) => (
-                        <tr key={i} onClick={() => open({ kind: "custs", title: "PTP customer", rows: [l] })} style={{ cursor: "pointer" }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                          <td style={{ ...TD, fontWeight: 800, color: l.ptpDate! < TODAY ? RED : "var(--ink)" }}>{fD(l.ptpDate)}{l.ptpDate! < TODAY ? " ⚠" : ""}</td>
-                          <td style={{ ...TD, fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{l.name || l.reg}</td>
-                          <td style={{ ...TD, color: "var(--mut)" }}>{l.proj} · {l.unit}</td>
-                          <td style={{ ...TD, color: "var(--mut)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rm || "—"}</td>
-                          <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: RED }}>{fMoney(l.due)}</td>
-                          <td style={{ ...TD, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", color: "var(--mut)" }}>{l.remarks || "—"}</td>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14 }}>
+                <Zoomable title="Project target" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Project-Wise — Target vs Received</h3>
+                    <div style={CAP}>this month's cycle · figures in ₹ Cr</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                      <thead><tr>
+                        <th style={TH}>Project</th><th style={{ ...TH, textAlign: "right" }}>Target</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Received</th><th style={{ ...TH, textAlign: "right" }}>Balance</th><th style={{ ...TH, textAlign: "right" }}>%</th>
+                      </tr></thead>
+                      <tbody>
+                        {byP.map(x => (
+                          <tr key={x.pj}>
+                            <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{x.pj}</td>
+                            <td style={{ ...TD, textAlign: "right" }}>{fx(x.tgt)}</td>
+                            <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 700 }}>{fx(x.rec)}</td>
+                            <td style={{ ...TD, textAlign: "right", color: RED, fontWeight: 700 }}>{fx(x.tgt - x.rec)}</td>
+                            {pctCell(x.tgt ? (x.rec / x.tgt) * 100 : 0)}
+                          </tr>
+                        ))}
+                        <tr style={{ background: "#14213D" }}>
+                          <td style={{ ...TD, color: "#fff", fontWeight: 800 }}>Total</td>
+                          <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{fx(tgtTot)}</td>
+                          <td style={{ ...TD, textAlign: "right", color: "#9be8c5", fontWeight: 800 }}>{fx(recTot)}</td>
+                          <td style={{ ...TD, textAlign: "right", color: "#ffb3a7", fontWeight: 800 }}>{fx(tgtTot - recTot)}</td>
+                          <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{pct.toFixed(0)}%</td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </Zoomable>
-          </>)}
+                      </tbody>
+                    </table>
+                  </div>
+                </Zoomable>
 
-          {/* ---------------- PDC ---------------- */}
-          {view === "pdc" && (<>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14, marginBottom: 14 }}>
-              <Zoomable title="PDC maturity" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>When Do the Cheques Mature?</h3>
-                  <div style={CAP}>by cheque month · click → cheques</div>
-                  {(() => {
-                    const m = new Map<string, Pdc[]>();
-                    pdc.forEach(p => { const k = (p.chqDate || "unknown").slice(0, 7); if (!m.has(k)) m.set(k, []); m.get(k)!.push(p); });
-                    const rows = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-                    const mx = Math.max(...rows.map(([, ps]) => ps.reduce((s, p) => s + p.amt, 0)), 1);
-                    return rows.map(([k, ps]) => {
-                      const lbl = k === "unknown" ? "No date" : new Date(k + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
-                      return barRow(lbl, ps.length, ps.reduce((s, p) => s + p.amt, 0), mx, TEAL, () => open({ kind: "pdcs", title: `PDCs maturing ${lbl}`, rows: ps }));
-                    });
-                  })()}
-                </div>
-              </Zoomable>
-              <Zoomable title="PDC by project" collapsible>
-                <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-                  <h3 style={H3}>PDCs by Project</h3>
-                  <div style={CAP}>click → cheques</div>
-                  {(() => {
-                    const m = new Map<string, Pdc[]>();
-                    pdc.forEach(p => { if (!m.has(p.proj)) m.set(p.proj, []); m.get(p.proj)!.push(p); });
-                    const rows = [...m.entries()].map(([k, ps]) => ({ k, ps, amt: ps.reduce((s, p) => s + p.amt, 0) })).sort((a, b) => b.amt - a.amt);
-                    const mx = Math.max(...rows.map(r => r.amt), 1);
-                    return rows.map(r => barRow(r.k, r.ps.length, r.amt, mx, BLUE, () => open({ kind: "pdcs", title: `${r.k} — PDCs`, rows: r.ps })));
-                  })()}
-                </div>
-              </Zoomable>
-            </div>
-            <Zoomable title="All PDCs">
-              <div style={CARD}>
-                <h3 style={H3}>All Post-Dated Cheques</h3>
-                <div style={CAP}>{fN(pdc.length)} cheques · earliest maturity first</div>
-                <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 820 }}>
-                    <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                      <th style={TH}>Cheque date</th><th style={TH}>Reg</th><th style={TH}>Unit</th><th style={TH}>Project</th><th style={TH}>Bank</th><th style={TH}>Cheque no.</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
-                    </tr></thead>
-                    <tbody>
-                      {[...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")).map((p, i) => (
-                        <tr key={i}>
-                          <td style={{ ...TD, fontWeight: 700 }}>{fD(p.chqDate)}</td>
-                          <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{p.reg}</td>
-                          <td style={{ ...TD, color: "var(--mut)" }}>{p.unit || "—"}</td>
-                          <td style={{ ...TD, color: "var(--mut)" }}>{p.proj}</td>
-                          <td style={{ ...TD, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis" }}>{p.bank || "—"}</td>
-                          <td style={{ ...TD, color: "var(--mut)" }}>{p.chq || "—"}</td>
-                          <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: TEAL }}>{fMoney(p.amt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Zoomable title="RM target" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>RM-Wise — Target vs Received</h3>
+                    <div style={CAP}>this month's cycle · figures in ₹ Cr · click → their receipts</div>
+                    <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                          <th style={TH}>RM</th><th style={{ ...TH, textAlign: "right" }}>Target</th>
+                          <th style={{ ...TH, textAlign: "right" }}>Received</th><th style={{ ...TH, textAlign: "right" }}>Balance</th><th style={{ ...TH, textAlign: "right" }}>%</th>
+                        </tr></thead>
+                        <tbody>
+                          {byRm.map(x => (
+                            <tr key={x.rm} onClick={() => open({ kind: "rcpts", title: `${x.rm} — receipts this month`, rows: mtd.filter(r => (r.rm || "").toLowerCase().includes(x.rm.split("/")[0].toLowerCase().trim())) })} style={{ cursor: "pointer" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                              <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{x.rm}</td>
+                              <td style={{ ...TD, textAlign: "right" }}>{fx(x.tgt)}</td>
+                              <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 700 }}>{fx(x.rec)}</td>
+                              <td style={{ ...TD, textAlign: "right", color: RED, fontWeight: 700 }}>{fx(x.tgt - x.rec)}</td>
+                              {pctCell(x.tgt ? (x.rec / x.tgt) * 100 : 0)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Zoomable>
               </div>
-            </Zoomable>
-          </>)}
+            </>);
+          })()}
+
+          {/* ================ PTP ================ */}
+          {view === "ptp" && (() => {
+            const cr = (v: number) => (v / 1e7).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const netB = (l: Led) => l.due - l.benefit;
+            const dued = led.filter(l => l.due > 1000);
+            const cats = [...new Set(dued.map(l => l.rmStatus || "Uncategorised"))]
+              .map(c => ({ c, tot: dued.filter(l => (l.rmStatus || "Uncategorised") === c).reduce((s, l) => s + netB(l), 0) }))
+              .sort((a, b) => b.tot - a.tot).map(x => x.c);
+            const projs = [...new Set(dued.map(l => l.proj))].sort();
+            return (<>
+              <Zoomable title="Category matrix">
+                <div style={CARD}>
+                  <h3 style={H3}>Non-Collectable / Workable — Project × Status</h3>
+                  <div style={CAP}>net-of-benefit dues in ₹ Cr, bucketed by the RM status dropdown · click any cell → those customers</div>
+                  <div style={{ overflowX: "auto", maxHeight: 480, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 1100 }}>
+                      <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 2 }}>
+                        <th style={{ ...TH, position: "sticky", left: 0, background: "#faf9f6", zIndex: 3 }}>Project</th>
+                        {cats.map(c => <th key={c} style={{ ...TH, textAlign: "right", maxWidth: 110, whiteSpace: "normal" }}>{c}</th>)}
+                        <th style={{ ...TH, textAlign: "right" }}>Total</th>
+                      </tr></thead>
+                      <tbody>
+                        {projs.map(pj => {
+                          const pls = dued.filter(l => l.proj === pj);
+                          return (
+                            <tr key={pj}>
+                              <td style={{ ...TD, fontWeight: 800, color: "var(--ink)", position: "sticky", left: 0, background: "#fff" }}>{pj}</td>
+                              {cats.map(c => {
+                                const cls = pls.filter(l => (l.rmStatus || "Uncategorised") === c);
+                                const v = cls.reduce((s, l) => s + netB(l), 0);
+                                return (
+                                  <td key={c} onClick={() => cls.length && openCusts(`${pj} · ${c}`, cls)}
+                                    style={{ ...TD, textAlign: "right", cursor: cls.length ? "pointer" : "default", color: v > 1e6 ? RED : v !== 0 ? "var(--ink)" : "#d0c9b8", fontWeight: v > 1e6 ? 800 : 500, background: v > 1e7 ? "#fdecea" : "" }}>
+                                    {v !== 0 ? cr(v) : "—"}
+                                  </td>
+                                );
+                              })}
+                              <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{cr(pls.reduce((s, l) => s + netB(l), 0))}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{ background: "#14213D" }}>
+                          <td style={{ ...TD, color: "#fff", fontWeight: 800, position: "sticky", left: 0, background: "#14213D" }}>Total</td>
+                          {cats.map(c => {
+                            const cls = dued.filter(l => (l.rmStatus || "Uncategorised") === c);
+                            return <td key={c} onClick={() => openCusts(`Status: ${c}`, cls)} style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800, cursor: "pointer" }}>{cr(cls.reduce((s, l) => s + netB(l), 0))}</td>;
+                          })}
+                          <td style={{ ...TD, textAlign: "right", color: "#ffd9a0", fontWeight: 800 }}>{cr(dued.reduce((s, l) => s + netB(l), 0))}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </Zoomable>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14, marginBottom: 14 }}>
+                <Zoomable title="PTP buckets" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Promise-to-Pay — Where Do They Stand?</h3>
+                    <div style={CAP}>PTP date vs today · click → customers</div>
+                    {(() => {
+                      const wk = new Date(Date.parse(TODAY) + 7 * 86400000).toISOString().slice(0, 10);
+                      const B = [
+                        ["Overdue PTP", ptpSet.filter(l => l.ptpDate! < TODAY), RED],
+                        ["Due today", ptpSet.filter(l => l.ptpDate === TODAY), AMBER],
+                        ["This week", ptpSet.filter(l => l.ptpDate! > TODAY && l.ptpDate! <= wk), GOLD],
+                        ["Later", ptpSet.filter(l => l.ptpDate! > wk), GREEN],
+                        ["Dues, no PTP taken", withDue.filter(l => !l.ptpDate), "#9a927e"],
+                      ] as const;
+                      const mx = Math.max(...B.map(([, ls]) => ls.reduce((s, x) => s + x.due, 0)), 1);
+                      return B.filter(([, ls]) => ls.length).map(([l, ls, c]) =>
+                        barRow(l as string, ls.length, ls.reduce((s, x) => s + x.due, 0), mx, c as string, () => openCusts(l as string, ls as Led[])));
+                    })()}
+                  </div>
+                </Zoomable>
+                <Zoomable title="Letter ageing" collapsible>
+                  <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
+                    <h3 style={H3}>Dunning — Days Since Last Letter</h3>
+                    <div style={CAP}>units with dues · click → customers</div>
+                    {(() => {
+                      const B = [["0–15 d", 0, 15], ["16–30 d", 16, 30], ["31–60 d", 31, 60], ["> 60 d", 61, 1e9]] as const;
+                      const withL = withDue.filter(l => l.letterDate);
+                      const bands = B.map(([l, lo, hi]) => { const ls = withL.filter(x => { const d = daysBetween(x.letterDate!, TODAY); return d >= lo && d <= hi; }); return { l, ls }; }).filter(b => b.ls.length);
+                      const noL = withDue.filter(l => !l.letterDate);
+                      const mx = Math.max(...bands.map(b => b.ls.reduce((s, x) => s + x.due, 0)), noL.reduce((s, x) => s + x.due, 0), 1);
+                      return (<>
+                        {bands.map((b, i) => barRow(b.l as string, b.ls.length, b.ls.reduce((s, x) => s + x.due, 0), mx, i >= 2 ? RED : AMBER, () => openCusts(`Last letter ${b.l} ago`, b.ls)))}
+                        {noL.length > 0 && barRow("No letter recorded", noL.length, noL.reduce((s, x) => s + x.due, 0), mx, "#9a927e", () => openCusts("Dues with no letter recorded", noL))}
+                      </>);
+                    })()}
+                  </div>
+                </Zoomable>
+              </div>
+
+              <Zoomable title="PTP list">
+                <div style={CARD}>
+                  <h3 style={H3}>PTP Commitments — Earliest First</h3>
+                  <div style={CAP}>click a row → full customer detail</div>
+                  <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
+                      <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+                        <th style={TH}>PTP date</th><th style={TH}>Customer</th><th style={TH}>Project · Unit</th><th style={TH}>RM</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Net due</th><th style={TH}>Remarks</th>
+                      </tr></thead>
+                      <tbody>
+                        {[...ptpSet].sort((a, b) => a.ptpDate!.localeCompare(b.ptpDate!)).map((l, i) => (
+                          <tr key={i} onClick={() => open({ kind: "custs", title: "PTP customer", rows: [l] })} style={{ cursor: "pointer" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                            <td style={{ ...TD, fontWeight: 800, color: l.ptpDate! < TODAY ? RED : "var(--ink)" }}>{fD(l.ptpDate)}{l.ptpDate! < TODAY ? " ⚠" : ""}</td>
+                            <td style={{ ...TD, fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{l.name || l.reg}</td>
+                            <td style={{ ...TD, color: "var(--mut)" }}>{l.proj} · {l.unit}</td>
+                            <td style={{ ...TD, color: "var(--mut)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis" }}>{l.rm || "—"}</td>
+                            <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: RED }}>{fMoney(l.due)}</td>
+                            <td style={{ ...TD, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", color: "var(--mut)" }}>{l.remarks || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </Zoomable>
+            </>);
+          })()}
         </>)}
       </div>
 
