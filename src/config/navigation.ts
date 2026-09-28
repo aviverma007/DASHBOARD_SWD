@@ -10,7 +10,7 @@ export interface NavItem {
 
 /** Section display order in the sidebar. */
 /** "Top" renders without a heading — standalone items above the groups. */
-export const NAV_SECTIONS = ["Top", "Sales", "Inventory", "CRM", "Management", "Workspace"] as const;
+export const NAV_SECTIONS = ["Top", "Sales", "Inventory Tracker", "CRM", "Procurement", "Workspace"] as const;
 
 /**
  * Only Overview and Inventory are fully built in this phase.
@@ -22,16 +22,16 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "overview", label: "Business Overview", path: "/overview", icon: "LayoutDashboard", status: "active", section: "Sales" },
   { key: "bookings", label: "Bookings", path: "/bookings", icon: "ReceiptText", status: "active", section: "Sales" },
   { key: "eoi", label: "EOI/Advance", path: "/eoi", icon: "FileSignature", status: "active", section: "Sales" },
-  { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory" },
+  { key: "inventory", label: "Inventory", path: "/inventory", icon: "Building2", status: "active", section: "Inventory Tracker" },
   { key: "target", label: "Target vs Actual", path: "/target", icon: "Target", status: "active", section: "Sales" },
   { key: "channelpartner", label: "Channel Partners", path: "/channel-partners", icon: "Handshake", status: "active", section: "Sales" },
   { key: "galleryfootfall", label: "Gallery Footfall", path: "/gallery-footfall", icon: "Filter", status: "active", section: "Sales" },
   { key: "digitalleads", label: "Digital Leads", path: "/digital-leads", icon: "Zap", status: "active", section: "Sales" },
-  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory" },
-  { key: "projecttracker", label: "Project Tracker", path: "/project-tracker", icon: "HardHat", status: "active", section: "Inventory" },
+  { key: "projects", label: "Projects", path: "/projects", icon: "Building", status: "active", section: "Inventory Tracker" },
+  { key: "projecttracker", label: "Project Tracker", path: "/project-tracker", icon: "HardHat", status: "active", section: "Inventory Tracker" },
   { key: "casemanagement", label: "Case Management", path: "/case-management", icon: "Headset", status: "active", section: "CRM" },
-  { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Management" },
-  { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Management" },
+  { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Procurement" },
+  { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Procurement" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
   { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },
   { key: "guide", label: "Guide", path: "/guide", icon: "BookOpen", status: "active", section: "Workspace" },
