@@ -271,6 +271,7 @@ export default function CollectionPage() {
   const [projF, setProjF] = useState<string[]>([]);
   const [rmF, setRmF] = useState("");
   const [q, setQ] = useState("");
+  const [sugOpen, setSugOpen] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
 
   useEffect(() => {
@@ -290,6 +291,33 @@ export default function CollectionPage() {
   const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], pdcAll = raw?.pdc ?? [], targets = raw?.targets ?? [];
   const projOpts = useMemo(() => [...new Set([...ledger.map(l => l.proj), ...receipts.map(r => r.proj), ...pdcAll.map(p => p.proj)])].filter(Boolean).sort(), [ledger, receipts, pdcAll]);
   const rmOpts = useMemo(() => [...new Set(ledger.map(l => l.rm).filter((x): x is string => !!x))].sort(), [ledger]);
+
+  /* Search suggestions: customers, reg nos, units and banks that contain
+   * the typed text, respecting the project filter. Picking one fills the
+   * search box with the exact term. */
+  const sugs = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (t.length < 2) return [];
+    const pool = projF.length ? ledger.filter(l => projF.includes(l.proj)) : ledger;
+    const out: { label: string; sub: string; term: string }[] = [];
+    const seen = new Set<string>();
+    for (const l of pool) {
+      if (out.length >= 8) break;
+      const hitName = (l.name || "").toLowerCase().includes(t);
+      const hitReg = (l.reg || "").toLowerCase().includes(t);
+      const hitUnit = (l.unit || "").toLowerCase().includes(t);
+      if ((hitName || hitReg || hitUnit) && l.reg && !seen.has(l.reg)) {
+        seen.add(l.reg);
+        out.push({ label: l.name || l.reg!, sub: `${l.reg} · ${l.unit || "—"} · ${l.proj}`, term: l.reg! });
+      }
+    }
+    if (out.length < 8) {
+      const banks = new Set<string>();
+      for (const l of pool) { if ((l.bank || "").toLowerCase().includes(t)) banks.add(l.bank!); }
+      for (const b of [...banks].sort().slice(0, 8 - out.length)) out.push({ label: b, sub: "bank", term: b });
+    }
+    return out;
+  }, [q, ledger, projF]);
 
   const match = (proj: string, texts: (string | null)[]) => {
     if (projF.length && !projF.includes(proj)) return false;
@@ -345,10 +373,26 @@ export default function CollectionPage() {
             {rmOpts.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <div>
+        <div style={{ position: "relative" }}>
           <label style={BANNER_LBL}>Search</label>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Reg / customer / unit / bank…"
+          <input value={q} onChange={e => { setQ(e.target.value); setSugOpen(true); }}
+            onFocus={() => setSugOpen(true)} onBlur={() => window.setTimeout(() => setSugOpen(false), 150)}
+            onKeyDown={e => { if (e.key === "Escape" || e.key === "Enter") setSugOpen(false); }}
+            placeholder="Reg / customer / unit / bank…"
             style={{ ...BANNER_CTL, cursor: "text", width: 200 }} />
+          {sugOpen && sugs.length > 0 && (
+            <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 300, background: "#fff", border: "1px solid #eae6da", borderRadius: 10, boxShadow: "0 10px 28px rgba(20,33,61,.18)", zIndex: 60, overflow: "hidden" }}>
+              {sugs.map((sg, i) => (
+                <div key={i} onMouseDown={e => { e.preventDefault(); setQ(sg.term); setSugOpen(false); }}
+                  style={{ padding: "7px 12px", cursor: "pointer", borderBottom: i < sugs.length - 1 ? "1px solid #f4f1e9" : "none" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sg.label}</div>
+                  <div style={{ fontSize: 10.5, color: "var(--mut)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sg.sub}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <button onClick={() => { setProjF([]); setRmF(""); setQ(""); }} className="pb-btn">⟲ Reset</button>
       </PageBanner>
