@@ -15,7 +15,7 @@ import "../../components/inventory/smartworldInventory.css";
 const API_BASE = "http://192.168.66.28:5002";
 
 /* ---------------- styles ---------------- */
-const TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e";
+const GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", NAVY = "#1c3f6e";
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
 const H3: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 2px" };
 const CAP: React.CSSProperties = { fontSize: 11, color: "var(--mut)", marginBottom: 10 };
@@ -51,7 +51,7 @@ interface Led {
 }
 interface Tgt { rm: string; proj: string; tgt: number; recd: number }
 interface Rcpt { proj: string; reg: string | null; name: string | null; unit: string | null; amt: number; mode: string | null; chq: string | null; bank: string | null; rcptDate: string | null; chqDate: string | null; clearDate: string | null; created: string | null; rm: string | null; milestone: string | null; dueDate: string | null }
-interface Pdc { proj: string; reg: string | null; given: string | null; unit: string | null; mode: string | null; chq: string | null; chqDate: string | null; bank: string | null; amt: number; allotDate: string | null; phase: string | null; tower: string | null; received: string | null }
+interface Allot { label: string; done: number; pending: number; total: number; tcv: number; called: number; recd: number; due: number; fut: number; kind: "proj" | "phase" | "total"; proj: string | null }
 
 function unpack<T>(p: { cols: string[]; rows: unknown[][] }): T[] {
   return p.rows.map(r => Object.fromEntries(p.cols.map((c, i) => [c, r[i]])) as T);
@@ -60,10 +60,9 @@ function unpack<T>(p: { cols: string[]; rows: unknown[][] }): T[] {
 /* ---------------- drill drawer ---------------- */
 type Drill =
   | { kind: "custs"; title: string; sub?: string; rows: Led[] }
-  | { kind: "rcpts"; title: string; sub?: string; rows: Rcpt[] }
-  | { kind: "pdcs"; title: string; sub?: string; rows: Pdc[] };
+  | { kind: "rcpts"; title: string; sub?: string; rows: Rcpt[] };
 
-function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipts: Rcpt[]; pdc: Pdc[]; onClose: () => void }) {
+function ColDrawer({ sel, receipts, onClose }: { sel: Drill | null; receipts: Rcpt[]; onClose: () => void }) {
   const [cust, setCust] = useState<Led | null>(null);
   if (!sel) return null;
   const tile = (k: string, v: string, col = "var(--ink)") => (
@@ -73,7 +72,6 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
     </div>
   );
   const myRcpts = cust ? receipts.filter(r => r.reg === cust.reg) : [];
-  const myPdc = cust ? pdc.filter(p => p.reg === cust.reg) : [];
   return (
     <>
       <div onClick={() => { setCust(null); onClose(); }} style={{ position: "fixed", inset: 0, background: "rgba(14,22,45,0.45)", zIndex: 220 }} />
@@ -99,12 +97,6 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
               {tile("Receipts", fN(sel.rows.length))}
               {tile("Amount", fMoney(sel.rows.reduce((s, r) => s + r.amt, 0)), GREEN)}
-            </div>
-          )}
-          {!cust && sel.kind === "pdcs" && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              {tile("Cheques", fN(sel.rows.length))}
-              {tile("Amount", fMoney(sel.rows.reduce((s, r) => s + r.amt, 0)), TEAL)}
             </div>
           )}
         </div>
@@ -144,17 +136,6 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
                   </table>
                 </div>
               )}
-              {myPdc.length > 0 && (
-                <div style={CARD}>
-                  <h3 style={H3}>Post-dated cheques in hand</h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 6 }}>
-                    <thead><tr><th style={TH}>Cheque date</th><th style={TH}>Cheque no.</th><th style={TH}>Bank</th><th style={{ ...TH, textAlign: "right" }}>Amount</th></tr></thead>
-                    <tbody>{myPdc.map((r, i) => (
-                      <tr key={i}><td style={TD}>{fD(r.chqDate)}</td><td style={TD}>{r.chq || "—"}</td><td style={{ ...TD, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{r.bank || "—"}</td><td style={{ ...TD, textAlign: "right", fontWeight: 700, color: TEAL }}>{fMoney(r.amt)}</td></tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              )}
             </>
           ) : sel.kind === "custs" ? (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -181,7 +162,7 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
                 {sel.rows.length > 400 && <tr><td colSpan={6} style={{ ...TD, textAlign: "center", color: "var(--mut)" }}>showing first 400 of {fN(sel.rows.length)} — narrow with filters</td></tr>}
               </tbody>
             </table>
-          ) : sel.kind === "rcpts" ? (
+          ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
                 <th style={TH}>Date</th><th style={TH}>Customer</th><th style={TH}>Project</th><th style={TH}>Mode</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
@@ -194,23 +175,6 @@ function ColDrawer({ sel, receipts, pdc, onClose }: { sel: Drill | null; receipt
                     <td style={{ ...TD, color: "var(--mut)" }}>{r.proj}</td>
                     <td style={TD}>{r.mode || "—"}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: GREEN }}>{fMoney(r.amt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                <th style={TH}>Cheque date</th><th style={TH}>Customer</th><th style={TH}>Project</th><th style={TH}>Bank</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
-              </tr></thead>
-              <tbody>
-                {sel.rows.map((r, i) => (
-                  <tr key={i}>
-                    <td style={{ ...TD, fontWeight: 700 }}>{fD(r.chqDate)}</td>
-                    <td style={{ ...TD, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{r.reg} <span style={{ color: "var(--mut)", fontSize: 10.5 }}>{r.unit}</span></td>
-                    <td style={{ ...TD, color: "var(--mut)" }}>{r.proj}</td>
-                    <td style={{ ...TD, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis" }}>{r.bank || "—"}</td>
-                    <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: TEAL }}>{fMoney(r.amt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -260,11 +224,13 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
   );
 }
 
+const _npj = (x: string) => x.toUpperCase().split(/\s+/).join(" ").replace(/ - | -|- /g, "-");
+
 /* ---------------- page ---------------- */
 type View = "master" | "daily";
 
 export default function CollectionPage() {
-  const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; pdc: Pdc[]; targets: Tgt[] } | null>(null);
+  const [raw, setRaw] = useState<{ asOf: Record<string, string | null>; errors: string[]; ledger: Led[]; receipts: Rcpt[]; allot: Allot[]; targets: Tgt[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("master");
@@ -281,15 +247,15 @@ export default function CollectionPage() {
       .then(j => {
         if (!alive) return;
         if (!j.ok) throw new Error(j.error || "backend error");
-        setRaw({ asOf: j.asOf, errors: j.errors || [], ledger: unpack<Led>(j.ledger), receipts: unpack<Rcpt>(j.receipts), pdc: unpack<Pdc>(j.pdc), targets: j.targets ? unpack<Tgt>(j.targets) : [] });
+        setRaw({ asOf: j.asOf, errors: j.errors || [], ledger: unpack<Led>(j.ledger), receipts: unpack<Rcpt>(j.receipts), allot: j.allot ? unpack<Allot>(j.allot) : [], targets: j.targets ? unpack<Tgt>(j.targets) : [] });
         setLoading(false);
       })
       .catch(e => { if (alive) { setError(String(e.message || e)); setLoading(false); } });
     return () => { alive = false; };
   }, []);
 
-  const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], pdcAll = raw?.pdc ?? [], targets = raw?.targets ?? [];
-  const projOpts = useMemo(() => [...new Set([...ledger.map(l => l.proj), ...receipts.map(r => r.proj), ...pdcAll.map(p => p.proj)])].filter(Boolean).sort(), [ledger, receipts, pdcAll]);
+  const ledger = raw?.ledger ?? [], receipts = raw?.receipts ?? [], allotAll = raw?.allot ?? [], targets = raw?.targets ?? [];
+  const projOpts = useMemo(() => [...new Set([...ledger.map(l => l.proj), ...receipts.map(r => r.proj)])].filter(Boolean).sort(), [ledger, receipts]);
   const rmOpts = useMemo(() => [...new Set(ledger.map(l => l.rm).filter((x): x is string => !!x))].sort(), [ledger]);
 
   /* Search suggestions: customers, reg nos, units and banks that contain
@@ -327,7 +293,11 @@ export default function CollectionPage() {
   };
   const led = useMemo(() => ledger.filter(l => match(l.proj, [l.reg, l.name, l.unit, l.rm, l.bank]) && (!rmF || l.rm === rmF)), [ledger, projF, rmF, q]);
   const rcp = useMemo(() => receipts.filter(r => match(r.proj, [r.reg, r.name, r.unit, r.rm, r.bank]) && (!rmF || r.rm === rmF)), [receipts, projF, rmF, q]);
-  const pdc = useMemo(() => pdcAll.filter(p => match(p.proj, [p.reg, p.unit, p.bank])), [pdcAll, projF, q]);
+  /* Allotment pivot rows, respecting the project filter */
+  const allot = useMemo(() => {
+    const rows = allotAll.filter(a => a.kind !== "total" && (!projF.length || (a.proj && projF.includes(a.proj))));
+    return rows;
+  }, [allotAll, projF]);
 
   const open = (d: Drill) => setDrill(d);
   const openCusts = (title: string, rows: Led[], sub?: string) =>
@@ -345,13 +315,12 @@ export default function CollectionPage() {
   }, [rcp]);
   const mtd = rcp.filter(r => (r.rcptDate || "").startsWith(monthKey));
   const mtdAmt = mtd.reduce((s, r) => s + r.amt, 0);
-  const pdcAmt = pdc.reduce((s, p) => s + p.amt, 0);
 
   const KPIS: [string, string, string, [string, string], () => void][] = [
     ["Net dues outstanding", fMoney(totDue), `${fN(withDue.length)} units with dues`, ["#c0392b", "#7e1f14"], () => openCusts("Units with net dues", withDue)],
     ["Recovery", `${totDem ? ((totRec / totDem) * 100).toFixed(1) : 0}%`, `${fMoney(totRec)} received of ${fMoney(totDem)} demanded`, ["#1e9a6c", "#0f6647"], () => openCusts("All customers", led)],
     ["Collected · " + new Date(monthKey + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" }), fMoney(mtdAmt), `${fN(mtd.length)} receipts this month`, [NAVY, "#0f2547"], () => open({ kind: "rcpts", title: "Receipts this month", rows: [...mtd].sort((a, b) => (b.rcptDate || "").localeCompare(a.rcptDate || "")) })],
-    ["PDCs in hand", fMoney(pdcAmt), `${fN(pdc.length)} post-dated cheques`, ["#1a7f9c", "#0e5468"], () => open({ kind: "pdcs", title: "Post-dated cheques in hand", rows: [...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")) })],
+    ["Allotment pending", fN(allot.filter(a => a.kind === "proj").reduce((s, a) => s + a.pending, 0)), `of ${fN(allot.filter(a => a.kind === "proj").reduce((s, a) => s + a.total, 0))} total units`, ["#1a7f9c", "#0e5468"], () => {}],
   ];
 
   const D_ASON = raw?.asOf.master?.slice(0, 10) ?? TODAY;
@@ -513,27 +482,61 @@ export default function CollectionPage() {
                 </Zoomable>
               </div>
 
-              <Zoomable title="PDC register" collapsible>
+              <Zoomable title="Allotment status" collapsible>
                 <div style={CARD}>
-                  <h3 style={H3}>Post-Dated Cheques in Hand</h3>
-                  <div style={CAP}>{fN(pdc.length)} cheques · {fMoney(pdcAmt)} · earliest maturity first</div>
-                  <div style={{ overflowX: "auto", maxHeight: 360, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 800 }}>
+                  <h3 style={H3}>Inventory — Allotment Status</h3>
+                  <div style={CAP}>Done / Pending units per project & phase · money in ₹ Cr · click a Done count → those customers</div>
+                  <div style={{ overflowX: "auto", maxHeight: 480, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
                       <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                        <th style={TH}>Cheque date</th><th style={TH}>Reg</th><th style={TH}>Unit</th><th style={TH}>Project</th><th style={TH}>Bank</th><th style={TH}>Cheque no.</th><th style={{ ...TH, textAlign: "right" }}>Amount</th>
+                        <th style={TH}>Row</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Done</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Pending</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Grand Total</th>
+                        <th style={{ ...TH, textAlign: "right" }}>TCV</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Called</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Recd.</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Due</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Future Dues</th>
                       </tr></thead>
                       <tbody>
-                        {[...pdc].sort((a, b) => (a.chqDate || "9").localeCompare(b.chqDate || "9")).map((x, i) => (
-                          <tr key={i}>
-                            <td style={{ ...TD, fontWeight: 700 }}>{fD(x.chqDate)}</td>
-                            <td style={{ ...TD, fontWeight: 700, color: "var(--ink)" }}>{x.reg}</td>
-                            <td style={{ ...TD, color: "var(--mut)" }}>{x.unit || "—"}</td>
-                            <td style={{ ...TD, color: "var(--mut)" }}>{x.proj}</td>
-                            <td style={{ ...TD, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis" }}>{x.bank || "—"}</td>
-                            <td style={{ ...TD, color: "var(--mut)" }}>{x.chq || "—"}</td>
-                            <td style={{ ...TD, textAlign: "right", fontWeight: 800, color: TEAL }}>{fMoney(x.amt)}</td>
-                          </tr>
-                        ))}
+                        {allot.map((a, i2) => {
+                          const isP = a.kind === "phase";
+                          const crv = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          const ls = ledger.filter(l => (isP ? _npj(l.phase || "") === _npj(a.label) && l.proj === a.proj : l.proj === a.proj));
+                          return (
+                            <tr key={i2} style={{ background: isP ? "" : "#faf9f4" }}>
+                              <td style={{ ...TD, fontWeight: isP ? 500 : 800, color: isP ? "var(--mut)" : "var(--ink)", paddingLeft: isP ? 26 : 10 }}>{a.label}</td>
+                              <td onClick={() => ls.length && openCusts(`${a.label} — allotment done`, ls)}
+                                style={{ ...TD, textAlign: "right", fontWeight: isP ? 600 : 800, cursor: ls.length ? "pointer" : "default" }}>{fN(a.done)}</td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: isP ? 600 : 800, color: a.pending ? "#b8860b" : "#d0c9b8" }}>{a.pending ? fN(a.pending) : "—"}</td>
+                              <td style={{ ...TD, textAlign: "right", fontWeight: isP ? 600 : 800 }}>{fN(a.total)}</td>
+                              <td style={{ ...TD, textAlign: "right" }}>{crv(a.tcv)}</td>
+                              <td style={{ ...TD, textAlign: "right" }}>{crv(a.called)}</td>
+                              <td style={{ ...TD, textAlign: "right", color: GREEN, fontWeight: 600 }}>{crv(a.recd)}</td>
+                              <td style={{ ...TD, textAlign: "right", color: a.due > 0.005 ? RED : "var(--mut)", fontWeight: 700 }}>{crv(a.due)}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#b8860b", fontWeight: 600 }}>{crv(a.fut)}</td>
+                            </tr>
+                          );
+                        })}
+                        {(() => {
+                          const ps = allot.filter(a => a.kind === "proj");
+                          const t = (f: (a: Allot) => number) => ps.reduce((sm, a) => sm + f(a), 0);
+                          const crv = (v: number) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          return (
+                            <tr style={{ background: "#14213D" }}>
+                              <td style={{ ...TD, color: "#fff", fontWeight: 800 }}>Grand Total</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{fN(t(a => a.done))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#ffd9a0", fontWeight: 800 }}>{fN(t(a => a.pending))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{fN(t(a => a.total))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{crv(t(a => a.tcv))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#fff", fontWeight: 800 }}>{crv(t(a => a.called))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#8be3b8", fontWeight: 800 }}>{crv(t(a => a.recd))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#ffb3a7", fontWeight: 800 }}>{crv(t(a => a.due))}</td>
+                              <td style={{ ...TD, textAlign: "right", color: "#ffd9a0", fontWeight: 800 }}>{crv(t(a => a.fut))}</td>
+                            </tr>
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -670,7 +673,7 @@ export default function CollectionPage() {
         </>)}
       </div>
 
-      <ColDrawer sel={drill} receipts={receipts} pdc={pdcAll} onClose={() => setDrill(null)} />
+      <ColDrawer sel={drill} receipts={receipts} onClose={() => setDrill(null)} />
     </div>
   );
 }
