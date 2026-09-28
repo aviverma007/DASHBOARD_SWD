@@ -274,16 +274,6 @@ export default function LoanDetailsPage() {
     return { p, pi, ls, sa: sum(ls, "sanctAmt"), da: sum(ls, "disbAmt"), due: sum(ls, "due"), prio: ls.filter(l => l.due > 1000 && l.balance > 0).length };
   }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => b.sa - a.sa), [scoped]);
 
-  /* handler scorecard */
-  const handlers = useMemo(() => {
-    const m = new Map<number, Loan[]>();
-    scoped.forEach(l => { if (!m.has(l.emp)) m.set(l.emp, []); m.get(l.emp)!.push(l); });
-    return [...m.entries()].map(([ei, ls]) => {
-      const sa = sum(ls, "sanctAmt"), da = sum(ls, "disbAmt");
-      return { ei, ls, sa, pct: sa ? (da / sa) * 100 : 0, due: sum(ls, "due"), prio: ls.filter(l => l.due > 1000 && l.balance > 0).length };
-    }).sort((a, b) => b.ls.length - a.ls.length);
-  }, [scoped]);
-
   /* ageing of undisbursed sanctions */
   const AGE = [["0–30 d", 0, 30], ["31–90 d", 31, 90], ["91–180 d", 91, 180], ["181–365 d", 181, 365], ["> 1 year", 366, 1e9]] as const;
   const ageBands = AGE.map(([lbl, lo, hi]) => {
@@ -464,7 +454,7 @@ export default function LoanDetailsPage() {
           </div>
         </Zoomable>
 
-        {/* bank-wise + handlers */}
+        {/* bank-wise */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 14, marginBottom: 14 }}>
           <Zoomable title="Bank-wise" collapsible>
             <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
@@ -494,33 +484,6 @@ export default function LoanDetailsPage() {
             </div>
           </Zoomable>
 
-          <Zoomable title="Handler scorecard" collapsible>
-            <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-              <h3 style={H3}>Handler Scorecard</h3>
-              <div style={CAP}>loan portfolio per CRM employee · click → their customers</div>
-              <div style={{ maxHeight: 360, overflowY: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                    <th style={TH}>Employee</th><th style={{ ...TH, textAlign: "right" }}>Custs</th>
-                    <th style={{ ...TH, textAlign: "right" }}>Sanctioned</th><th style={{ ...TH, textAlign: "right" }}>Disb %</th><th style={{ ...TH, textAlign: "right" }}>To collect</th>
-                  </tr></thead>
-                  <tbody>
-                    {handlers.map(h => (
-                      <tr key={h.ei} onClick={() => open(`${D.EMPS[h.ei] || "Unassigned"} — loan customers`, h.ls)} style={{ cursor: "pointer" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                        <td style={{ ...TD, fontWeight: 700, color: D.EMPS[h.ei] ? "var(--ink)" : "#96691c" }}>{D.EMPS[h.ei] || "Unassigned"}</td>
-                        <td style={{ ...TD, textAlign: "right" }}>{fN(h.ls.length)}</td>
-                        <td style={{ ...TD, textAlign: "right", color: TEAL, fontWeight: 700 }}>{fMoney(h.sa)}</td>
-                        <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{h.pct.toFixed(0)}%</td>
-                        <td style={{ ...TD, textAlign: "right", color: h.prio ? RED : "var(--mut)", fontWeight: h.prio ? 800 : 500 }}>{h.prio ? fN(h.prio) : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </Zoomable>
         </div>
 
         {/* monthly sanctions */}
