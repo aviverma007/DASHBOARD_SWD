@@ -25,7 +25,7 @@ export interface NpRow {
 export const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
   i, wbs: r[0] as number, wdesc: r[1] as number, vend: r[2] as number, pgrp: r[3] as number,
   plant: r[4] as number, gl: r[5] as number, dtyp: r[6] as number, comp: r[7] as number,
-  root: r[8] as number, day: r[9] as number, po: String(r[10]),
+  root: r[8] as number, day: r[9] as number, po: String(r[10]).replace(/\.0$/, ""),
   ord: r[11] as number, ordGst: r[12] as number, del: r[13] as number, delGst: r[14] as number,
   still: r[15] as number,
 }));

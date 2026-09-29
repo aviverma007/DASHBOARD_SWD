@@ -23,7 +23,7 @@ export const CASES: CaseRec[] = CM.R.map(r => ({
   open: r[0] as number, closed: r[1] as number, sta: r[2] as number, typ: r[3] as number,
   pri: r[4] as number, org: r[5] as number, tat: r[6] as number, area: r[7] as number,
   subArea: r[8] as number, prj: r[9] as number, own: r[10] as number, app: r[11] as number,
-  age: r[12] as number, account: String(r[13]), caseNo: String(r[14]),
+  age: r[12] as number, account: String(r[13]), caseNo: String(r[14]).replace(/\.0$/, ""),
   hni: r[15] as number, legal: r[16] as number, reassigns: r[17] as number,
   tl: (r[18] as number) ?? -1,
 }));

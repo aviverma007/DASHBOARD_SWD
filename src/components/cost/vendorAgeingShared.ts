@@ -20,7 +20,7 @@ export interface VaRow {
 export const VA_ROWS: VaRow[] = VA.L.map((r, i) => ({
   i, vend: r[0] as number, recon: r[1] as number, dtyp: r[2] as number, spgl: r[3] as number,
   amt: r[4] as number, bucket: r[5] as number, due: r[6] as number,
-  doc: String(r[7]), blocked: r[8] as number,
+  doc: String(r[7]).replace(/\.0$/, ""), blocked: r[8] as number,
   docDay: (r[9] as number) ?? -1, postDay: (r[10] as number) ?? -1,
 }));
 

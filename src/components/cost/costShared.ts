@@ -33,7 +33,7 @@ export interface PoRow {
 export const PO_ROWS: PoRow[] = CB.P.map(p => ({
   w: p[0] as number, day: p[1] as number, vendor: p[2] as number,
   ordered: p[3] as number, orderedGST: p[4] as number, delivered: p[5] as number,
-  docNo: String(p[6]), gl: p[7] as number, text: String(p[8]), typ: (p[9] as number) ?? 0,
+  docNo: String(p[6]).replace(/\.0$/, ""), gl: p[7] as number, text: String(p[8]), typ: (p[9] as number) ?? 0,
 }));
 
 /** Utilization status thresholds — same as the reference dashboard. */
