@@ -144,17 +144,10 @@ export function HomePage() {
   /* Cross-vertical stats — datasets are heavy, so they load lazily
    * after first paint and the tiles animate in when ready. */
   const [caseStats, setCaseStats] = useState<{ total: number; resolved: number } | null>(null);
-  const [costStats, setCostStats] = useState<{ budget: number; assigned: number } | null>(null);
   useEffect(() => {
     let alive = true;
     import("../../components/cases/caseShared").then(m => {
       if (alive) setCaseStats({ total: m.CASES.length, resolved: m.CASES.filter(m.isClosed).length });
-    }).catch(() => {});
-    import("../../components/cost/costShared").then(m => {
-      if (alive) setCostStats({
-        budget: m.WBS_ROWS.reduce((s, w) => s + w.budget, 0),
-        assigned: m.WBS_ROWS.reduce((s, w) => s + w.assigned, 0),
-      });
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -174,7 +167,6 @@ export function HomePage() {
     { k: "Sales", v: fCr(tsvCr * 1e7), sub: `${sold.toLocaleString("en-IN")} units sold across ${projects} projects`, col: "#1E3163", path: "/overview" },
     { k: "Inventory", v: `${soldPct.toFixed(1)}%`, sub: `sold · ${(totalUnits - sold).toLocaleString("en-IN")} units still available`, col: "#B8893C", path: "/inventory" },
     ...(caseStats ? [{ k: "CRM · Cases", v: `${((caseStats.resolved / Math.max(caseStats.total, 1)) * 100).toFixed(1)}%`, sub: `resolved of ${caseStats.total.toLocaleString("en-IN")} customer cases`, col: "#1BAF7A", path: "/case-management" }] : []),
-    ...(costStats ? [{ k: "Procurement · Cost", v: `${((costStats.assigned / Math.max(costStats.budget, 1)) * 100).toFixed(1)}%`, sub: `of ${fCr(costStats.budget)} budget utilized`, col: "#0E7490", path: "/cost" }] : []),
   ];
 
   return (
