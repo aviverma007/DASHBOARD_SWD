@@ -24,6 +24,8 @@ def floor_rank(lbl):
     if "raft" in l: return -6
     m = re.search(r"\(-(\d)\)\s*basement", l)
     if m: return -int(m.group(1))
+    m = re.fullmatch(r"b(\d)", l)
+    if m: return -int(m.group(1))
     if "stilt" in l: return 0
     m = re.search(r"(\d+)(?:st|nd|rd|th)\s*floor", l)
     if m: return int(m.group(1))
@@ -32,19 +34,22 @@ def floor_rank(lbl):
     return 500
 
 def parse_loc(loc):
-    """-> (tower, floorLabel, floorRank)"""
+    """-> (tower, floorLabel, floorRank). Handles both "T6 - 9th Floor"
+    and the newer "Tower D- 5th Floor" / "T1 -3rd Floor" spellings."""
     if not loc or loc == "0": return ("", "", 999)
-    parts = [p.strip() for p in loc.split(" - ")]
+    norm = re.sub(r"\s*-\s*", " - ", loc)
+    parts = [p.strip() for p in norm.split(" - ") if p.strip()]
     tower = ""
     for p in parts:
-        if re.fullmatch(r"T\d", p): tower = p; break
+        if re.fullmatch(r"T\d+", p) or re.fullmatch(r"Tower\s+[A-Z0-9]+(\(P\d\))?", p):
+            tower = p; break
     if not tower:
         if loc.startswith("EWS"): tower = "EWS"
         elif "Clubhouse" in loc: tower = "Clubhouse"
         elif "NTA" in loc: tower = "NTA"
         else: tower = parts[0]
-    fl = parts[-1] if len(parts) > 1 or tower not in parts[-1] else ""
-    if fl == tower or re.fullmatch(r"T\d", fl): fl = ""
+    fl = parts[-1] if len(parts) > 1 else ""
+    if fl == tower or re.fullmatch(r"T\d+", fl): fl = ""
     return (tower, fl, floor_rank(fl))
 
 def main(args):
@@ -55,6 +60,7 @@ def main(args):
         if v not in lst: lst.append(v)
         return lst.index(v)
     T = []
+    outlines = []          # per-row outline number, aligned with T
     for pname, path in pairs:
         pi = ix(projects, pname)
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -70,6 +76,7 @@ def main(args):
             pct = round(float(r[idx["Percent Complete"]] or 0), 1)
             loc = str(r[idx["Location"]] or "").strip()
             tower, fl, frank = parse_loc(loc)
+            outlines.append((pi, outline))
             T.append([
                 pi, name, depth, pct,
                 ix(statuses, r[idx["Status"]]),
@@ -79,15 +86,20 @@ def main(args):
                 ix(trades, r[idx["Trade"]]), ix(owners, r[idx["Owner"]]),
                 ix(towers, tower), ix(floors, fl), frank,
             ])
+    # leaf = a row no other row claims as parent (exact activity set,
+    # robust across exports whose WBS depth differs per project)
+    parents = {(pi, o.rsplit(".", 1)[0]) for pi, o in outlines if "." in o}
+    for row, (pi, o) in zip(T, outlines):
+        row.append(0 if (pi, o) in parents else 1)
     out = {
         "meta": {"asOn": "28 Sep 2026", "epoch": "2022-01-01",
-                 "fields": "projIdx,name,depth,pct,statusIdx,ps,pe,as,ae,be,tradeIdx,ownerIdx,towerIdx,floorIdx,floorRank"},
+                 "fields": "projIdx,name,depth,pct,statusIdx,ps,pe,as,ae,be,tradeIdx,ownerIdx,towerIdx,floorIdx,floorRank,leaf"},
         "PROJECTS": projects, "STATUS": statuses, "TRADES": trades,
         "OWNERS": owners, "TOWERS": towers, "FLOORS": floors, "T": T,
     }
     dest = os.path.join(os.path.dirname(__file__), "..", "src", "data", "projectTracker.json")
     json.dump(out, open(dest, "w"), separators=(",", ":"), ensure_ascii=False)
-    print(f"{len(T)} tasks, {len(trades)} trades, {len(owners)} owners, {len(towers)} towers, {os.path.getsize(dest)//1024} KB")
+    print(f"{len(T)} tasks, {sum(1 for r in T if r[-1])} leaf activities, {len(trades)} trades, {len(owners)} owners, {len(towers)} towers, {os.path.getsize(dest)//1024} KB")
     print("towers:", towers)
     print("statuses:", statuses)
 

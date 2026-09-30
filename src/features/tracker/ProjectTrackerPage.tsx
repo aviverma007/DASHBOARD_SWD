@@ -44,7 +44,7 @@ interface Task {
   proj: number; name: string; depth: number; pct: number; st: number;
   ps: number; pe: number; as: number; ae: number; be: number;
   trade: number; owner: number; tower: number; floor: number; frank: number;
-  done: boolean; active: boolean; overdue: boolean; slip: number;
+  done: boolean; active: boolean; overdue: boolean; slip: number; leaf: boolean;
 }
 const ALL: Task[] = D.T.map(t => {
   const st = t[4] as number, pct = t[3] as number, pe = t[6] as number, be = t[9] as number;
@@ -54,14 +54,15 @@ const ALL: Task[] = D.T.map(t => {
     proj: t[0] as number, name: t[1] as string, depth: t[2] as number, pct, st,
     ps: t[5] as number, pe, as: t[7] as number, ae: t[8] as number, be,
     trade: t[10] as number, owner: t[11] as number, tower: t[12] as number, floor: t[13] as number, frank: t[14] as number,
+    leaf: (t[15] as number) === 1,
     done, active: sName === "Started",
     overdue: !done && pe >= 0 && pe < AS_ON,
     slip: pe >= 0 && be >= 0 && pe > be ? pe - be : 0,
   };
 });
-/** activities = deepest WBS levels; parent/summary rows excluded so
- * nothing is counted twice */
-const ACTS = ALL.filter(t => t.depth >= 7);
+/** activities = leaf tasks (no children in the WBS), so summary rows
+ * are excluded and nothing is counted twice — robust per project */
+const ACTS = ALL.filter(t => t.leaf);
 const TOWER_ORDER = ["T1", "T2", "T3", "T4", "T5", "T6", "EWS", "Clubhouse", "NTA"];
 
 /* ---------------- drill drawer ---------------- */
@@ -212,6 +213,13 @@ export default function ProjectTrackerPage() {
     return [...TOWER_ORDER.filter(t => present.has(t)), ...[...present].filter(t => !TOWER_ORDER.includes(t)).sort()];
   }, [projF]);
   const tradeNames = useMemo(() => D.TRADES.map((t, i) => ({ t, i })).filter(x => x.t), []);
+  /* Keep the floor card on a tower that exists in the selected project */
+  useEffect(() => {
+    if (!towerNames.includes(heatTower) && towerNames.length) {
+      const real = towerNames.find(t => /^T\d+$/.test(t) || /^Tower\b/.test(t)) ?? towerNames[0];
+      setHeatTower(real);
+    }
+  }, [towerNames]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoped = useMemo(() => {
     const s = q.trim().toLowerCase();
