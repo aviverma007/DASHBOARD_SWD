@@ -356,6 +356,15 @@ export default function CollectionPage() {
   const setView = (v: View) => { setViewRaw(v); setProjF([]); setRmF(""); setQ(""); };
   const [sugOpen, setSugOpen] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
+  /* User-arranged project order for the Project Summary (▲▼ buttons);
+   * saved in this browser, new projects append at their default spot. */
+  const [projOrder, setProjOrder] = useState<string[]>(() => {
+    try { const v = JSON.parse(localStorage.getItem("colProjOrder") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+  });
+  const saveProjOrder = (arr: string[]) => {
+    setProjOrder(arr);
+    try { localStorage.setItem("colProjOrder", JSON.stringify(arr)); } catch { /* private mode */ }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -547,13 +556,30 @@ export default function CollectionPage() {
                 <th style={{ ...TH, textAlign: "right" }}>Future Dues</th>
               </tr>
             );
-            const row = (label: string, ls: Led[], sub: boolean, key: string) => {
+            const arrowBtn = (dis: boolean, glyph: string, title: string, onGo: () => void) => (
+              <button disabled={dis} title={title}
+                onClick={e => { e.stopPropagation(); onGo(); }}
+                style={{ width: 20, height: 17, lineHeight: 1, padding: 0, fontSize: 10, fontWeight: 800, cursor: dis ? "default" : "pointer", color: dis ? "#d8d2c2" : "var(--mut)", background: "#fff", border: "1px solid #e5e0d2", borderRadius: 5 }}
+                onMouseEnter={e => { if (!dis) (e.currentTarget as HTMLElement).style.color = "#B8893C"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = dis ? "#d8d2c2" : "var(--mut)"; }}>
+                {glyph}
+              </button>
+            );
+            const row = (label: string, ls: Led[], sub: boolean, key: string, reorder?: { up: boolean; down: boolean; onUp: () => void; onDown: () => void }) => {
               const a = agg(ls);
               return (
                 <tr key={key} onClick={() => openCusts(label, ls)} style={{ cursor: "pointer", background: sub ? "" : "#f7f5ef" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = sub ? "" : "#f7f5ef"; }}>
-                  <td style={{ ...TD, fontWeight: sub ? 500 : 800, color: "var(--ink)", paddingLeft: sub ? 26 : 10 }}>{label}</td>
+                  <td style={{ ...TD, fontWeight: sub ? 500 : 800, color: "var(--ink)", paddingLeft: sub ? 26 : 10 }}>
+                    {reorder && (
+                      <span style={{ display: "inline-flex", flexDirection: "column", gap: 1, marginRight: 8, verticalAlign: "middle" }}>
+                        {arrowBtn(!reorder.up, "▲", "Move project up", reorder.onUp)}
+                        {arrowBtn(!reorder.down, "▼", "Move project down", reorder.onDown)}
+                      </span>
+                    )}
+                    {label}
+                  </td>
                   <td style={{ ...TD, textAlign: "right", fontWeight: sub ? 500 : 700 }}>{fN(a.n)}</td>
                   <td style={{ ...TD, textAlign: "right" }}>{cr(a.tcv)}</td>
                   <td style={{ ...TD, textAlign: "right" }}>{cr(a.dem)}</td>
@@ -577,20 +603,34 @@ export default function CollectionPage() {
                 </tr>
               );
             };
-            const byProj = [...new Set(led.map(l => l.proj))].map(pj => ({ pj, ls: led.filter(l => l.proj === pj) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            const byProjDef = [...new Set(led.map(l => l.proj))].map(pj => ({ pj, ls: led.filter(l => l.proj === pj) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
+            const ordIdx = new Map(projOrder.map((pj, i) => [pj, i]));
+            const byProj = [...byProjDef].sort((a, b) =>
+              (ordIdx.get(a.pj) ?? 1000 + byProjDef.findIndex(g => g.pj === a.pj)) -
+              (ordIdx.get(b.pj) ?? 1000 + byProjDef.findIndex(g => g.pj === b.pj)));
+            const moveProj = (pj: string, dir: -1 | 1) => {
+              const cur = byProj.map(g => g.pj);
+              const i = cur.indexOf(pj), j = i + dir;
+              if (i < 0 || j < 0 || j >= cur.length) return;
+              [cur[i], cur[j]] = [cur[j], cur[i]];
+              saveProjOrder(cur);
+            };
             const byStatus = [...new Set(led.map(l => l.statusV || "—"))].map(st => ({ st, ls: led.filter(l => (l.statusV || "—") === st) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
             const byRm = [...new Set(led.map(l => l.rmFinal || "Unassigned"))].map(rm => ({ rm, ls: led.filter(l => (l.rmFinal || "Unassigned") === rm) })).sort((a, b) => agg(b.ls).due - agg(a.ls).due);
             return (<>
               <Zoomable title="Project summary">
                 <div style={CARD}>
                   <h3 style={H3}>Project Summary — {D_ASON}</h3>
-                  <div style={CAP}>figures in ₹ Cr · Future Dues = TCV − Demanded · phase rows indented · click any row → its customers</div>
+                  <div style={CAP}>
+                    figures in ₹ Cr · Future Dues = TCV − Demanded · ▲▼ arrange projects your way (saved on this browser) · click any row → its customers
+                    {projOrder.length > 0 && <span onClick={() => saveProjOrder([])} style={{ marginLeft: 8, color: "#B8893C", fontWeight: 700, cursor: "pointer" }}>⟲ default order</span>}
+                  </div>
                   <div style={{ overflowX: "auto", maxHeight: 520, overflowY: "auto", border: "1px solid #f0ede5", borderRadius: 10 }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 860 }}>
                       <thead>{HEAD}</thead>
                       <tbody>
-                        {byProj.map(g => (<>
-                          {row(g.pj, g.ls, false, g.pj)}
+                        {byProj.map((g, gi) => (<>
+                          {row(g.pj, g.ls, false, g.pj, { up: gi > 0, down: gi < byProj.length - 1, onUp: () => moveProj(g.pj, -1), onDown: () => moveProj(g.pj, 1) })}
                           {[...new Set(g.ls.map(l => l.phase).filter((x): x is string => !!x))].sort().map(ph =>
                             row(ph, g.ls.filter(l => l.phase === ph), true, g.pj + ph))}
                         </>))}
