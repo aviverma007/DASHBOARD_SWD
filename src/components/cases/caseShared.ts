@@ -11,7 +11,7 @@ export interface CmDataset {
   R: (number | string)[][];
   meta: { rows: number; asOn: string };
 }
-export const CM = raw as unknown as CmDataset;
+export let CM = raw as unknown as CmDataset;
 
 export interface CaseRec {
   open: number; closed: number; sta: number; typ: number; pri: number;
@@ -19,7 +19,7 @@ export interface CaseRec {
   own: number; app: number; age: number; account: string; caseNo: string;
   hni: number; legal: number; reassigns: number; tl: number;
 }
-export const CASES: CaseRec[] = CM.R.map(r => ({
+const buildCases = (cm: CmDataset): CaseRec[] => cm.R.map(r => ({
   open: r[0] as number, closed: r[1] as number, sta: r[2] as number, typ: r[3] as number,
   pri: r[4] as number, org: r[5] as number, tat: r[6] as number, area: r[7] as number,
   subArea: r[8] as number, prj: r[9] as number, own: r[10] as number, app: r[11] as number,
@@ -27,11 +27,30 @@ export const CASES: CaseRec[] = CM.R.map(r => ({
   hni: r[15] as number, legal: r[16] as number, reassigns: r[17] as number,
   tl: (r[18] as number) ?? -1,
 }));
+export let CASES: CaseRec[] = buildCases(CM);
 
 const CLOSED_NAMES = new Set(["Closed", "Resolved", "Close"]);
-const closedIdx = new Set(CM.STA.map((s, i) => (CLOSED_NAMES.has(s) ? i : -1)).filter(i => i >= 0));
+let closedIdx = new Set(CM.STA.map((s, i) => (CLOSED_NAMES.has(s) ? i : -1)).filter(i => i >= 0));
 /** Closed/Resolved/Close group — mirrors the CRM report's definition. */
 export const isClosed = (c: CaseRec) => closedIdx.has(c.sta);
+
+/** Swap the bundled snapshot for the live Salesforce dataset served by
+ * the VendorGlobe API. Returns the live "as on" stamp, or null when the
+ * service is unreachable (the snapshot stays in place). Callers must
+ * re-render (e.g. remount via key) after a successful load. */
+export async function loadLiveCases(apiBase: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${apiBase}/sfdc/cases/data`);
+    const j = await r.json();
+    if (!j.ok || !Array.isArray(j.R) || j.R.length === 0) return null;
+    CM = j as CmDataset;
+    CASES = buildCases(CM);
+    closedIdx = new Set(CM.STA.map((s, i) => (CLOSED_NAMES.has(s) ? i : -1)).filter(i => i >= 0));
+    return CM.meta.asOn;
+  } catch {
+    return null;                      // offline / service down → snapshot
+  }
+}
 
 /** TAT bucket: overdue = Beyond TAT · atrisk = any escalation level · within = rest. */
 export const tatBucket = (c: CaseRec): "overdue" | "atrisk" | "within" => {

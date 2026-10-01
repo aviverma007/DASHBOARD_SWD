@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { Zoomable } from "../../components/common/Zoomable";
 import {
-  CM, CASES, type CaseRec, isClosed, tatBucket,
+  CM, CASES, type CaseRec, isClosed, tatBucket, loadLiveCases,
   fmtDay, ymOf, ymLbl, fN, fyOf, fyLbl, EPOCH_MS, AGE_BANDS, ageBand,
 } from "../../components/cases/caseShared";
 import { CaseDrillDrawer, type CaseDrillSeed, type CaseChip } from "../../components/cases/CaseDrillDrawer";
@@ -90,6 +90,18 @@ function SFilter({ label, value, onChange, options }: { label: string; value: nu
 }
 
 export default function CaseManagementPage() {
+  /* Live Salesforce data: fetched once on mount; a successful load
+   * remounts the whole page (key below) so every memo recomputes. */
+  const [liveStamp, setLiveStamp] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadLiveCases("http://192.168.66.28:5002").then(st => { if (alive && st) setLiveStamp(st); });
+    return () => { alive = false; };
+  }, []);
+  return <CaseManagementInner key={liveStamp ?? "snapshot"} />;
+}
+
+function CaseManagementInner() {
   const [tab, setTab] = useState<Tab>("overall");
   // sidebar filters — same set as the reference (Category = Area)
   const [searchNo, setSearchNo] = useState("");
@@ -268,7 +280,7 @@ export default function CaseManagementPage() {
       `}</style>
       <div className="tv-zoom-desktop">
       {/* ── Header: title + the 4 reference page tabs ── */}
-      <PageBanner title="Case Management" sub={<>{fN(CASES.length)} customer cases · data as on {CM.meta.asOn}</>}
+      <PageBanner title="Case Management" sub={<>{fN(CASES.length)} customer cases · {CM.meta.asOn.startsWith("live") ? <strong style={{ color: "#8be3b8" }}>{CM.meta.asOn} · refreshes every 30 min</strong> : <>data as on {CM.meta.asOn} (snapshot — live service unreachable)</>}</>}
         center={
           <BannerPills size="lg" items={TABS.map(t => [t.k, t.l] as const)} value={tab}
             onChange={k => { setTab(k); setTatChip(""); setHniChip(false); setAgeF(-1); }} />
