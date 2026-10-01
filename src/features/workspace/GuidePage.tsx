@@ -123,6 +123,67 @@ const GUIDE: GuideSection[] = [
     ],
   },
   {
+    title: "EOI / Advance — logic",
+    intro: "Allotment-pending customers whose money is still in hand, from five project receipt exports; bounced instruments excluded everywhere.",
+    entries: [
+      { term: "EOI vs Advance", body: "Every RERA-registered project collects Advance money; only Code 67 Gurgaon (RERA awaited) is true EOI. The money-type toggle follows the selected projects automatically." },
+      { term: "In hand", body: "What we still hold for a customer after adjustments and refunds. Customers below ₹1,000 in hand are treated as settled.", formula: "In hand = Cleared + Adjustments (JV) + Refunds" },
+      { term: "Receipt statuses", body: "CLEARED adds money; ADJUSTMENT (journal voucher) usually moves it out; PAYMENT is a refund to the customer; BOUNCE is excluded from every figure." },
+      { term: "Collection pool accounts", body: "Pass-through codes where EOIs land first and then move to the customer's own code by JV — detected (100+ receipts, adjustments ≈ cleared) and kept out of customer money-in-hand." },
+      { term: "Ageing", body: "Days since the customer's first payment while still not allotted — the buckets card groups 0–90, 91–180, 180+ days." },
+    ],
+  },
+  {
+    title: "Collection — logic (live)",
+    intro: "The only live tab: data is read from the CRM team's two Excel files in the shared folder every time the page loads.",
+    entries: [
+      { term: "Two files, two toggles", body: "Monthly Collection = Collection Master.xlsx (its 'Master.' per-unit sheet + Inventory allotment pivot). Daily Collection = Daily Collection Report.xlsx (receipt sheets + the 'Fina l-2' RM/project targets). The two files keep their own project lists — the filters never mix them." },
+      { term: "Net Dues", body: "Taken directly from the Master sheet's own Net Due column and summed over all rows, credits netting off — so the KPI equals the team's pivot Grand Total to the paisa, never recomputed as Demanded − Received." },
+      { term: "Future Dues", body: "Value not yet demanded from the customer.", formula: "Future Dues = max(TCV − Demanded, 0) per unit" },
+      { term: "Recovery %", body: "How much of the demanded money has come in.", formula: "Recovery = Σ Received ÷ Σ Demanded × 100" },
+      { term: "When does it update?", body: "The CRM team saves the Excel (Ctrl+S) in the shared folder → anyone refreshes the Collection tab → fresh numbers in a few seconds. The banner's 'files saved' times are the proof. No timers, no manual upload." },
+      { term: "Arrange projects (▲▼)", body: "The Project Summary rows carry up/down arrows — arrange projects your way; the order is saved in your browser and the '⟲ default order' link restores dues-highest-first." },
+      { term: "Search suggestions", body: "Typing 2+ letters in the banner search suggests matching customers (name, reg no, unit) and banks from the active file; picking one filters the whole page." },
+    ],
+  },
+  {
+    title: "Project Tracker — logic",
+    intro: "Construction schedule progress across 7 projects from the planning exports (47k site activities).",
+    entries: [
+      { term: "Activities", body: "Only leaf tasks of the schedule count — rows with no children in the WBS — so phases and summary rows are never double-counted, whatever depth each project's export uses." },
+      { term: "Overall progress", body: "Simple average of each activity's Percent Complete in the current filter.", formula: "Progress = Σ activity % ÷ activities" },
+      { term: "Overdue", body: "Activities whose planned end has passed the data date and that are not complete (Complete / Quality checked / 100%)." },
+      { term: "Slipped vs baseline", body: "Activities whose planned end has moved beyond the baseline end — the average slip shows how far the plan has drifted.", formula: "Slip = Planned End − Baseline End (days)" },
+      { term: "Floor-by-Floor building", body: "The building card stacks a tower's floors bottom-up (basements inset below GROUND), fills each by completion, animates in-progress floors and places the 🏗 crane on the highest floor where work is running." },
+      { term: "Work reached", body: "On tower cards: the highest floor with any started activity — a one-line read of how high the structure has climbed." },
+    ],
+  },
+  {
+    title: "Loan Details — logic",
+    entries: [
+      { term: "Loan stages", body: "Sanction pending → Awaiting disbursement (sanctioned, nothing released) → Partly disbursed → Fully disbursed (≥99.5% released). The funnel card counts each stage." },
+      { term: "Undisbursed balance", body: "Sanctioned money the bank has not yet released.", formula: "Balance = Sanction Amt − Disbursed Amt" },
+      { term: "Bank names", body: "Normalised to upper case so the same bank spelt differently rolls up as one row in the bank-wise table." },
+      { term: "What it is not", body: "The customer's total due is the full unit consideration, not the loan — so no collectable-from-bank figures are shown anywhere on this tab." },
+    ],
+  },
+  {
+    title: "Case Management — logic",
+    entries: [
+      { term: "Resolved", body: "Cases whose status is Resolved, Closed or Close. Everything else counts as open backlog." },
+      { term: "TAT buckets", body: "Each case's escalation-level TAT gives a due window; cases are bucketed as within TAT, at-risk or overdue against it." },
+      { term: "Case numbers", body: "CRM ticket numbers are shown as whole IDs; search accepts a case number or the account name." },
+    ],
+  },
+  {
+    title: "Procurement — logic",
+    entries: [
+      { term: "PR to PO (live)", body: "The live journey of every SAP purchase requisition to its purchase order — approvals done, pending stage and number, and days pending — synced from SAP on a schedule by the VendorGlobe service." },
+      { term: "Cost — Utilized", body: "Non-project budget control from the SAP ZALR export.", formula: "Utilized = Actual + Commitment; Utilization % = Utilized ÷ Budget × 100" },
+      { term: "WBS health", body: "Healthy < 80% utilized · Watch 80–95% · Critical > 95% · No budget = spend without an approved budget." },
+    ],
+  },
+  {
     title: "Interactions & shortcuts",
     entries: [
       { term: "Click to drill", body: "Almost everything is clickable: chart bars, donut slices, funnel rows, trend months and weekday bars open a side drill drawer scoped to that value; inside a drawer, further clicks stack as removable chips (removing the last chip closes it). Records rows open a second-level detail panel on top." },
@@ -135,7 +196,7 @@ const GUIDE: GuideSection[] = [
       { term: "Reset", body: "Every filter bar's Reset returns that page to its default state (all projects, all time)." },
       { term: "Sidebar", body: "The Collapse arrow shrinks the nav to an icon rail; section headings (SALES / INVENTORY / WORKSPACE) fold their groups." },
       { term: "Wide charts scroll", body: "Charts with many towers or months keep a fixed readable scale and scroll horizontally instead of squeezing." },
-      { term: "Reports", body: "The Reports page exports the underlying datasets to Excel. PDF export is planned." },
+      { term: "Reports", body: "The Reports page previews and exports six Excel reports — inventory, bookings, EOI/advance money in hand, the home-loan book, construction tower summary and monthly CRM cases. Collection data stays live on its own tab." },
       { term: "Notes", body: "The Notes page (Workspace) is a personal scratchpad saved in this browser — use the search box to filter your notes." },
     ],
   },

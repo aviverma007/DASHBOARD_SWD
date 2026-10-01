@@ -410,7 +410,7 @@ export function ReportsPage() {
           <div style={{ fontSize: 32 }}>📊</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#6b7280" }}>More reports coming</div>
           <div style={{ fontSize: 12.5 }}>
-            Collections, Revenue, and Customer reports will appear here once their data is confirmed.
+            Collection data is live from the CRM shared folder — view and drill it on the Collection tab. More exports land here as new datasets are confirmed.
           </div>
         </div>
       </div>
