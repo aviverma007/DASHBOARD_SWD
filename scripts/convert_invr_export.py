@@ -30,10 +30,31 @@ import json
 import re
 import pandas as pd
 
-SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/9231cc70-Merged_invr_05-10-2026.xlsx"
+SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/c76c5b3b-Merged_invr_05-10-2026.xlsx"
 OUTPUT_JSON = "/home/claude/DASHBOARD_SWD/src/data/smartworldInventory.json"
 
 df = pd.read_excel(SOURCE_XLSX, sheet_name="Sheet1")
+
+# ---- Repair hand-appended rows with a one-column shift ----
+# The 05-Oct v2 export appends a few manually added units whose values
+# are shifted one column right from "Unit Description" onward (unit no.
+# lands in Status, status in Unit Type, ...). Detect by unknown Status
+# value and un-shift. Guard stays strict: any OTHER anomaly still fails.
+KNOWN_STATUS = {"Available", "Booked", "Management Unit", "In Progress", "N/A for Sale"}
+_i_desc = list(df.columns).index("Unit Description")
+_bad = ~df["Status"].astype(str).isin(KNOWN_STATUS)
+if _bad.any():
+    print(f"Repairing {int(_bad.sum())} column-shifted rows:",
+          df.loc[_bad, "Status"].tolist())
+    fixed = pd.DataFrame(
+        [list(df.loc[ix])[:_i_desc] + list(df.loc[ix])[_i_desc + 1:] + [None]
+         for ix in df.index[_bad]],
+        columns=df.columns,
+    )
+    still = ~fixed["Status"].astype(str).isin(KNOWN_STATUS)
+    if still.any():
+        raise ValueError(f"Unrepairable Status values: {fixed.loc[still, 'Status'].unique()!r}")
+    df = pd.concat([df[~_bad], fixed], ignore_index=True)
 
 # Oct 2026 export switched to mixed-case project names ("Smartworld Le
 # Courtyard"); the PDRN↔INVR project join (pdrnActive.ts uppercases PDRN
