@@ -220,6 +220,8 @@ const PROJECT_SHORT: Record<string, string> = {
   "SMARTWORLD SKY ARC":       "SKY ARC",
   "SMARTWORLD SUITES":        "SUITES",
   "TRUMP RESIDENCES GURGAON": "TRUMP",
+  "SMARTWORLD ONE DXP PHASE-2": "DXP PH-2",
+  "SMARTWORLD ONE DXP STREET":  "DXP STREET",
 };
 
 export function TargetActualPage() {

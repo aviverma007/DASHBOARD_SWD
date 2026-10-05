@@ -251,14 +251,14 @@ export const REPORTS: ReportMeta[] = [
     title: "Project Inventory Summary",
     description: "Unit count, availability, absorption %, area breakdown, and configurations per project. Sourced from INVR dataset.",
     icon: "🏗️",
-    lastUpdated: "INVR export 18-Aug-2026",
+    lastUpdated: "INVR export 05-Oct-2026",
   },
   {
     id: "bookings",
     title: "Bookings Report",
     description: "All active PDRN bookings with unit details, customer name, payment plan, booking date, and Total Basic Selling Price.",
     icon: "📋",
-    lastUpdated: "Merge_Sales 17-Aug-2026",
+    lastUpdated: "PDRN export 05-Oct-2026",
   },
   {
     id: "eoi-advance",

@@ -148,6 +148,8 @@ export const PROJECT_LOCATION: Record<string, string> = {
   "SMARTWORLD THE EDITION":   "Gurgaon",
   "SMARTWORLD SKY ARC":       "Gurgaon",
   "TRUMP RESIDENCES GURGAON": "Gurgaon",
+  "SMARTWORLD ONE DXP PHASE-2": "Gurgaon", // Sector 113, Dwarka Expressway
+  "SMARTWORLD ONE DXP STREET":  "Gurgaon",
   "SMARTWORLD LE COURTYARD":  "Noida",
   "SMARTWORLD RESIDENCIES":   "Noida",
   "SMARTWORLD SUITES":        "Noida",

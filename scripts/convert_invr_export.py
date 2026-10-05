@@ -30,10 +30,16 @@ import json
 import re
 import pandas as pd
 
-SOURCE_XLSX = "/mnt/user-data/uploads/INVR-All_Project_18-8-2026.xlsx"
+SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/9231cc70-Merged_invr_05-10-2026.xlsx"
 OUTPUT_JSON = "/home/claude/DASHBOARD_SWD/src/data/smartworldInventory.json"
 
-df = pd.read_excel(SOURCE_XLSX, sheet_name="Merged")
+df = pd.read_excel(SOURCE_XLSX, sheet_name="Sheet1")
+
+# Oct 2026 export switched to mixed-case project names ("Smartworld Le
+# Courtyard"); the PDRN↔INVR project join (pdrnActive.ts uppercases PDRN
+# names, pdrnLogic matches ===) requires the all-caps form the old
+# exports used. Normalize here so the join keeps working.
+df["Project Name"] = df["Project Name"].astype(str).str.upper()
 
 # ---- Lookup tables, built in a stable, sorted order ----
 projects = sorted(df["Project Name"].unique().tolist())
@@ -72,7 +78,9 @@ def derive_cfg(bhk_text: str) -> str:
     Verified against all 50 distinct BHK values in this source with zero
     'Unspecified' fallback rows."""
     text = str(bhk_text).upper()
-    if "RETAIL SHOP" in text or "SHOP" in text:
+    if "RETAIL SHOP" in text or "SHOP" in text or "ANCHOR STORE" in text or "RESTAURANT" in text:
+        # Oct 2026: ONE DXP STREET adds "Anchor Store" / "Restaurant" —
+        # retail commercial space like the shop units.
         return "Commercial"
     m = re.search(r"(\d+)\s*BHK", text)
     if m:
@@ -143,7 +151,7 @@ dataset = {
     "HY": {
         "rows_in": len(df),
         "rows_out": len(units),
-        "source_file": "INVR-All_Project_18-8-2026.xlsx",
+        "source_file": "Merged_invr_05-10-2026.xlsx",
         "projects_included": len(projects),
     },
 }
