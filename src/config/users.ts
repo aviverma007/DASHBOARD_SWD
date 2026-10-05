@@ -30,6 +30,7 @@ export const APP_USERS: AppUser[] = [
   { id: "sales@smartworlddevelopers.com", password: "Swd@2026", displayName: "Sales",  role: "sales", access: SALES_PATHS },
   { id: "crm@smartworlddevelopers.com",   password: "Swd@2026", displayName: "CRM",    role: "crm",   access: [...SALES_PATHS, "/case-management", "/loan-details", "/collections"] },
   { id: "p&l@smartworlddevelopers.com",   password: "Swd@2026", displayName: "P&L",    role: "pl",    access: ["/overview", "/target"] },
+  { id: "procurement@smartworlddevelopers.com", password: "Swd@2026", displayName: "Procurement", role: "finance", access: ["/pr-to-po", "/cost"] },
 ];
 
 /** Always-permitted paths regardless of rights. */
