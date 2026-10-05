@@ -33,7 +33,10 @@ export function InventoryOverviewPage() {
     let projs = overall.projects;
     if (location) projs = projs.filter(p => projectLocation(p.projectName) === location);
     if (selectedProjects.size > 0) projs = projs.filter(p => selectedProjects.has(p.projectName));
-    return projs;
+    // Projects without a site-plan photo go last (stable within each group).
+    return [...projs].sort(
+      (a, b) => (PROJECT_IMAGES[a.projectName] ? 0 : 1) - (PROJECT_IMAGES[b.projectName] ? 0 : 1)
+    );
   }, [overall.projects, selectedProjects, location]);
 
   const visibleOverall = useMemo(() => {
