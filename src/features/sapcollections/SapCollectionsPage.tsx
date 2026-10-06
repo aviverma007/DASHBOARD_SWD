@@ -295,7 +295,6 @@ export function SapCollectionsPage() {
     const names = projF ? [projF] : PROJECTS;
     return names.map(p => agg(scope.filter(b => b.proj === p), p)).filter(a => a.n > 0);
   }, [scope, projF]);
-  const topDue = useMemo(() => [...scope].sort((a, b) => b.due - a.due).slice(0, 15), [scope]);
 
   const kpi = (label: string, value: string, sub: string, g: [string, string]) => (
     <div key={label} style={{ ...GLASS(g[0], g[1]), flex: "1 1 150px", minWidth: 150 }}>
@@ -415,36 +414,6 @@ export function SapCollectionsPage() {
           <div style={H3}>Future Dues by Project</div>
           <div style={CAP}>TCV − called · demands still to be raised</div>
           <HBars data={[...byProj].sort((a, b) => b.fut - a.fut).map(a => ({ label: a.label, value: a.fut, onPick: () => setDrill({ title: a.label, rows: scope.filter(b => b.proj === a.label) }) }))} fmt={fCr} />
-        </div>
-      </div>
-
-      {/* Top outstanding */}
-      <div style={CARD}>
-        <div style={H3}>Top Outstanding Units</div>
-        <div style={CAP}>15 largest net dues in the current selection</div>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead><tr>
-              <th style={TH}>Unit</th><th style={TH}>Customer</th><th style={TH}>Project</th>
-              <th style={{ ...TH, textAlign: "right" }}>TCV</th>
-              <th style={{ ...TH, textAlign: "right" }}>Called</th>
-              <th style={{ ...TH, textAlign: "right" }}>Received</th>
-              <th style={{ ...TH, textAlign: "right" }}>Net Due</th>
-            </tr></thead>
-            <tbody>
-              {topDue.map((b, i) => (
-                <tr key={i} style={{ background: i % 2 ? "#faf9f6" : "#fff" }}>
-                  <td style={{ ...TD, fontWeight: 700 }}>{b.unit}</td>
-                  <td style={{ ...TD, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</td>
-                  <td style={TD}>{b.proj}</td>
-                  <td style={RIGHT}>{fMoney(b.tcv)}</td>
-                  <td style={RIGHT}>{fMoney(b.called)}</td>
-                  <td style={{ ...RIGHT, color: GREEN, fontWeight: 700 }}>{fMoney(b.rec)}</td>
-                  <td style={{ ...RIGHT, color: RED, fontWeight: 800 }}>{fMoney(b.due)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
 
