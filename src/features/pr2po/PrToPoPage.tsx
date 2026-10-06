@@ -1274,9 +1274,18 @@ export default function PrToPoPage() {
                 const inNfa = inFlight.filter(j => j.stageIdx === 4 || j.stageIdx === 5);
                 const awaitPo = inFlight.filter(j => j.stageIdx === 6 || j.stageIdx === 7);
                 const tats = completed.map(tatOf).filter((x): x is number => x !== null);
+                /* still inside SAP itself - release not yet granted */
+                const inSap = inFlight.filter(j => j.stageIdx <= 1);
+                const sapWaits = inSap.map(waitOf).filter((x): x is number => x !== null);
                 const cards: { t: string; n: string; sub: string; expl: string; c: string; pick: () => void }[] = [
-                  /* SAP hand-over card only makes sense for the SAP flow */
+                  /* SAP-side cards only make sense for the SAP flow */
                   ...(flow === "qms" ? [] : [{
+                    t: "Awaiting SAP approval", n: fN(inSap.length),
+                    sub: `avg wait ${sapWaits.length ? (sapWaits.reduce((a, b) => a + b, 0) / sapWaits.length).toFixed(0) : 0} d · longest ${sapWaits.length ? Math.max(...sapWaits) : 0} d · ${fMoney(inSap.reduce((s2, j) => s2 + j.value, 0))}`,
+                    expl: "PR raised in SAP but the SAP release (Frgkz R/2) has not been granted yet — the journey has not left SAP.",
+                    c: "#8e44ad",
+                    pick: () => openLatest("Awaiting SAP approval", inSap, j => j.m.sap_created ?? 0, j => { const w = waitOf(j); return w !== null ? `waiting ${w} d` : undefined; }, "latest SAP PRs first"),
+                  }, {
     t: "Approved in SAP, not yet in QMS", n: fN(repl.length),
                     sub: `avg wait ${waits.length ? (waits.reduce((a, b) => a + b, 0) / waits.length).toFixed(0) : 0} d · longest ${waits.length ? Math.max(...waits) : 0} d · ${fMoney(repl.reduce((s, j) => s + j.value, 0))}`,
                     expl: "SAP released these PRs (Frgkz R/2) but the QMS PR is still not created — the hand-over to QMS is pending. Wait counted from the PR date.",
