@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
@@ -73,52 +74,75 @@ const agg = (rows: Bk[], label: string): Agg => ({
 const CHART_CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
 
 interface Slice { label: string; value: number; onPick?: () => void }
-function Donut({ data, fmt, center, size = 164 }: { data: Slice[]; fmt: (v: number) => string; center?: string; size?: number }) {
-  const tot = data.reduce((s, d) => s + d.value, 0);
-  if (tot <= 0) return <div style={{ color: "var(--mut)", fontSize: 12, padding: 20 }}>no data for this selection</div>;
-  const C = size / 2, R = C - 16, W = Math.round(size * 0.19);
-  let a0 = -Math.PI / 2;
-  const arcs = data.map((d, i) => {
-    const frac = d.value / tot;
-    const a1 = a0 + frac * Math.PI * 2;
-    const pad = Math.min(0.028, (a1 - a0) * 0.25);
-    const s0 = a0 + pad / 2, s1 = Math.max(a1 - pad / 2, s0 + 0.004);
-    const p = (a: number, r: number) => [C + r * Math.cos(a), C + r * Math.sin(a)];
-    const [x0, y0] = p(s0, R), [x1, y1] = p(s1, R), [x2, y2] = p(s1, R - W), [x3, y3] = p(s0, R - W);
-    const lg = s1 - s0 > Math.PI ? 1 : 0;
-    const dPath = `M${x0},${y0} A${R},${R} 0 ${lg} 1 ${x1},${y1} L${x2},${y2} A${R - W},${R - W} 0 ${lg} 0 ${x3},${y3} Z`;
-    const mid = (s0 + s1) / 2;
-    a0 = a1;
-    return { d, i, dPath, frac, mid };
-  });
+
+/** TCV share donut — same motion behavior as the Home page card:
+ * slices pop out and dim siblings on hover, center swaps to the
+ * hovered project's value, spring-animated entry. */
+function SapDonut({ slices, centerTop, centerSub }: { slices: { label: string; value: number; disp: string; onPick?: () => void }[]; centerTop: string; centerSub: string }) {
+  const [hov, setHov] = useState<string | null>(null);
+  const tot = slices.reduce((s, d) => s + d.value, 0) || 1;
+  let cum = 0;
+  const coords = (p: number) => [Math.cos(2 * Math.PI * p), Math.sin(2 * Math.PI * p)];
+  const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", flex: 1, justifyContent: "center" }}>
-      <svg width={C * 2} height={C * 2} style={{ flexShrink: 0 }}>
-        {arcs.map(a => (
-          <path key={a.i} d={a.dPath} fill={CHART_CAT[a.i % CHART_CAT.length]}
-            style={{ cursor: a.d.onPick ? "pointer" : "default" }} onClick={a.d.onPick}
-            onMouseEnter={e => showTip(e, `<b>${a.d.label}</b><br/>${fmt(a.d.value)} · ${(a.frac * 100).toFixed(1)}%${a.d.onPick ? "<br/>click → drill" : ""}`)}
-            onMouseLeave={hideTip} />
-        ))}
-        {arcs.filter(a => a.frac >= 0.055).map(a => (
-          <text key={"t" + a.i} x={C + (R - W / 2) * Math.cos(a.mid)} y={C + (R - W / 2) * Math.sin(a.mid)}
-            textAnchor="middle" dominantBaseline="central" fontSize={Math.max(10, size * 0.052)} fontWeight={800} fill="#fff" pointerEvents="none">
-            {(a.frac * 100).toFixed(0)}%
-          </text>
-        ))}
-        {center && <text x={C} y={C} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(12, size * 0.068)} fontWeight={800} fill="var(--ink)" fontFamily="Georgia,serif">{center}</text>}
-      </svg>
-      <div style={{ flex: 1, minWidth: 190, display: "flex", flexDirection: "column", justifyContent: "center", alignSelf: "stretch" }}>
-        {data.map((d, i) => (
-          <div key={d.label} onClick={d.onPick}
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 6px", fontSize: 12, cursor: d.onPick ? "pointer" : "default", borderRadius: 6, borderBottom: i < data.length - 1 ? "1px solid #f4f1e9" : "none" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-            <span style={{ width: 11, height: 11, borderRadius: 3, background: CHART_CAT[i % CHART_CAT.length], flexShrink: 0 }} />
-            <span style={{ flex: 1, color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.label}</span>
-            <span style={{ color: "var(--mut)", fontWeight: 600, width: 40, textAlign: "right" }}>{((d.value / tot) * 100).toFixed(1)}%</span>
-            <span style={{ color: "var(--ink)", fontWeight: 800, width: 88, textAlign: "right" }}>{fmt(d.value)}</span>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, justifyContent: "center" }}>
+      <div style={{ position: "relative", width: "min(270px, 76%)", aspectRatio: "1" }}>
+        <motion.svg
+          viewBox="-1.2 -1.2 2.4 2.4" style={{ width: "100%", height: "100%", overflow: "visible" }}
+          initial={{ rotate: -180, scale: 0 }} animate={{ rotate: -90, scale: 1 }}
+          transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.2 }}
+        >
+          {slices.map((sl, i) => {
+            const p0 = cum / tot, p1 = (cum + sl.value) / tot;
+            cum += sl.value;
+            const [x0, y0] = coords(p0), [x1, y1] = coords(p1);
+            const large = sl.value / tot > 0.5 ? 1 : 0;
+            const hovd = hov === sl.label, dim = hov !== null && !hovd;
+            return (
+              <motion.path
+                key={sl.label}
+                d={`M ${x0} ${y0} A 1 1 0 ${large} 1 ${x1} ${y1} L 0 0`}
+                fill={CHART_CAT[i % CHART_CAT.length]} stroke="#fff" strokeWidth={0.03} strokeLinejoin="round"
+                animate={{
+                  translateX: hovd ? (x0 + x1) * 0.08 : 0, translateY: hovd ? (y0 + y1) * 0.08 : 0,
+                  scale: hovd ? 1.05 : 1, opacity: dim ? 0.3 : 1,
+                }}
+                transition={spring}
+                onMouseEnter={() => setHov(sl.label)} onMouseLeave={() => setHov(null)}
+                onClick={sl.onPick}
+                style={{ cursor: sl.onPick ? "pointer" : "default" }}
+              />
+            );
+          })}
+          <motion.circle cx={0} cy={0} r={0.56} fill="#fff" stroke="#eae6da" strokeWidth={0.015}
+            initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, ...spring }} />
+        </motion.svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <AnimatePresence mode="popLayout">
+            <motion.div key={hov ?? "tot"} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+              transition={spring} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span style={{ fontFamily: "Georgia,serif", fontSize: hov ? 15 : 19, fontWeight: 700, color: "var(--ink)", textAlign: "center", lineHeight: 1.1 }}>
+                {hov ? slices.find(d => d.label === hov)?.disp : centerTop}
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "var(--mut)", marginTop: 4, maxWidth: 130, textAlign: "center" }}>
+                {hov ?? centerSub}
+              </span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+      <div style={{ width: "100%", marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+        {slices.map((sl, i) => (
+          <motion.div key={sl.label}
+            onMouseEnter={() => setHov(sl.label)} onMouseLeave={() => setHov(null)}
+            onClick={sl.onPick}
+            animate={{ opacity: hov && hov !== sl.label ? 0.35 : 1, scale: hov === sl.label ? 1.03 : 1 }}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 7px", cursor: sl.onPick ? "pointer" : "default", borderRadius: 7, background: hov === sl.label ? "#faf8f2" : "transparent" }}
+          >
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: CHART_CAT[i % CHART_CAT.length], flexShrink: 0 }} />
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sl.label}</span>
+            <span style={{ marginLeft: "auto", fontWeight: 800, fontSize: 11.5, color: "var(--mut)" }}>{((sl.value / tot) * 100).toFixed(1)}%</span>
+          </motion.div>
         ))}
       </div>
     </div>
@@ -143,34 +167,39 @@ function HBars({ data, fmt }: { data: Slice[]; fmt: (v: number) => string }) {
   </>);
 }
 
-/** Received vs Called — paired horizontal bars per project. */
+/** Received vs Called — ONE bar per project: bar length = called /
+ * demand (scaled to the largest project), green fill = the received
+ * portion of it, navy remainder = net due still to collect. */
 function PairBars({ rows }: { rows: Agg[] }) {
-  const mx = Math.max(...rows.map(r => Math.max(r.called, r.rec)), 1);
-  const bar = (v: number, color: string, lbl: string) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}
-      onMouseEnter={e => showTip(e, `<b>${lbl}</b><br/>${fCr(v)}`)} onMouseLeave={hideTip}>
-      <div style={{ flex: 1, height: 11, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${(Math.max(v, 0) / mx) * 100}%`, background: color, borderRadius: "0 4px 4px 0", minWidth: 2 }} />
-      </div>
-      <div style={{ width: 86, textAlign: "right", fontSize: 11, fontWeight: 800, color: "var(--ink)" }}>{fCr(v)}</div>
-    </div>
-  );
+  const mx = Math.max(...rows.map(r => r.called), 1);
   return (<>
     <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--mut)", fontWeight: 700, marginBottom: 6 }}>
-      <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "#1c3f6e", marginRight: 5 }} />Called / demand</span>
       <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: GREEN, marginRight: 5 }} />Received</span>
+      <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "#1c3f6e", marginRight: 5 }} />Still due (of called)</span>
     </div>
-    {rows.map(r => (
-      <div key={r.label} style={{ padding: "5px 0", borderBottom: "1px solid #f4f1e9" }}>
-        <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink)", marginBottom: 3 }}>
-          {r.label} <span style={{ color: "var(--mut)", fontWeight: 600 }}>· {r.called > 0 ? ((r.rec / r.called) * 100).toFixed(1) : "—"}% collected</span>
+    {rows.map(r => {
+      const recFrac = r.called > 0 ? Math.max(Math.min(r.rec / r.called, 1), 0) : 0;
+      return (
+        <div key={r.label} style={{ padding: "6px 0", borderBottom: "1px solid #f4f1e9" }}
+          onMouseEnter={e => showTip(e, `<b>${r.label}</b><br/>Called ${fCr(r.called)}<br/>Received ${fCr(r.rec)} (${r.called > 0 ? ((r.rec / r.called) * 100).toFixed(1) : "—"}%)<br/>Net due ${fCr(r.due)}`)}
+          onMouseLeave={hideTip}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink)" }}>
+              {r.label} <span style={{ color: "var(--mut)", fontWeight: 600 }}>· {r.called > 0 ? ((r.rec / r.called) * 100).toFixed(1) : "—"}% collected</span>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink)", whiteSpace: "nowrap" }}>
+              <span style={{ color: GREEN }}>{fCr(r.rec)}</span>
+              <span style={{ color: "var(--mut)", fontWeight: 600 }}> / {fCr(r.called)}</span>
+            </div>
+          </div>
+          <div style={{ height: 16, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(r.called / mx) * 100}%`, background: "#1c3f6e", borderRadius: "0 5px 5px 0", display: "flex", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${recFrac * 100}%`, background: GREEN }} />
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {bar(r.called, "#1c3f6e", `${r.label} — called`)}
-          {bar(r.rec, GREEN, `${r.label} — received`)}
-        </div>
-      </div>
-    ))}
+      );
+    })}
   </>);
 }
 
@@ -369,8 +398,9 @@ export function SapCollectionsPage() {
         <div style={CARD}>
           <div style={H3}>TCV Share</div>
           <div style={CAP}>each project's share of total consideration value</div>
-          <Donut data={byProj.map(a => ({ label: a.label, value: a.tcv, onPick: () => setDrill({ title: a.label, rows: scope.filter(b => b.proj === a.label) }) }))}
-            fmt={fCr} center={fCr(tot.tcv)} />
+          <SapDonut
+            slices={byProj.map(a => ({ label: a.label, value: a.tcv, disp: fCr(a.tcv), onPick: () => setDrill({ title: a.label, rows: scope.filter(b => b.proj === a.label) }) }))}
+            centerTop={fCr(tot.tcv)} centerSub="total" />
         </div>
       </div>
 
