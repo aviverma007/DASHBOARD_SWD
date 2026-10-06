@@ -89,6 +89,10 @@ interface Journey {
   done: boolean;                    // reached po_released
   pendingWith: string;
   pendingSince: number | null;
+  /** exact approval level the PR is sitting at (null = done/exception) */
+  pendingLevel: string | null;
+  /** SAP release indicator (Frgkz) for the SAP-approval level label */
+  relStatus: string;
   vg: Record<string, string | null> | null;
   po: Record<string, string | null> | null;
   poApprox: boolean;                // po_released date approximated by AEDAT
@@ -147,6 +151,47 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
     if (nfaApproved) { reached.nfa_approved = true; m.nfa_approved = lDates.length ? Math.max(...lDates) : null; }
   };
 
+  /* The exact approval LEVEL a pending journey sits at, derived from the
+     per-step/per-level columns of the NFA TAT mirror:
+     QMS chain  = Validator 1 → Validator 2 → CP Team → Assignee
+     NFA chain  = Level 1 … Level 8 (first level with a team but no date) */
+  const has = (x: string | null | undefined) => {
+    const t = String(x ?? "").trim();
+    return t !== "" && t.toUpperCase() !== "NA" && t.toUpperCase() !== "NONE";
+  };
+  const pendingLevelOf = (at: string, j: Journey, v: R | null, noNfa: boolean): string => {
+    if (at === "sap_created") return "SAP · PR creation";
+    if (at === "sap_released") return `SAP · release${j.relStatus ? ` (Frgkz ${j.relStatus})` : ""}`;
+    if (at === "qms_created") return "QMS · SAP→QMS hand-over";
+    if (at === "qms_approved") {
+      const steps: [string, string | null | undefined, string | null | undefined][] = [
+        ["Validator 1", v?.Validator_One, v?.Validator_One_Date],
+        ["Validator 2", v?.Validator_Two, v?.Validator_Two_Date],
+        ["CP Team", v?.CP_Team, v?.CP_Team_Date],
+        ["Assignee", v?.PR_Assigners, v?.Assignee_Team_Date],
+      ];
+      for (const [lbl, team, date] of steps)
+        if (has(team) && pDate(date ?? null) === null) return `QMS · ${lbl}`;
+      return "QMS · final approval";
+    }
+    if (at === "nfa_created") return noNfa ? "QMS · NFA to be raised" : "NFA · creation";
+    if (at === "nfa_approved") {
+      const lv: [string | null | undefined, string | null | undefined][] = [
+        [v?.Level_One_Team, v?.Level_One_Date], [v?.Level_Two_Team, v?.Level_Two_Date],
+        [v?.Level_Three_Team, v?.Level_Three_Date], [v?.Level_Four_Team, v?.Level_Four_Date],
+        [v?.Level_Five_Team, v?.Level_Five_Date], [v?.Level_Six_Team, v?.Level_Six_Date],
+        [v?.Level_Seven_Team, v?.Level_Seven_Date], [v?.Level_Eight_Team, v?.Level_Eight_Date],
+      ];
+      for (let i = 0; i < lv.length; i++)
+        if (has(lv[i][0]) && pDate(lv[i][1] ?? null) === null)
+          return `NFA · Level ${i + 1} (${String(lv[i][0]).trim()})`;
+      return "NFA · final approval";
+    }
+    if (at === "po_created") return "PO · creation (SAP)";
+    if (at === "po_released") return "PO · release (SAP)";
+    return at;
+  };
+
   const finish = (j: Journey, v: R | null) => {
     // exception states (terminal): anything Returned / Cancelled / Deleted
     if (v && !j.exception) {
@@ -203,6 +248,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       else if (at === "nfa_approved") j.pendingWith = (j.vg?.NFA_Pending_With && j.vg.NFA_Pending_With !== "NA" ? j.vg.NFA_Pending_With : "NFA Approval") as string;
       else if (at === "po_created") j.pendingWith = "PO Creation (SAP)";
       else if (at === "po_released") j.pendingWith = "PO Release (SAP)";
+      if (at) j.pendingLevel = pendingLevelOf(at, j, v, noNfa);
     }
     // pending since = last reached milestone date
     const reachedDates = STAGES.map(s => j.m[s.k]).filter((x): x is number => x !== null);
@@ -263,6 +309,7 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       m, reached,
       exception: deleted ? "PR Deleted in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
+      pendingLevel: null, relStatus: String(first.Frgkz || ""),
       vg: v, po: pos[0] ?? poFallback,
       poApprox: reached.po_released,
       poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"), skipStages: [],
@@ -310,7 +357,8 @@ function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journ
       value: poVal || parseFloat(String(v.Amount_Including_Tax)) || parseFloat(String(v.PR_Budget)) || 0,
       m, reached, exception: poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false,
-      pendingWith: "", pendingSince: null, vg: v, po: pos[0] ?? null,
+      pendingWith: "", pendingSince: null, pendingLevel: null, relStatus: "",
+      vg: v, po: pos[0] ?? null,
       poApprox: reached.po_released,
       poItemsGone: goneOf(pos, "ITEMS_GONE"), poItemsSeen: goneOf(pos, "ITEMS_SEEN"), skipStages: [],
     };
@@ -391,6 +439,58 @@ const tatOf = (j: Journey): number | null => {
   const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created;
   return a !== null && b !== null && b >= a ? days(a, b) : null;
 };
+
+/** "Pending at which level" — in-flight PRs grouped stage → exact
+ * approval level, from the per-level columns of the NFA TAT mirror.
+ * Click any level bar → list of those PRs. */
+function StuckLevels({ rows, onPick }: { rows: Journey[]; onPick: (title: string, js: Journey[]) => void }) {
+  const inflight = rows.filter(j => !j.done && !j.exception && j.pendingLevel);
+  const byStage = new Map<number, Map<string, Journey[]>>();
+  inflight.forEach(j => {
+    const si = Math.min(j.stageIdx, STAGES.length - 1);
+    if (!byStage.has(si)) byStage.set(si, new Map());
+    const lv = byStage.get(si)!;
+    const k = j.pendingLevel as string;
+    if (!lv.has(k)) lv.set(k, []);
+    lv.get(k)!.push(j);
+  });
+  const stages = [...byStage.entries()].sort((a, b) => a[0] - b[0]);
+  const mx = Math.max(...inflight.length ? [...byStage.values()].flatMap(m => [...m.values()].map(v => v.length)) : [1], 1);
+  if (!inflight.length) return <div style={{ color: "var(--mut)", fontSize: 12 }}>no in-flight PRs in this selection</div>;
+  return (<>
+    {stages.map(([si, levels]) => {
+      const col = STAGE_COLS[si];
+      const total = [...levels.values()].reduce((s, v) => s + v.length, 0);
+      const ents = [...levels.entries()].sort((a, b) => b[1].length - a[1].length);
+      return (
+        <div key={si} style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: col }} />
+            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: "0.8px", textTransform: "uppercase", color: "var(--ink)" }}>{STAGES[si].pend}</span>
+            <span style={{ fontSize: 11, color: "var(--mut)", fontWeight: 700 }}>· {fN(total)} PRs · {fMoney(ents.reduce((s, [, v]) => s + v.reduce((x, j) => x + j.value, 0), 0))}</span>
+          </div>
+          {ents.map(([lvl, js]) => {
+            const val = js.reduce((s, j) => s + j.value, 0);
+            const worst = Math.max(...js.map(j => (j.pendingSince !== null ? idleDays(j.pendingSince) : 0)));
+            return (
+              <div key={lvl} onClick={() => onPick(`${lvl} — pending PRs`, [...js])}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "3.5px 0 3.5px 18px", cursor: "pointer", borderRadius: 6 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; showTip(e, `<b>${lvl}</b><br/>${fN(js.length)} PRs · ${fMoney(val)}<br/>longest wait ${worst} d<br/>click → list`); }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; hideTip(); }}>
+                <div style={{ width: 210, fontSize: 11.5, fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lvl}</div>
+                <div style={{ flex: 1, height: 13, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(js.length / mx) * 100}%`, background: col, borderRadius: "0 4px 4px 0", minWidth: 2 }} />
+                </div>
+                <div style={{ width: 44, textAlign: "right", fontSize: 11.5, fontWeight: 800, color: "var(--ink)" }}>{fN(js.length)}</div>
+                <div style={{ width: 78, textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--mut)" }}>{fMoney(val)}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    })}
+  </>);
+}
 
 function count<T>(items: T[], key: (t: T) => string | null): [string, number][] {
   const m = new Map<string, number>();
@@ -474,6 +574,8 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
                 </div>
                 <MiniBars title="By stage" color={TEAL} data={count(js, stageOf)}
                   onPick={l => drill(l, j => stageOf(j) === l)} />
+                <MiniBars title="Pending level" color="#c0533f" data={count(fl, j => j.pendingLevel)}
+                  onPick={l => drill(l, j => j.pendingLevel === l)} />
                 <MiniBars title="Pending with" color={GOLD} data={count(fl, j => j.pendingWith || "—")}
                   onPick={l => drill(`Pending: ${l}`, j => !j.done && !j.exception && (j.pendingWith || "—") === l)} />
                 <MiniBars title="By project / plant" color={NAVY} data={count(js, projOf)}
@@ -590,6 +692,16 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
               </div>
             ))}
           </div>
+          {!j.done && !j.exception && j.pendingLevel && (
+            <div style={{ background: "#fff7ea", border: "1.5px solid #e4c788", borderRadius: 10, padding: "10px 13px", marginBottom: 14 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#9a7230" }}>Currently pending at</div>
+              <div style={{ fontWeight: 800, color: "var(--ink)", fontSize: 13.5, marginTop: 2 }}>{j.pendingLevel}</div>
+              <div style={{ fontSize: 12, color: "var(--mut)", marginTop: 2 }}>
+                with <b style={{ color: "var(--ink)" }}>{j.pendingWith || "—"}</b>
+                {j.pendingSince !== null && <> · since {fD(j.pendingSince)} · <b style={{ color: idleDays(j.pendingSince) > 15 ? RED : "var(--ink)" }}>{idleDays(j.pendingSince)} days</b> waiting</>}
+              </div>
+            </div>
+          )}
           <div style={CARD}>
             <h3 style={H3}>Milestone timeline</h3>
             <div style={CAP}>gap = days from the previous milestone{j.poApprox ? " · PO-approved date approximated by last change date" : ""}</div>
@@ -1299,6 +1411,15 @@ export default function PrToPoPage() {
                   </table>
                 </div>
               </div>
+            </div>
+          </Zoomable>
+
+          {/* Pending at which level */}
+          <Zoomable title="Pending at which approval level">
+            <div style={{ ...CARD, marginBottom: 14 }}>
+              <h3 style={H3}>Pending at Which Level — exact approval step</h3>
+              <div style={CAP}>every in-flight PR placed at the precise step it is waiting on — SAP release · QMS validator chain · NFA level 1-8 · PO — click a bar for the PR list with pending-with and days waiting</div>
+              <StuckLevels rows={rows} onPick={(t, js) => openList(t, js)} />
             </div>
           </Zoomable>
 
