@@ -1052,7 +1052,10 @@ export default function PrToPoPage() {
   const completed = rows.filter(j => j.done);
   const exceptions = rows.filter(j => j.exception && !j.done);
   const inFlight = rows.filter(j => !j.done && !j.exception);
-  const withPo = rows.filter(j => j.reached.po_created && (!j.exception || j.done));
+  /* POs already created but journey not finished (awaiting PO release) —
+     these are IN-FLIGHT, called out in the tile sub-line so "completed +
+     in-flight + exceptions = total" stays true. */
+  const poInFlight = rows.filter(j => j.reached.po_created && !j.done && !j.exception);
   const totTats = completed
     .map(j => { const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created; return a !== null && b !== null ? days(a, b) : null; })
     .filter((x): x is number => x !== null && x >= 0);
@@ -1126,8 +1129,11 @@ export default function PrToPoPage() {
   }));
   const KPIS: [string, string, string, [string, string], () => void][] = [
     [flow === "sap" ? "Total PRs (SAP flow)" : "QMS-direct PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"], () => openList(flow === "sap" ? "All SAP-flow PRs in window" : "All QMS-direct PRs in window", rows)],
-    ["Reached PO", `${fN(withPo.length)}`, `${rows.length ? ((withPo.length / rows.length) * 100).toFixed(1) : 0}% conversion · ${fMoney(poValue)}`, ["#1e9a6c", "#0f6647"], () => openList("PRs that reached PO", withPo)],
-    ["In-flight", fN(inFlight.length), "moving through approvals", ["#1a7f9c", "#0e5468"], () => openList("In-flight PRs", inFlight)],
+    /* mutually exclusive buckets: Completed + In-flight + Exceptions =
+       Total, so the tiles always add up. "Reached PO" (POs created but
+       not yet released count as in-flight) lives in the sub-lines. */
+    ["Completed (PO approved)", fN(completed.length), `${rows.length ? ((completed.length / rows.length) * 100).toFixed(1) : 0}% of window · ${fMoney(poValue)} PO value`, ["#1e9a6c", "#0f6647"], () => openList("Completed journeys", completed)],
+    ["In-flight", fN(inFlight.length), `moving through approvals${poInFlight.length ? ` · incl. ${fN(poInFlight.length)} at PO stage` : ""}`, ["#1a7f9c", "#0e5468"], () => openList("In-flight PRs", inFlight)],
     ["Returned / Cancelled", fN(exceptions.length), "exception journeys", ["#c0392b", "#7e1f14"], () => openList("Exception journeys", exceptions)],
     ["Avg PR → PO TAT", avgTat !== null ? `${avgTat.toFixed(0)} d` : "—", `${fN(totTats.length)} completed journeys`, ["#c99a3a", "#96691c"], () => openList("Completed journeys — full TAT", completed, "end-to-end days per PR", tatNotes)],
   ];
