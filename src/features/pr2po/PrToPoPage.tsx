@@ -461,7 +461,7 @@ function StuckLevels({ rows, onPick }: { rows: Journey[]; onPick: (title: string
     {stages.map(([si, levels]) => {
       const col = STAGE_COLS[si];
       const total = [...levels.values()].reduce((s, v) => s + v.length, 0);
-      const ents = [...levels.entries()].sort((a, b) => b[1].length - a[1].length);
+      const ents = [...levels.entries()].sort((a, b) => processRank(a[0]) - processRank(b[0]));
       return (
         <div key={si} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
@@ -497,6 +497,28 @@ function count<T>(items: T[], key: (t: T) => string | null): [string, number][] 
   items.forEach(t => { const k = key(t); if (k) m.set(k, (m.get(k) ?? 0) + 1); });
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
+/** Process-order rank for stage/level labels: SAP → QMS → NFA → PO,
+ * with the QMS validator chain and NFA levels 1-8 in sequence. */
+function processRank(label: string): number {
+  const si = STAGES.findIndex(s => s.pend === label);
+  if (si >= 0) return si * 100;                       // stage labels
+  const order = [
+    "SAP · PR creation", "SAP · release", "QMS · SAP→QMS hand-over",
+    "QMS · Validator 1", "QMS · Validator 2", "QMS · CP Team", "QMS · Assignee",
+    "QMS · final approval", "QMS · NFA to be raised", "NFA · creation",
+  ];
+  for (let i = 0; i < order.length; i++) if (label.startsWith(order[i])) return i * 10;
+  const m = label.match(/^NFA · Level (\d)/);
+  if (m) return 200 + parseInt(m[1], 10);
+  if (label.startsWith("NFA · final")) return 220;
+  if (label.startsWith("PO · creation")) return 300;
+  if (label.startsWith("PO · release")) return 310;
+  if (label === "Completed") return 900;
+  return 500;                                          // exceptions etc.
+}
+const byProcess = (data: [string, number][]) =>
+  [...data].sort((a, b) => processRank(a[0]) - processRank(b[0]));
+
 function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onPick: (j: Journey) => void; onClose: () => void; refine?: (sel: ListSel) => void }) {
   if (!sel) return null;
   const totVal = sel.rows.reduce((s, r) => s + r.j.value, 0);
@@ -572,9 +594,9 @@ function ListDrawer({ sel, onPick, onClose, refine }: { sel: ListSel | null; onP
                     </div>
                   ))}
                 </div>
-                <MiniBars title="By stage" color={TEAL} data={count(js, stageOf)}
+                <MiniBars title="By stage" color={TEAL} data={byProcess(count(js, stageOf))}
                   onPick={l => drill(l, j => stageOf(j) === l)} />
-                <MiniBars title="Pending level" color="#c0533f" data={count(fl, j => j.pendingLevel)}
+                <MiniBars title="Pending level" color="#c0533f" data={byProcess(count(fl, j => j.pendingLevel))}
                   onPick={l => drill(l, j => j.pendingLevel === l)} />
                 <MiniBars title="Pending with" color={GOLD} data={count(fl, j => j.pendingWith || "—")}
                   onPick={l => drill(`Pending: ${l}`, j => !j.done && !j.exception && (j.pendingWith || "—") === l)} />
