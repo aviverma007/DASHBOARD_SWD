@@ -1,10 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import { fNum, isoToDay, dayToDate, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
 import {
-  CPV, CPV_RECORDS, cpvApply, cpvMonthly, cpvWeekday, cpvFirstVisitMap,
-  type CpvDim, type CpvChip, type CpvRec,
+  CPV, CPV_RECORDS, cpvMonthly, cpvWeekday, cpvFirstVisitMap,
+  type CpvDim, type CpvRec,
 } from "../../utils/cpVisitsLogic";
 import {
   HBarList, Donut, TrendChart, WeekdayChart, Banner, Spark,
@@ -15,12 +15,51 @@ import { todayDay } from "../../utils/footfallLogic";
 
 const ROW: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 14, marginBottom: 14, alignItems: "start" };
 
+/** Multi-select project dropdown — same pattern as the other tabs:
+ * "All projects" master checkbox, any combination below it. */
+function CpvMultiProj({ selected, onChange }: { selected: number[]; onChange: (v: number[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggle = (i: number) => {
+    const next = selected.includes(i) ? selected.filter(x => x !== i) : [...selected, i];
+    onChange(next.length === CPV.PRJ.length ? [] : next);
+  };
+  const label = selected.length === 0 ? "All projects" : selected.length === 1 ? CPV.PRJ[selected[0]] : `${selected.length} projects`;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={BANNER_LBL}>Project</div>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...SEL, minWidth: 180, textAlign: "left", cursor: "pointer" }}>
+        {label} <span style={{ opacity: 0.6, marginLeft: 6, fontSize: 9 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 260, maxHeight: 340, overflowY: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, cursor: "pointer", fontWeight: 600, color: "var(--ink)" }}>
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All projects
+          </label>
+          {CPV.PRJ.map((pname, i) => (
+            <label key={pname} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.includes(i)} onChange={() => toggle(i)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              {pname}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Channel-partner visits — now driven by the dedicated 31-Aug CP
  * visit export (48,397 partner gallery visits, 5,421 partners), NOT
  * derived from customer footfall. Booking data intentionally absent:
  * this file tracks partner engagement. */
 export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: ReactNode; right?: ReactNode; center?: ReactNode } }) {
-  const [projFilter, setProjFilter] = useState<CpvChip | null>(null);
+  const [projSel, setProjSel] = useState<number[]>([]);   // multi-select; empty = all
   const PRESETS = useMemo(() => periodPresets(), []);
   const [perKey, setPerKey] = useState("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -41,7 +80,7 @@ export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: 
   const openDrill = (dim: CpvDim) => (val: number | string, label: string) => setDrill({ dim, val, label });
 
   const FIRST = useMemo(() => cpvFirstVisitMap(), []);
-  const dimRows = useMemo(() => cpvApply(CPV_RECORDS, projFilter ? [projFilter] : []), [projFilter]);
+  const dimRows = useMemo(() => (projSel.length ? CPV_RECORDS.filter(r => projSel.includes(r.p)) : CPV_RECORDS), [projSel]);
   const rows = useMemo(
     () => (per.key === "all" ? dimRows : dimRows.filter(r => r.day >= per.from && r.day <= per.to)),
     [dimRows, per]
@@ -132,26 +171,13 @@ export function CpVisitsSection({ banner }: { banner: { title: ReactNode; sub?: 
       <CpVisitsDrillDrawer
         seed={drill}
         baseRows={rows}
-        baseLabel={`${projFilter ? projFilter.label + " · " : ""}${per.label}`}
+        baseLabel={`${projSel.length ? (projSel.length === 1 ? CPV.PRJ[projSel[0]] : projSel.length + " projects") + " · " : ""}${per.label}`}
         onClose={() => setDrill(null)}
       />
 
       {/* Filter bar — in the navy banner */}
       <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
-        <div>
-          <div style={BANNER_LBL}>Project</div>
-          <select
-            style={SEL}
-            value={projFilter ? String(projFilter.val) : "all"}
-            onChange={e => {
-              const v = e.target.value;
-              setProjFilter(v === "all" ? null : { dim: "p", val: Number(v), label: CPV.PRJ[Number(v)] });
-            }}
-          >
-            <option value="all">All projects</option>
-            {CPV.PRJ.map((p, i) => <option key={p} value={i}>{p}</option>)}
-          </select>
-        </div>
+        <CpvMultiProj selected={projSel} onChange={setProjSel} />
         <div>
           <div style={BANNER_LBL}>Period</div>
           <select style={SEL} value={perKey} onChange={e => setPerKey(e.target.value)}>

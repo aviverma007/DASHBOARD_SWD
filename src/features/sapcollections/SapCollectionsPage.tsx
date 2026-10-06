@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -276,15 +276,53 @@ function Drawer({ title, rows, onClose }: { title: string; rows: Bk[]; onClose: 
   );
 }
 
+/* ---------------- multi project selector ---------------- */
+function MultiProj({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggle = (n: string) => {
+    const next = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n];
+    onChange(next.length === PROJECTS.length ? [] : next);
+  };
+  const label = selected.length === 0 ? "All projects" : selected.length === 1 ? selected[0] : `${selected.length} projects`;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={BANNER_LBL}>Project</div>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{ ...BANNER_CTL, minWidth: 180, textAlign: "left", cursor: "pointer" }}>
+        {label} <span style={{ color: "var(--mut)", marginLeft: 6, fontSize: 9 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 260, maxHeight: 340, overflowY: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, cursor: "pointer", fontWeight: 600, color: "var(--ink)" }}>
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            All projects
+          </label>
+          {PROJECTS.map(n => (
+            <label key={n} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              {n}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export function SapCollectionsPage() {
-  const [projF, setProjF] = useState("");
+  const [projF, setProjF] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [drill, setDrill] = useState<{ title: string; rows: Bk[] } | null>(null);
 
   const scope = useMemo(() => {
     let r = ROWS;
-    if (projF) r = r.filter(b => b.proj === projF);
+    if (projF.length) r = r.filter(b => projF.includes(b.proj));
     const t = q.trim().toLowerCase();
     if (t) r = r.filter(b => b.unit.toLowerCase().includes(t) || b.name.toLowerCase().includes(t));
     return r;
@@ -292,7 +330,7 @@ export function SapCollectionsPage() {
 
   const tot = useMemo(() => agg(scope, "Total"), [scope]);
   const byProj = useMemo(() => {
-    const names = projF ? [projF] : PROJECTS;
+    const names = projF.length ? PROJECTS.filter(p => projF.includes(p)) : PROJECTS;
     return names.map(p => agg(scope.filter(b => b.proj === p), p)).filter(a => a.n > 0);
   }, [scope, projF]);
 
@@ -312,20 +350,14 @@ export function SapCollectionsPage() {
         title="SAP Collections"
         sub={<>{fN(ROWS.length)} active bookings · PDRN export · data as on {CD.meta.asOn} · Received = net received (incl. tax) − pending clearance</>}
       >
-        <div>
-          <div style={BANNER_LBL}>Project</div>
-          <select value={projF} onChange={e => setProjF(e.target.value)} style={BANNER_CTL}>
-            <option value="">All projects</option>
-            {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
+        <MultiProj selected={projF} onChange={setProjF} />
         <div>
           <div style={BANNER_LBL}>Search</div>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Unit / customer…" style={{ ...BANNER_CTL, width: 200 }} />
         </div>
-        {(projF || q) && (
+        {(projF.length > 0 || q) && (
           <div style={{ alignSelf: "flex-end" }}>
-            <button onClick={() => { setProjF(""); setQ(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
+            <button onClick={() => { setProjF([]); setQ(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
           </div>
         )}
       </PageBanner>
