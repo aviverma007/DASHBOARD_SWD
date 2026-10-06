@@ -17,6 +17,9 @@ Row tuple (verified byte-for-byte against the 22 Sep 2026 build):
  18 bookingDay (days since 2022-01-01, -1 none)
  19 recExclTax  20 bspNetExclTax  21 demandExclTax  22 demandWithTax
  23 bbaDay (days since 2022-01-01, -1 = BBA not registered)
+ 24 netRecInclTax ("Net Received Including Tax")
+ 25 pendingClearance ("Pending for Clearance")
+ 26 bspNetWithTax ("Total BSP Net Value (With Tax)")
 """
 import sys, json, re, datetime
 import pandas as pd
@@ -106,6 +109,9 @@ def main(src, as_on):
             num(r["Total Demand Amount"]),
             num(r["Total Demand Amount ( With Tax )"]),
             day_of(r["BBA Date"]),
+            num(r["Net Received Including Tax"]),
+            num(r["Pending for Clearance"]),
+            num(r["Total BSP Net Value (With Tax)"]),
         ])
 
     out = {
@@ -113,7 +119,7 @@ def main(src, as_on):
         "meta": {
             "rows": len(R), "source": src.split("/")[-1].split("-", 1)[-1],
             "asOn": as_on,
-            "fields15plus": "15 recWithTax · 16 tcvWithTaxAfterAdj · 17 dueInclTax · 18 bookingDay · 19 recExclTax · 20 bspNetExclTax · 21 demandExclTax · 22 demandWithTax · 23 bbaDay(-1 none)",
+            "fields15plus": "15 recWithTax · 16 tcvWithTaxAfterAdj · 17 dueInclTax · 18 bookingDay · 19 recExclTax · 20 bspNetExclTax · 21 demandExclTax · 22 demandWithTax · 23 bbaDay(-1 none) · 24 netRecInclTax · 25 pendingClearance · 26 bspNetWithTax",
         },
     }
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)

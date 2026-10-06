@@ -25,6 +25,7 @@ const load = {
   tracker: () => import("./features/tracker/ProjectTrackerPage"),
   loans: () => import("./features/loans/LoanDetailsPage"),
   collections: () => import("./features/collections/CollectionPage"),
+  sapcollections: () => import("./features/sapcollections/SapCollectionsPage"),
   settings: () => import("./features/settings/SettingsPage"),
   changePw: () => import("./features/settings/ChangePasswordPage"),
   notes: () => import("./features/workspace/NotesPage"),
@@ -45,6 +46,7 @@ const PrToPoPage = lazy(load.pr2po);
 const ProjectTrackerPage = lazy(load.tracker);
 const LoanDetailsPage = lazy(load.loans);
 const CollectionPage = lazy(load.collections);
+const SapCollectionsPage = lazy(() => load.sapcollections().then(m => ({ default: m.SapCollectionsPage })));
 const SettingsPage = lazy(() => load.settings().then(m => ({ default: m.SettingsPage })));
 const ChangePasswordPage = lazy(() => load.changePw().then(m => ({ default: m.ChangePasswordPage })));
 const NotesPage = lazy(() => load.notes().then(m => ({ default: m.NotesPage })));
@@ -92,6 +94,7 @@ function App() {
           <Route path="/case-management" element={<RequireAccess path="/case-management"><CaseManagementPage /></RequireAccess>} />
           <Route path="/loan-details" element={<RequireAccess path="/loan-details"><LoanDetailsPage /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess path="/collections"><CollectionPage /></RequireAccess>} />
+          <Route path="/sap-collections" element={<RequireAccess path="/sap-collections"><SapCollectionsPage /></RequireAccess>} />
           <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><LeadConversionPage mode="footfall" /></RequireAccess>} />
           <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><LeadConversionPage mode="digital" /></RequireAccess>} />
           <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage mode="footfall" /></RequireAccess>} />
