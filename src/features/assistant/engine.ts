@@ -12,11 +12,13 @@ interface Session { ents: Entity[]; period: Period | null; domain: string | null
 let session: Session = { ents: [], period: null, domain: null };
 export const resetSession = () => { session = { ents: [], period: null, domain: null }; };
 
+const SALES_DEPT_RX = /\bsales (dept|department|team|budget|expenses?|spend)\b|\b(budgets?|expenses?|expenditure|spend|costs?|utili[sz]ation) (of|for|in|on|by) (the )?sales\b/;
 const compound = (nq: string) => /\b(and|also|plus|along with|as well as)\b|&|,/.test(nq);
 
 function score(nq: string): Map<string, number> {
   // "sales department budget" is a cost department, not sales
-  const s = nq.replace(/\bsales (dept|department|team|budget|expense\w*|spend\w*)/g, "saledept $1");
+  const s = nq.replace(/\bsales (dept|department|team|budget|expense\w*|spend\w*)/g, "saledept $1")
+    .replace(/\b(budgets?|expenses?|expenditure|spend|costs?|utili[sz]ation) (of|for|in|on|by) (the )?sales\b/g, "$1 $2 saledept");
   const out = new Map<string, number>();
   for (const d of DOMAINS) {
     let t = 0;
@@ -35,7 +37,7 @@ function pick(c: Ctx): string[] {
   if (has("cpvisits", 5)) { sc.delete("cp"); if (!/\bfootfall\b/.test(c.nq)) sc.delete("footfall"); sc.delete("sales"); sc.delete("digital"); }
   if (has("pr2po", 4)) { sc.delete("cost"); sc.delete("cases"); sc.delete("collections"); if (!/\bpo ?9\d{9}/.test(c.raw)) sc.delete("sales"); }
   if (has("vendors", 5)) { sc.delete("cp"); if (!/\bbudget\b/.test(c.nq)) sc.delete("cost"); }
-  if (has("cost", 5) && !/\b(sales|sold|booking)/.test(c.nq)) sc.delete("sales");
+  if (has("cost", 5) && !/\b(sales|sold|booking)/.test(c.nq.replace(SALES_DEPT_RX, " "))) sc.delete("sales");
   if (has("inventory", 4) && sc.has("sales")) { if (!c.period.explicit || /\b(unsold|inventory|stock|available|total units)\b/.test(c.nq)) { if (!/\b(sales|bookings?|revenue|tsv)\b/.test(c.nq)) sc.delete("sales"); } }
   if (has("inventory", 3) && /\b(sell|sold|sale|sales|booked|bookings?)\b/.test(c.nq) && c.period.explicit && !/\b(unsold|inventory|stock|available)\b/.test(c.nq)) sc.delete("inventory");
   if (has("target", 5) && !comp) { sc.delete("sales"); sc.delete("inventory"); }

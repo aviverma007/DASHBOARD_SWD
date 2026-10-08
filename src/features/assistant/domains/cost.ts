@@ -1,5 +1,6 @@
 /** Cost & budget (SAP ZALR): budget, utilised, actual, commitment, POs. */
 import { CB, PO_ROWS, WBS_ROWS, statusOf, type WbsRow } from "../../../components/cost/costShared";
+import { NP, NP_ROWS } from "../../../components/cost/NonProjectView";
 import type { Ctx, Section } from "../types";
 import { entLabel, fN, inPeriodDay, inr, norm, pct } from "../nlp";
 import { kv, moreNote, rowsOf, sectionTitle, text, topRows } from "./common";
@@ -7,13 +8,37 @@ import { kv, moreNote, rowsOf, sectionTitle, text, topRows } from "./common";
 const ASON = CB.meta.asOn;
 const OPEN = { label: "Open Cost", path: "/cost" };
 
-const DEPT_RX: [RegExp, string][] = [
-  [/\bfinance\b/, "Finance"], [/\bsecretarial\b/, "Secretarial"], [/\badmin(?:istration)?\b/, "Admin"], [/\bit (dept|department|team|expenses?|cost|spend)\b|\bi t (dept|department|team)\b|\binformation technology\b/, "IT"],
-  [/\bhr\b|\bhuman resources?\b/, "HR"], [/\bmarketing\b/, "Marketing"], [/\bbrokerage\b/, "Brokerage"], [/\bcrm\b/, "CRM"], [/\blegal\b/, "Legal"],
-  [/\binternal audit\b|\baudit\b/, "Internal Audit Expense"], [/\bprocurement\b|\bcontract\b/, "Contract & Procurement Expense"],
-  [/\basset management\b/, "Asset Management"], [/\bpmo\b/, "PMO Expense"], [/\bdesign\b/, "Design Expense"], [/\bbd\b|\bbusiness development\b/, "BD Expense"],
-  [/\bcoordination\b/, "Coordination Expense"], [/\bsales (dept|department|team|budget|expense|spend)\b/, "Sales"],
+/** Department phrases. `np` = how the Cost tab (Non-Project FY-26) names it (PO purchasing group);
+ * `wbs` = the WBS-owner department in costBudget.json (used when the tab has no such group). */
+const ASK = "(?:budgets?|expenses?|expenditure|spend|spent|costs?|utili[sz]ation|po|pos)";
+const DEPTS: { rx: RegExp; label: string; np?: RegExp; wbs?: string }[] = [
+  { rx: /\bfinance\b|\baccounts dept\b/, label: "Finance", np: /^finance/, wbs: "Finance" },
+  { rx: /\bsecretarial\b/, label: "Secretarial", wbs: "Secretarial" },
+  { rx: /\badmin(?:istration)?\b/, label: "Administration", np: /^administration/, wbs: "Admin" },
+  { rx: new RegExp(`\\bit (dept|department|team|expenses?|cost|spend|budget)\\b|\\bi t (dept|department|team)\\b|\\binformation technology\\b|\\b${ASK} (?:of|for|in|on|by) (?:the )?(?:it|i t)\\b|\\b(?:it|i t) ${ASK}\\b`), label: "IT", np: /^it$/, wbs: "IT" },
+  { rx: /\bhr\b|\bhuman resources?\b/, label: "HR (Operations)", np: /^hr/, wbs: "HR" },
+  { rx: /\bdigital marketing\b/, label: "Digital Marketing", np: /^digital marketing/, wbs: "Marketing" },
+  { rx: /\bmarketing\b/, label: "Marketing", np: /^marketing/, wbs: "Marketing" },
+  { rx: /\bbrokerage\b/, label: "Brokerage", wbs: "Brokerage" },
+  { rx: /\bcrm\b/, label: "CRM", np: /^crm/, wbs: "CRM" },
+  { rx: /\blegal\b/, label: "Legal", wbs: "Legal" },
+  { rx: /\binternal audit\b|\baudit\b/, label: "Internal Audit", np: /^internal audit/, wbs: "Internal Audit Expense" },
+  { rx: /\bprocurement\b|\bcontract\b/, label: "Contract & Procurement", np: /^contract/, wbs: "Contract & Procurement Expense" },
+  { rx: /\basset management\b/, label: "Asset Management", wbs: "Asset Management" },
+  { rx: /\bpmo\b/, label: "PMO", wbs: "PMO Expense" },
+  { rx: /\bdesign\b/, label: "Design", wbs: "Design Expense" },
+  { rx: /\bbd\b|\bbusiness development\b/, label: "BD", wbs: "BD Expense" },
+  { rx: /\bcoordination\b/, label: "Coordination", wbs: "Coordination Expense" },
+  { rx: new RegExp(`\\bsales (dept|department|team|budget|expenses?|spend)\\b|\\b${ASK} (?:of|for|in|on|by) (?:the )?sales\\b|\\bsales ${ASK}\\b`), label: "Sales", np: /^sales$/, wbs: "Sales" },
 ];
+
+/** Same maths as the Cost tab's Approved-Budget strip: budget/utilised come from the 07-Sep ZALR
+ * run for the non-project WBS that appear in the filtered PO detail. */
+const NP_BUDGET = (() => {
+  const m = new Map<string, WbsRow>();
+  WBS_ROWS.forEach(w => { if (w.typ === 0) m.set(w.wbs, w); });
+  return m;
+})();
 
 const sumBy = (rows: WbsRow[]) => rows.reduce((s, w) => ({ b: s.b + w.budget, u: s.u + w.assigned, a: s.a + w.actual, c: s.c + w.commitment, av: s.av + w.available }),
   { b: 0, u: 0, a: 0, c: 0, av: 0 });
@@ -45,12 +70,18 @@ export async function runCost(c: Ctx): Promise<Section> {
     return { title, headline: `No budget lines found for ${entLabel(c.ents)}.`, blocks: [text("The cost dataset has no WBS/plant matching that project name.")], asOn: ASON, open: OPEN };
   }
   let deptLbl = "";
-  for (const [rx, name] of DEPT_RX) {
-    if (rx.test(c.nq)) { const di = CB.DEPT.indexOf(name); if (di >= 0) { rows = rows.filter(w => w.dept === di); deptLbl = name; } break; }
-  }
+  let dep: (typeof DEPTS)[number] | null = null;
+  for (const d of DEPTS) if (d.rx.test(c.nq)) { dep = d; break; }
+  const wantProject = /\bproject (wbs|cost|spend|budget)\b|\bconstruction\b/.test(c.nq);
+
+  /* Non-project department view = exactly what the Cost tab (Non-Project FY-26) shows */
+  if (dep?.np && !c.ents.length && !wantProject) return runNonProject(c, dep as { label: string; np: RegExp });
+
+  if (dep?.wbs) { const di = CB.DEPT.indexOf(dep.wbs); if (di >= 0) { rows = rows.filter(w => w.dept === di); deptLbl = dep.label; } }
   let typLbl = "";
   if (/\bnon ?project\b|\bopex\b|\boverheads?\b/.test(c.nq)) { rows = rows.filter(w => w.typ === 0); typLbl = "non-project"; }
-  else if (/\bproject (wbs|cost|spend|budget)\b|\bconstruction\b/.test(c.nq) && !c.ents.length) { rows = rows.filter(w => w.typ === 1); typLbl = "project"; }
+  else if (wantProject && !c.ents.length) { rows = rows.filter(w => w.typ === 1); typLbl = "project"; }
+  else if (!c.ents.length && !deptLbl) typLbl = "project + non-project";
 
   const t = sumBy(rows);
   const util = t.b ? (t.u / t.b) * 100 : 0;
@@ -62,6 +93,12 @@ export async function runCost(c: Ctx): Promise<Section> {
     ["  Actual spend", inr(t.a)], ["  Open commitment (POs)", inr(t.c)],
     [t.av >= 0 ? "Balance available" : "Over budget by", inr(Math.abs(t.av))], ["WBS lines", fN(rows.length)],
   ])];
+
+  if (typLbl === "project + non-project") {
+    const np = sumBy(rows.filter(w => w.typ === 0)), pj = sumBy(rows.filter(w => w.typ === 1));
+    blocks[0] = kv([...(blocks[0] as { t: "kv"; rows: [string, string][] }).rows,
+      ["  of which non-project (opex)", `${inr(np.b)} budget · ${inr(np.u)} utilised`], ["  of which project WBS", `${inr(pj.b)} budget · ${inr(pj.u)} utilised`]]);
+  }
 
   /* spend in a period = POs placed in it */
   if (c.period.explicit) {
@@ -116,5 +153,46 @@ export async function runCost(c: Ctx): Promise<Section> {
     title,
     headline: (wantOver ? `${fN(critN)} WBS lines are over 95% utilised or over budget. ` : "") + `${scopeLbl}: budget ${inr(t.b)}, utilised ${inr(t.u)} (${util.toFixed(0)}%), ${t.av >= 0 ? "balance" : "over by"} ${inr(Math.abs(t.av))}.`,
     blocks, asOn: ASON, open: OPEN,
+  };
+}
+
+async function runNonProject(c: Ctx, dep: { label: string; np: RegExp }): Promise<Section> {
+  const title = sectionTitle("Budget", c, false);
+  const pg = new Set<number>();
+  NP.PGRP.forEach((n, i) => { if (dep.np.test(norm(n))) pg.add(i); });
+  const all = NP_ROWS.filter(r => pg.has(r.pgrp));
+  let lines = all;
+  const scope = `Non-Project · FY-26 · ${[...pg].map(i => NP.PGRP[i]).join(" + ")}`;
+  if (c.period.explicit) lines = lines.filter(r => inPeriodDay(c.period, r.day));
+  const codes = new Set(all.map(r => NP.WBS[r.wbs]));
+  const brows = [...NP_BUDGET.entries()].filter(([code]) => codes.has(code)).map(([, w]) => w);
+  const t = sumBy(brows);
+  const util = t.b ? (t.u / t.b) * 100 : 0;
+  const pos = new Set(lines.map(r => r.po)).size;
+  const ord = lines.reduce((s, r) => s + r.ord, 0), ordG = lines.reduce((s, r) => s + r.ordGst, 0), del = lines.reduce((s, r) => s + r.del, 0);
+  const crit = brows.filter(w => statusOf(w) === "critical").length;
+
+  const blocks = [kv([
+    ["Approved budget", inr(t.b)], ["Utilised (actual + commitment)", `${inr(t.u)} · ${pct(t.u, t.b)}`],
+    [t.av >= 0 ? "Balance available" : "Over budget by", inr(Math.abs(t.av))],
+    ["WBS elements", `${fN(brows.length)} · ${fN(crit)} critical`],
+    [c.period.explicit ? `POs placed in ${c.period.label}` : "PO documents", `${fN(pos)} POs · ${fN(lines.length)} lines`],
+    ["Ordered / delivered", `${inr(ord)} / ${inr(del)} (${inr(ordG)} ordered incl. GST)`],
+  ])];
+  const top = [...brows].sort((a, b) => b.budget - a.budget);
+  const { shown, more } = topRows(top, c.topN);
+  blocks.push(rowsOf(["Top WBS by budget", "Budget", "Utilised", "Used %"], shown.map(w => [`${w.wbs} — ${w.desc}`, inr(w.budget), inr(w.assigned), pct(w.assigned, w.budget, 0)]), moreNote(more, "lines")));
+  if (/\bvendors?\b|\bsupplier\w*\b|\bparty\b/.test(c.nq)) {
+    const m = new Map<number, { n: number; v: number }>();
+    lines.forEach(r => { const e = m.get(r.vend) ?? { n: 0, v: 0 }; e.n++; e.v += r.ordGst; m.set(r.vend, e); });
+    const list = [...m.entries()].sort((a, b) => b[1].v - a[1].v);
+    const v = topRows(list, c.topN);
+    blocks.push(rowsOf(["Vendor", "PO lines", "Ordered (incl. GST)"], v.shown.map(([k, e]) => [NP.VEND[k], fN(e.n), inr(e.v)]), moreNote(v.more, "vendors")));
+  }
+  blocks.push(text(`Scope: ${scope} — the same department filter and budget maths as the Cost tab. Department = the PO purchasing group; budget and utilised come from the SAP ZALR run for the non-project WBS that carry those POs. Project-WBS budgets are separate: ask "project WBS budget" or name a project.`));
+  return {
+    title,
+    headline: `${scope}: budget ${inr(t.b)}, utilised ${inr(t.u)} (${util.toFixed(0)}%), ${t.av >= 0 ? "balance" : "over by"} ${inr(Math.abs(t.av))} across ${fN(brows.length)} WBS.`,
+    blocks, asOn: NP.meta.asOn, open: OPEN,
   };
 }
