@@ -116,3 +116,40 @@ nav a:active {
 /* 3D lift on hover for glass/feature cards */
 .g3d { transition: transform .22s ease, box-shadow .22s ease; }
 .g3d:hover { transform: translateY(-4px) scale(1.008); box-shadow: 0 18px 40px rgba(20,33,61,.30), 0 4px 10px rgba(20,33,61,.16) !important; }
+
+/* ══════════════════════ MOBILE (≤640px) ══════════════════════
+   Global pass so every tab is usable on a phone: tighter padding,
+   wrapping filter bars, full-width KPI tiles, sideways-scrollable
+   tables, single-column card grids. Desktop is untouched. */
+@media (max-width: 640px) {
+  /* page gutters */
+  .sw-inv { padding: 12px 10px !important; }
+  .wrap { padding: 12px 10px !important; }
+
+  /* navy banner: title smaller, filters wrap and go full-width */
+  .pb { padding: 12px 12px 10px !important; }
+  .pb-title { font-size: 19px !important; }
+  .pb-sub { font-size: 10.5px !important; }
+  .pb-top { flex-wrap: wrap; gap: 8px !important; }
+  .pb-center { order: 3; width: 100%; justify-content: flex-start !important; overflow-x: auto; }
+  .pb-filters { gap: 8px !important; }
+  .pb-filters > div { flex: 1 1 45%; min-width: 130px; }
+  .pb-filters select, .pb-filters input, .pb-filters button { width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+
+  /* KPI glass tiles stack full width */
+  .g3d { flex: 1 1 100% !important; min-width: 0 !important; }
+
+  /* every data table scrolls sideways inside its card instead of
+     stretching the page */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  thead, tbody, tr { width: max-content; min-width: 100%; }
+
+  /* generic card grids drop to one column */
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+  /* drill drawers take the full screen */
+  .sw-inv [style*="min(720px"], .sw-inv [style*="min(760px"], .sw-inv [style*="min(560px"] { width: 100vw !important; }
+
+  /* hover tooltips are useless on touch; keep them from sticking */
+  #hovertip { display: none !important; }
+}
