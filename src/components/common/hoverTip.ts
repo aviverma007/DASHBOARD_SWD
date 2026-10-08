@@ -41,7 +41,10 @@ function place(x: number, y: number) {
   t.style.top = `${top}px`;
 }
 
+const NO_HOVER = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(hover: none)").matches;
+
 export function showTip(e: { clientX: number; clientY: number }, html: string) {
+  if (NO_HOVER) return; // touch screens: tooltips would stick after a tap
   const t = ensure();
   t.innerHTML = html;
   t.style.opacity = "1";

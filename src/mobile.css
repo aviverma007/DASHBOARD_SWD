@@ -1,0 +1,51 @@
+/* ═════════════ PHONE LAYOUT PASS (≤640px) ═════════════
+   One consistent gutter for every tab, no nested padding, segmented
+   pills that scroll instead of clipping, bottom room for the assistant
+   button. Desktop and tablet are untouched. Loaded after index.css. */
+@media (max-width: 640px) {
+  html, body { overflow-x: hidden; max-width: 100vw; }
+  main { padding-bottom: 84px; }
+
+  /* ── single page gutter: 10px ── */
+  main > div.p-4 { padding: 0 !important; }
+  main > div.p-4 > :not(.sw-inv) { padding-inline: 12px !important; padding-top: 14px !important; box-sizing: border-box; max-width: 100% !important; }
+  .sw-inv { padding: 10px !important; box-sizing: border-box; max-width: 100vw; }
+  .sw-inv div[style*="padding: 14px 20px 24px"], .sw-inv div[style*="padding: 14px 20px 26px"],
+  .sw-inv div[style*="padding: 16px 20px 40px"], .sw-inv div[style*="padding: 18px 24px 30px"] { padding: 10px 0 24px !important; }
+  .sw-inv .wrap { padding: 0 !important; }
+
+  /* ── navy banner ── */
+  .pb { margin: 0 0 12px !important; border-radius: 12px; box-sizing: border-box; width: 100%; }
+  .pb-top { gap: 6px !important; }
+  .pb-center { margin-top: 6px; justify-content: flex-start !important; max-width: 100%; }
+  .pb-filters > div { flex: 1 1 calc(50% - 8px); min-width: 0 !important; }
+
+  /* ── segmented pills: never clip, never wrap ── */
+  .pb-pills { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+  .pb-pills::-webkit-scrollbar { display: none; }
+  .pb-pill { white-space: nowrap; flex: 0 0 auto; padding: 0 11px; }
+  .pb-pills-lg .pb-pill { padding: 0 14px; }
+  .pb-filters .pb-pills .pb-pill, .pb .pb-pill { width: auto !important; min-width: 0 !important; }
+  .pb-filters > div:has(> .pb-pills), .pb-filters > div:has(> div > .pb-pills) { flex: 1 1 100%; }
+
+  /* ── cards ── */
+  .g3d, [class*="card"], [class*="Card"] { box-sizing: border-box; max-width: 100%; }
+
+  /* ── chart expand button: smaller, and titles leave room for it ── */
+  button[aria-label="Maximize"] { width: 26px !important; height: 26px !important; }
+  button[aria-label="Maximize"] + * { padding-right: 32px; box-sizing: border-box; }
+
+  /* ── cards: slimmer inner padding so tables fit ── */
+  .sw-inv .card[style*="padding"] { padding-left: 12px !important; padding-right: 12px !important; }
+  .pb-pills-lg .pb-pill { padding: 0 10px; font-size: 12px; }
+  .pb-center .pb-pills { width: 100%; }
+  .pb-center .pb-pills .pb-pill { flex: 1 1 auto; padding: 0 8px; }
+
+  /* ── headings never clip ── */
+  h1, h2, h3, h4 { overflow-wrap: anywhere; min-width: 0; }
+
+  /* ── tables scroll inside their card ── */
+
+  /* ── native selects / inputs: comfortable touch size ── */
+  select, input[type="text"], input[type="search"], input[type="date"], input:not([type]) { min-height: 36px; font-size: 14px; }
+}
