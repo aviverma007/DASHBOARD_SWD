@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ArrowUpRight, Mic, MicOff, X } from "lucide-react";
 import MorphOrb, { type MorphOrbHandle, type MorphPhase } from "../../components/ui/ai-thinking-orb-and-input";
 import { VoicePoweredOrb } from "../../components/ui/voice-powered-orb";
+import { Capacitor } from "@capacitor/core";
+import { SpeechRecognition as NativeSR } from "@capacitor-community/speech-recognition";
 import { useAuthStore } from "../../store/authStore";
 import { ask } from "./engine";
 import { EXAMPLES } from "./domains/meta";
@@ -93,7 +95,8 @@ export default function AssistantOverlay({ onClose }: { onClose: () => void }) {
 
   const SR = typeof window !== "undefined" ? getSR() : null;
   const secure = typeof window !== "undefined" && window.isSecureContext;
-  const voiceOk = !!SR && secure;
+  const native = Capacitor.isNativePlatform(); // Android app: use the phone's own recogniser (works over plain HTTP)
+  const voiceOk = native || (!!SR && secure);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -105,7 +108,10 @@ export default function AssistantOverlay({ onClose }: { onClose: () => void }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, listening, onClose]);
-  useEffect(() => () => { try { rec.current?.abort(); } catch { /* ignore */ } }, []);
+  useEffect(() => () => {
+    try { rec.current?.abort(); } catch { /* ignore */ }
+    if (Capacitor.isNativePlatform()) { NativeSR.stop().catch(() => {}); NativeSR.removeAllListeners().catch(() => {}); }
+  }, []);
 
   const onSubmit = useCallback(async (text: string) => {
     setAnswer(null);
@@ -116,8 +122,45 @@ export default function AssistantOverlay({ onClose }: { onClose: () => void }) {
 
   const go = (path: string) => { onClose(); navigate(path); };
 
-  const stopVoice = useCallback(() => { try { rec.current?.stop(); } catch { /* ignore */ } }, []);
+  const stopVoice = useCallback(() => {
+    if (native) { NativeSR.stop().catch(() => {}); return; }
+    try { rec.current?.stop(); } catch { /* ignore */ }
+  }, [native]);
+
+  const startNative = useCallback(async () => {
+    setVoiceMsg("");
+    finalText.current = "";
+    try {
+      const avail = await NativeSR.available();
+      if (!avail.available) { setVoiceMsg("This phone has no speech recogniser — install or enable Google Speech Services."); return; }
+      let perm = await NativeSR.checkPermissions();
+      if (perm.speechRecognition !== "granted") perm = await NativeSR.requestPermissions();
+      if (perm.speechRecognition !== "granted") { setVoiceMsg("Microphone permission was denied — allow it in Android Settings › Apps › SmartDB › Permissions."); return; }
+      await NativeSR.removeAllListeners();
+      await NativeSR.addListener("partialResults", (d: { matches?: string[] }) => {
+        const t = (d.matches?.[0] ?? "").trim();
+        if (t) { finalText.current = t; orb.current?.setText(t); }
+      });
+      await NativeSR.addListener("listeningState", (d: { status: "started" | "stopped" }) => {
+        if (d.status === "stopped") {
+          setListening(false);
+          const t = finalText.current;
+          if (t) orb.current?.ask(t);
+        }
+      });
+      setListening(true);
+      const r = await NativeSR.start({ language: "en-IN", maxResults: 1, partialResults: true, popup: false });
+      const t = (r?.matches?.[0] ?? "").trim();
+      if (t && !finalText.current) { finalText.current = t; orb.current?.setText(t); }
+    } catch (e) {
+      setListening(false);
+      const m = String((e as { message?: string })?.message ?? e);
+      setVoiceMsg(/permission/i.test(m) ? "Microphone permission was denied — allow it in Android Settings › Apps › SmartDB › Permissions." : /no.?match|no.?speech|didn/i.test(m) ? "I didn't hear anything — try again." : `Voice input stopped (${m}).`);
+    }
+  }, []);
+
   const startVoice = useCallback(() => {
+    if (native) { void startNative(); return; }
     if (!SR || !secure) return;
     setVoiceMsg("");
     finalText.current = "";
@@ -139,7 +182,7 @@ export default function AssistantOverlay({ onClose }: { onClose: () => void }) {
     };
     rec.current = r;
     try { r.start(); setListening(true); } catch { setListening(false); }
-  }, [SR, secure]);
+  }, [SR, secure, native, startNative]);
 
   const mic = (
     <button type="button" className="mo-mic" data-on={listening ? "" : undefined} disabled={!voiceOk}
@@ -172,14 +215,14 @@ export default function AssistantOverlay({ onClose }: { onClose: () => void }) {
               <button key={q} type="button" onClick={() => orb.current?.ask(q)}><b>{area}</b>{q}</button>
             ))}
           </div>
-          {!voiceOk && <p className="sa-hint">{!secure ? "Voice input is off: browsers only allow the microphone on HTTPS pages or localhost." : "Voice input works in Chrome or Edge."}</p>}
+          {!voiceOk && <p className="sa-hint">{!secure ? "Voice input is off in the browser: it needs an HTTPS page. It works in the SmartDB Android app." : "Voice input works in Chrome or Edge."}</p>}
           {voiceMsg && <p className="sa-hint warn">{voiceMsg}</p>}
         </div>
       )}
 
       {listening && (
         <div className="sa-listen">
-          <div className="sa-voice"><VoicePoweredOrb enableVoiceControl hue={150} className="rounded-full overflow-hidden" /></div>
+          <div className="sa-voice"><VoicePoweredOrb enableVoiceControl={!native} hue={150} className="rounded-full overflow-hidden" /></div>
           <p>Listening… speak your question</p>
           <span>Tap the red mic to stop</span>
         </div>
