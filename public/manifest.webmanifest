@@ -1,6 +1,6 @@
 {
-  "name": "SWD Analytics — Inventory & Sales",
-  "short_name": "SWD Analytics",
+  "name": "SmartDB — Inventory & Sales",
+  "short_name": "SmartDB",
   "description": "Smart World Developers internal analytics dashboard",
   "start_url": "/",
   "scope": "/",

@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * `npm run build && npx cap sync android` before building the APK. */
 const config: CapacitorConfig = {
   appId: "com.smartworld.dashboard",
-  appName: "SWD Analytics",
+  appName: "SmartDB",
   webDir: "dist",
   server: {
     url: "http://192.168.66.28:3000",

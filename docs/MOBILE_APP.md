@@ -1,4 +1,4 @@
-# SWD Analytics — Mobile App
+# SmartDB — Mobile App
 
 Two ways onto a phone, both already wired into this repo. Phones must be
 on office Wi-Fi (or VPN) to reach 192.168.66.28 — same as laptops.
