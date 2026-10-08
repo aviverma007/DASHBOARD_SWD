@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { Sidebar } from "./Sidebar";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
 import { useIdleLogout } from "../../hooks/useIdleLogout";
+import { AssistantLauncher } from "../../features/assistant/AssistantLauncher";
 
 export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -83,6 +84,7 @@ export function AppShell() {
       </div>
 
       <OverviewDrawer />
+      <AssistantLauncher />
     </div>
   );
 }

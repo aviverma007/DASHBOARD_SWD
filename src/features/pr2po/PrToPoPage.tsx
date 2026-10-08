@@ -58,7 +58,7 @@ const fD = (t: number | null) =>
 const todayUtc = () => { const n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); };
 /** days idle since t, clamped at 0 — some QMS/NFA dates are future-dated
  *  data-entry artifacts and must not produce negative idle */
-const idleDays = (t: number) => Math.max(0, days(t, todayUtc()));
+export const idleDays = (t: number) => Math.max(0, days(t, todayUtc()));
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 /* ---------------- journey model ---------------- */
@@ -75,7 +75,7 @@ export const STAGES: Stage[] = [
 ];
 const STAGE_COLS = ["#1c3f6e", "#2a5c8f", "#0E7490", "#0f8a7a", "#B8893C", "#c99a3a", "#1BAF7A", "#0f8a5f"];
 
-interface Journey {
+export interface Journey {
   id: string;                       // PR number (Banfn / EPR_No)
   origin: "sap" | "vg";             // where the journey starts
   desc: string;
@@ -111,7 +111,7 @@ const poCancelled = (pos: Rec[]) =>
 const goneOf = (pos: Rec[], k: "ITEMS_GONE" | "ITEMS_SEEN") =>
   pos.reduce((s, p) => s + (parseInt(String(p[k] ?? "0"), 10) || 0), 0);
 
-function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journey[] {
+export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] }): Journey[] {
   type R = Rec;
   const poByNo = new Map<string, R>();
   const poByBanfn = new Map<string, R[]>();
@@ -404,7 +404,7 @@ function MultiSel({ label, options, value, onChange }: { label: string; options:
 }
 
 /** plant / project of a journey (VG project name, else SAP plant) */
-const plantOf = (j: Journey): string | null => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null);
+export const plantOf = (j: Journey): string | null => (j.project !== "—" ? j.project : j.plant !== "—" ? j.plant : null);
 
 /* ---------------- drill list drawer (click any chart segment) ---------------- */
 export interface ListSel { title: string; sub?: string; rows: { j: Journey; note?: string }[] }
