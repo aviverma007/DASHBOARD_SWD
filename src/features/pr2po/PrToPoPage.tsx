@@ -966,6 +966,289 @@ function RefTracker({ rows, onPick }: { rows: Journey[]; onPick: (j: Journey) =>
 }
 
 /* ---------------- page ---------------- */
+/* ---------------- executive scorecard (top of page) ----------------
+ * Five headline KPIs → 5-step journey strip → stage / monthly / ageing
+ * charts → project- and department-wise summary. Everything is derived
+ * from the same filtered `rows`, so it always agrees with the sections
+ * below it. Click any tile / bar / row → the exact PR list. */
+const SC_STEPS: { k: string; l: string; c: string; test: (j: Journey) => boolean }[] = [
+  { k: "created", l: "PR Created", c: "#1c3f6e", test: () => true },
+  { k: "sap", l: "SAP Approval", c: "#7a4bb8", test: j => j.reached.sap_released || j.reached.qms_created || j.reached.po_created },
+  { k: "qms", l: "QMS Approval", c: "#c0392b", test: j => j.reached.qms_approved || j.reached.po_created },
+  { k: "nfa", l: "Vendor Selection (NFA)", c: "#c99a3a", test: j => j.reached.nfa_approved || j.reached.po_created },
+  { k: "po", l: "PO Released", c: "#1BAF7A", test: j => j.done },
+];
+const createdOf = (j: Journey) => j.m.sap_created ?? j.m.qms_created;
+const pct1 = (a: number, b: number) => (b ? ((a / b) * 100).toFixed(1) : "0.0") + "%";
+
+function Scorecard({ rows, flow, from, to, openList, onMonth }: {
+  rows: Journey[]; flow: "sap" | "qms"; from: string; to: string;
+  openList: (title: string, js: Journey[], sub?: string) => void;
+  onMonth: (mk: string, label: string) => void;
+}) {
+  const [stageMode, setStageMode] = useState<"count" | "value">("count");
+  const [viewBy, setViewBy] = useState<"project" | "dept">("project");
+  const tot = rows.length;
+  const done = rows.filter(j => j.done);
+  const exc = rows.filter(j => j.exception && !j.done);
+  const pend = rows.filter(j => !j.done && !j.exception);
+  const sum = (js: Journey[]) => js.reduce((s, j) => s + j.value, 0);
+  const tats = done.map(tatOf).filter((x): x is number => x !== null);
+  const avgTat = tats.length ? tats.reduce((a, b) => a + b, 0) / tats.length : null;
+
+  const tiles: { k: string; v: string; l1: string; l2?: string; c: [string, string]; ic: string; js: Journey[]; sub?: string }[] = [
+    { k: flow === "sap" ? "Total PRs Created" : "QMS-direct PRs", v: fN(tot), l1: fMoney(sum(rows)), c: ["#1c3f6e", "#0f2547"], ic: "📄", js: rows },
+    { k: "PO Released", v: fN(done.length), l1: `${pct1(done.length, tot)} of total PRs`, l2: fMoney(sum(done)), c: ["#1e9a6c", "#0f6647"], ic: "✔", js: done },
+    { k: "Pending Conversion", v: fN(pend.length), l1: `${pct1(pend.length, tot)} of total PRs`, l2: fMoney(sum(pend)), c: ["#d9962a", "#a9680f"], ic: "⏱", js: pend },
+    { k: "Returned / Cancelled", v: fN(exc.length), l1: `${pct1(exc.length, tot)} of total PRs`, l2: fMoney(sum(exc)), c: ["#c0392b", "#7e1f14"], ic: "✕", js: exc },
+    { k: "Average PR → PO TAT", v: avgTat !== null ? `${avgTat.toFixed(0)} days` : "—", l1: "for released PRs", l2: `${fN(tats.length)} journeys`, c: ["#7a4bb8", "#4b2a7d"], ic: "📅", js: done, sub: "end-to-end days per PR" },
+  ];
+
+  /* journey strip */
+  const steps = SC_STEPS.map(s => { const js = rows.filter(s.test); return { ...s, js, n: js.length, val: sum(js) }; });
+
+  /* stage-wise progress bars */
+  const stageMax = Math.max(...steps.map(s => (stageMode === "count" ? s.n : s.val)), 1);
+
+  /* monthly cohort: PRs created in month vs those whose PO is released */
+  const monthly = useMemo(() => {
+    const m = new Map<string, { c: number; p: number }>();
+    rows.forEach(j => {
+      const c = createdOf(j); if (c === null) return;
+      const k = iso(c).slice(0, 7);
+      if (!m.has(k)) m.set(k, { c: 0, p: 0 });
+      const e = m.get(k)!; e.c++; if (j.done) e.p++;
+    });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows]);
+  const mLbl = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
+
+  /* pending ageing (since PR creation) */
+  const BANDS: [string, number, number, string][] = [["0–15 days", 0, 15, "#1BAF7A"], ["16–30 days", 16, 30, "#2a7fd4"], ["31–60 days", 31, 60, "#EDA100"], ["> 60 days", 61, 1e9, "#c0392b"]];
+  const today = todayUtc();
+  const ageOf = (j: Journey) => { const c = createdOf(j) ?? j.pendingSince; return c === null ? null : Math.max(0, days(c, today)); };
+  const bands = BANDS.map(([l, lo, hi, c]) => ({ l, c, js: pend.filter(j => { const a = ageOf(j); return a !== null && a >= lo && a <= hi; }) }));
+  const bandTot = Math.max(bands.reduce((s, b) => s + b.js.length, 0), 1);
+
+  /* group tables */
+  const groups = useMemo(() => {
+    const keyOf = (j: Journey) => (viewBy === "project" ? plantOf(j) : (j.dept !== "—" ? j.dept : null));
+    const m = new Map<string, Journey[]>();
+    rows.forEach(j => { const k = keyOf(j); if (k) { if (!m.has(k)) m.set(k, []); m.get(k)!.push(j); } });
+    return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+  }, [rows, viewBy]);
+  const heat = (p: number) => (p >= 65 ? "#d6f3e6" : p >= 55 ? "#fdf0cf" : "#fbdcd8");
+  const gStats = (js: Journey[]) => {
+    const d = js.filter(j => j.done), p = js.filter(j => !j.done && !j.exception), x = js.filter(j => j.exception && !j.done);
+    const t = d.map(tatOf).filter((v): v is number => v !== null);
+    return { d, p, x, val: sum(d), conv: js.length ? (d.length / js.length) * 100 : 0, tat: t.length ? t.reduce((a, b) => a + b, 0) / t.length : null };
+  };
+  const grandStats = gStats(rows);
+  const hov = (e: React.MouseEvent<HTMLElement>, on: boolean) => { e.currentTarget.style.background = on ? "#faf8f2" : ""; };
+
+  const SecTitle = ({ t, s }: { t: string; s?: string }) => (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "4px 2px 8px" }}>
+      <span style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{t}</span>
+      {s && <span style={{ fontSize: 11, color: "var(--mut)" }}>{s}</span>}
+    </div>
+  );
+
+  /* monthly chart geometry */
+  const W = 520, H = 210, PL = 38, PR = 38, PT = 12, PB = 26;
+  const mMax = Math.max(...monthly.map(([, e]) => e.c), 1);
+  const nice = Math.ceil(mMax / 100) * 100 || 100;
+  const bw = monthly.length ? (W - PL - PR) / monthly.length : 1;
+  const yv = (v: number) => PT + (H - PT - PB) * (1 - v / nice);
+  const yp = (p: number) => PT + (H - PT - PB) * (1 - p / 100);
+  const line = monthly.map(([, e], i) => `${PL + bw * i + bw / 2},${yp(e.c ? (e.p / e.c) * 100 : 0)}`).join(" ");
+
+  /* donut */
+  const R = 62, CIR = 2 * Math.PI * R; let acc = 0;
+
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <SecTitle t="Executive scorecard" s={`${from} → ${to} · click any tile, bar or row → the exact PRs`} />
+      {/* 1 · KPI tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 14 }}>
+        {tiles.map(t => (
+          <div key={t.k} className="g3d" style={{ ...GLASS(t.c[0], t.c[1]), cursor: "pointer", display: "flex", gap: 12, alignItems: "center" }}
+            onClick={() => openList(t.k, t.js, t.sub)}
+            onMouseEnter={e => showTip(e, `<b>${t.k}</b><br/>${t.v} · ${t.l1}<br/>click → list`)} onMouseMove={e => showTip(e, `<b>${t.k}</b> ${t.v}`)} onMouseLeave={hideTip}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0, border: "1px solid rgba(255,255,255,.3)" }}>{t.ic}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.88)" }}>{t.k}</div>
+              <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 3, textShadow: "0 2px 4px rgba(0,0,0,.25)", whiteSpace: "nowrap" }}>{t.v}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.8)", marginTop: 3, whiteSpace: "nowrap" }}>{t.l1}</div>
+              {t.l2 && <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{t.l2}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 2 · journey strip */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10, marginBottom: 14 }}>
+        {steps.map((s, i) => (
+          <div key={s.k} onClick={() => openList(`Reached: ${s.l}`, s.js)} className="g3d"
+            style={{ ...CARD, marginBottom: 0, cursor: "pointer", padding: "11px 13px", borderTop: `4px solid ${s.c}` }}
+            onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.n)} PRs · ${pct1(s.n, tot)} of total<br/>${fMoney(s.val)}<br/>click → list`)} onMouseLeave={hideTip}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 22, height: 22, borderRadius: "50%", background: s.c, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--ink)" }}>{s.l}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 6 }}>
+              <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: "var(--ink)" }}>{fN(s.n)}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: s.c }}>{pct1(s.n, tot)}</span>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--mut)" }}>{fMoney(s.val)}</div>
+            <div style={{ height: 6, background: "#f0ede5", borderRadius: 3, overflow: "hidden", marginTop: 6 }}>
+              <div style={{ height: "100%", width: `${tot ? (s.n / tot) * 100 : 0}%`, background: s.c, borderRadius: 3 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 3 · charts */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
+        <div style={{ ...CARD, marginBottom: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={H3}>Stage-wise PR to PO Progress</h3>
+            <span style={{ display: "flex", gap: 4 }}>
+              {(["count", "value"] as const).map(m => (
+                <button key={m} onClick={() => setStageMode(m)}
+                  style={{ border: "1px solid #d8d2c4", background: stageMode === m ? NAVY : "#fff", color: stageMode === m ? "#fff" : NAVY, borderRadius: 7, fontSize: 11, fontWeight: 700, padding: "3px 10px", cursor: "pointer" }}>{m === "count" ? "Count" : "Value (₹ Cr)"}</button>
+              ))}
+            </span>
+          </div>
+          <div style={CAP}>how many PRs (or how much value) crossed each step</div>
+          {steps.map(s => {
+            const v = stageMode === "count" ? s.n : s.val;
+            return (
+              <div key={s.k} onClick={() => openList(`Reached: ${s.l}`, s.js)} style={{ display: "flex", alignItems: "center", gap: 8, margin: "9px 0", cursor: "pointer" }}
+                onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.n)} PRs · ${fMoney(s.val)}<br/>click → list`)} onMouseLeave={hideTip}>
+                <span style={{ width: 128, fontSize: 11.5, fontWeight: 700, color: "var(--ink)", textAlign: "right", flexShrink: 0 }}>{s.l}</span>
+                <div style={{ flex: 1, height: 20, background: "#f0ede5", borderRadius: 5, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(v / stageMax) * 100}%`, background: s.c, borderRadius: 5, transition: "width .5s" }} />
+                </div>
+                <span style={{ width: 118, fontSize: 11.5, fontWeight: 800, color: "var(--ink)", flexShrink: 0 }}>
+                  {stageMode === "count" ? fN(s.n) : fMoney(s.val)} <span style={{ color: "var(--mut)", fontWeight: 700 }}>({pct1(s.n, tot)})</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ ...CARD, marginBottom: 0 }}>
+          <h3 style={H3}>Monthly PR to PO Progress</h3>
+          <div style={CAP}><span style={{ color: "#2a6fd0" }}>■</span> PR created · <span style={{ color: GREEN }}>■</span> PO released · <span style={{ color: AMBER }}>●</span> conversion % (of that month's PRs)</div>
+          {monthly.length === 0 ? <div style={{ color: "var(--mut)", fontSize: 12 }}>No PRs in this window.</div> : (
+            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
+              {[0, 0.25, 0.5, 0.75, 1].map(f => (
+                <g key={f}>
+                  <line x1={PL} x2={W - PR} y1={yv(nice * f)} y2={yv(nice * f)} stroke="#eee9dd" />
+                  <text x={PL - 5} y={yv(nice * f) + 3} fontSize={9} textAnchor="end" fill="#7d8190">{Math.round(nice * f)}</text>
+                  <text x={W - PR + 5} y={yp(100 * f) + 3} fontSize={9} fill="#7d8190">{Math.round(100 * f)}%</text>
+                </g>
+              ))}
+              {monthly.map(([k, e], i) => {
+                const x = PL + bw * i, w = Math.min(bw * 0.34, 20);
+                return (
+                  <g key={k} style={{ cursor: "pointer" }} onClick={() => onMonth(k, mLbl(k))}
+                    onMouseEnter={ev => showTip(ev as unknown as React.MouseEvent, `<b>${mLbl(k)}</b><br/>PRs created — ${fN(e.c)}<br/>POs released — ${fN(e.p)}<br/>conversion — ${pct1(e.p, e.c)}<br/>click → list`)} onMouseLeave={hideTip}>
+                    <rect x={x} y={PT} width={bw} height={H - PT - PB} fill="transparent" />
+                    <rect x={x + bw / 2 - w - 1} y={yv(e.c)} width={w} height={H - PB - yv(e.c)} fill="#2a6fd0" rx={2} />
+                    <rect x={x + bw / 2 + 1} y={yv(e.p)} width={w} height={H - PB - yv(e.p)} fill={GREEN} rx={2} />
+                    <text x={x + bw / 2} y={H - 9} fontSize={9.5} fontWeight={700} textAnchor="middle" fill="#5b6070">{mLbl(k)}</text>
+                  </g>
+                );
+              })}
+              <polyline points={line} fill="none" stroke={AMBER} strokeWidth={2.2} />
+              {monthly.map(([k, e], i) => <circle key={k} cx={PL + bw * i + bw / 2} cy={yp(e.c ? (e.p / e.c) * 100 : 0)} r={3.2} fill="#fff" stroke={AMBER} strokeWidth={2} />)}
+            </svg>
+          )}
+        </div>
+
+        <div style={{ ...CARD, marginBottom: 0 }}>
+          <h3 style={H3}>Pending PR Ageing (Conversion)</h3>
+          <div style={CAP}>days since the PR was created · click a band → those PRs</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <svg viewBox="0 0 160 160" style={{ width: 160, height: 160, flexShrink: 0 }}>
+              <g transform="rotate(-90 80 80)">
+                <circle cx={80} cy={80} r={R} fill="none" stroke="#f0ede5" strokeWidth={26} />
+                {bands.map(b => {
+                  const len = (b.js.length / bandTot) * CIR; const off = acc; acc += len;
+                  return len > 0 ? <circle key={b.l} cx={80} cy={80} r={R} fill="none" stroke={b.c} strokeWidth={26} strokeDasharray={`${len} ${CIR - len}`} strokeDashoffset={-off} style={{ cursor: "pointer" }}
+                    onClick={() => openList(`Pending ${b.l}`, b.js, "since PR creation")}
+                    onMouseEnter={ev => showTip(ev as unknown as React.MouseEvent, `<b>${b.l}</b><br/>${fN(b.js.length)} PRs · ${pct1(b.js.length, bandTot)}<br/>click → list`)} onMouseLeave={hideTip} /> : null;
+                })}
+              </g>
+              <text x={80} y={78} textAnchor="middle" fontFamily="Georgia,serif" fontSize={26} fontWeight={700} fill="#14213d">{fN(pend.length)}</text>
+              <text x={80} y={95} textAnchor="middle" fontSize={10} fill="#7d8190">Pending PRs</text>
+            </svg>
+            <div style={{ flex: 1, minWidth: 150 }}>
+              {bands.map(b => (
+                <div key={b.l} onClick={() => openList(`Pending ${b.l}`, b.js, "since PR creation")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", cursor: "pointer", fontSize: 12 }}>
+                  <span style={{ width: 11, height: 11, borderRadius: "50%", background: b.c, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontWeight: 600, color: "var(--ink)" }}>{b.l}</span>
+                  <b style={{ width: 34, textAlign: "right" }}>{fN(b.js.length)}</b>
+                  <span style={{ width: 52, textAlign: "center", fontSize: 11, fontWeight: 800, borderRadius: 6, padding: "1px 0", background: `${b.c}22`, color: b.c }}>{pct1(b.js.length, bandTot)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 · project / department summary */}
+      <div style={{ ...CARD, marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <h3 style={H3}>{viewBy === "project" ? "Project-wise" : "Department-wise"} PR to PO Summary</h3>
+          <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11, color: "var(--mut)" }}>View by:
+            {([["project", "Project"], ["dept", "Department"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setViewBy(k)}
+                style={{ border: "1px solid #d8d2c4", background: viewBy === k ? NAVY : "#fff", color: viewBy === k ? "#fff" : NAVY, borderRadius: 7, fontSize: 11, fontWeight: 700, padding: "3px 10px", cursor: "pointer" }}>{l}</button>
+            ))}
+          </span>
+        </div>
+        <div style={CAP}>{fN(groups.length)} groups · conversion % = PO released ÷ PRs created · click a row → its PRs</div>
+        <div style={{ maxHeight: 380, overflow: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
+              <th style={TH}>#</th><th style={TH}>{viewBy === "project" ? "Project" : "Department"}</th>
+              {["PR Created", "PO Released", "Pending Conversion", "Returned / Cancelled", "PO Value", "Conversion %", "Avg TAT (days)"].map(h => <th key={h} style={{ ...TH, textAlign: "right" }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {groups.map(([k, js], i) => { const g = gStats(js); return (
+                <tr key={k} onClick={() => openList(`${viewBy === "project" ? "Project" : "Dept"}: ${k}`, js)} style={{ cursor: "pointer" }} onMouseEnter={e => hov(e, true)} onMouseLeave={e => hov(e, false)}>
+                  <td style={{ ...TD, color: "var(--mut)" }}>{i + 1}</td>
+                  <td style={{ ...TD, fontWeight: 700, color: "var(--ink)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{k}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 800 }}>{fN(js.length)}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: GREEN }}>{fN(g.d.length)}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{fN(g.p.length)}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 700, color: g.x.length ? RED : "var(--mut)" }}>{fN(g.x.length)}</td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{g.val ? fMoney(g.val) : "—"}</td>
+                  <td style={{ ...TD, textAlign: "right" }}><span style={{ background: heat(g.conv), borderRadius: 6, padding: "2px 10px", fontWeight: 800 }}>{g.conv.toFixed(1)}%</span></td>
+                  <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{g.tat !== null ? g.tat.toFixed(0) : "—"}</td>
+                </tr>); })}
+              <tr style={{ position: "sticky", bottom: 0, background: "#faf9f6" }}>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da" }} colSpan={2}><b>Total</b></td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800 }}>{fN(rows.length)}</td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800, color: GREEN }}>{fN(grandStats.d.length)}</td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800 }}>{fN(grandStats.p.length)}</td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800 }}>{fN(grandStats.x.length)}</td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800 }}>{fMoney(grandStats.val)}</td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right" }}><span style={{ background: heat(grandStats.conv), borderRadius: 6, padding: "2px 10px", fontWeight: 800 }}>{grandStats.conv.toFixed(1)}%</span></td>
+                <td style={{ ...TD, borderTop: "2px solid #eae6da", textAlign: "right", fontWeight: 800 }}>{grandStats.tat !== null ? grandStats.tat.toFixed(0) : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <SecTitle t="Detail" s="management snapshot · journey summary · approval levels · records — scroll down" />
+    </div>
+  );
+}
+
 export default function PrToPoPage() {
   // POs + QMS are live from SAP OData / VendorGlobe; only the SAP PR
   // leg still comes from the stale SWDBIDB mirror (PR entity pending).
@@ -1077,12 +1360,6 @@ export default function PrToPoPage() {
   /* POs already created but journey not finished (awaiting PO release) —
      these are IN-FLIGHT, called out in the tile sub-line so "completed +
      in-flight + exceptions = total" stays true. */
-  const poInFlight = rows.filter(j => j.reached.po_created && !j.done && !j.exception);
-  const totTats = completed
-    .map(j => { const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created; return a !== null && b !== null ? days(a, b) : null; })
-    .filter((x): x is number => x !== null && x >= 0);
-  const avgTat = totTats.length ? totTats.reduce((s, x) => s + x, 0) / totTats.length : null;
-  const poValue = rows.reduce((s, j) => s + (j.reached.po_created && (!j.exception || j.done) ? j.value : 0), 0);
 
 
   /* avg TAT per consecutive leg */
@@ -1149,17 +1426,6 @@ export default function PrToPoPage() {
     const a = j.m.sap_created ?? j.m.qms_created, b = j.m.po_released ?? j.m.po_created;
     return [j.id, a !== null && b !== null ? `${days(a, b)} d total` : ""] as [string, string];
   }));
-  const KPIS: [string, string, string, [string, string], () => void][] = [
-    [flow === "sap" ? "Total PRs (SAP flow)" : "QMS-direct PRs", fN(rows.length), `${applied.from} → ${applied.to}`, ["#1c3f6e", "#0f2547"], () => openList(flow === "sap" ? "All SAP-flow PRs in window" : "All QMS-direct PRs in window", rows)],
-    /* mutually exclusive buckets: Completed + In-flight + Exceptions =
-       Total, so the tiles always add up. "Reached PO" (POs created but
-       not yet released count as in-flight) lives in the sub-lines. */
-    ["Completed (PO approved)", fN(completed.length), `${rows.length ? ((completed.length / rows.length) * 100).toFixed(1) : 0}% of window · ${fMoney(poValue)} PO value`, ["#1e9a6c", "#0f6647"], () => openList("Completed journeys", completed)],
-    ["In-flight", fN(inFlight.length), `moving through approvals${poInFlight.length ? ` · incl. ${fN(poInFlight.length)} at PO stage` : ""}`, ["#1a7f9c", "#0e5468"], () => openList("In-flight PRs", inFlight)],
-    ["Returned / Cancelled", fN(exceptions.length), "exception journeys", ["#c0392b", "#7e1f14"], () => openList("Exception journeys", exceptions)],
-    ["Avg PR → PO TAT", avgTat !== null ? `${avgTat.toFixed(0)} d` : "—", `${fN(totTats.length)} completed journeys`, ["#c99a3a", "#96691c"], () => openList("Completed journeys — full TAT", completed, "end-to-end days per PR", tatNotes)],
-  ];
-
   /* ---------- Reports view: live source tables, embedded ---------- */
   if (reportView) {
     const REPORTS: [typeof reportView & string, string, string][] = [
@@ -1266,18 +1532,8 @@ export default function PrToPoPage() {
             ) : null;
           })()}
 
-          {/* KPI strip */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
-            {KPIS.map(([k, v, sub, [c1, c2], pick]) => (
-              <div key={k} className="g3d" style={{ ...GLASS(c1, c2), cursor: "pointer" }} onClick={pick}
-                onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${sub}<br/>click → list`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}>
-                <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,.10)", filter: "blur(2px)" }} />
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "rgba(255,255,255,.85)" }}>{k}</div>
-                <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 6, textShadow: "0 2px 4px rgba(0,0,0,.25)", whiteSpace: "nowrap" }}>{v}</div>
-                <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.75)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
-              </div>
-            ))}
-          </div>
+          <Scorecard rows={rows} flow={flow} from={applied.from} to={applied.to}
+            openList={(t, js, sub) => openList(t, js, sub, t.startsWith("Average") || t.startsWith("PO Rel") ? tatNotes : undefined)} onMonth={monthPick} />
 
           {/* Management snapshot — plain-language cards */}
           <Zoomable title="Management snapshot" collapsible>
