@@ -966,6 +966,131 @@ function RefTracker({ rows, onPick }: { rows: Journey[]; onPick: (j: Journey) =>
 }
 
 /* ---------------- page ---------------- */
+/* ---------------- Monthly PR to PO Progress (dual-axis) ----------------
+ * Pixel-exact SVG (no viewBox scaling → text never shrinks). Each month
+ * gets a fixed minimum slot; when the card is too narrow the plot scrolls
+ * horizontally instead of squeezing. X labels are thinned to fit and never
+ * overlap; every month still has its bars, marker and tooltip. */
+function MonthlyChart({ data, onPick }: { data: [string, { c: number; p: number }][]; onPick: (mk: string, label: string) => void }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const scr = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(560);
+  const [hi, setHi] = useState<number | null>(null);
+  useEffect(() => {
+    const el = wrap.current; if (!el) return;
+    const ro = new ResizeObserver(() => setCw(Math.max(240, Math.floor(el.clientWidth))));
+    ro.observe(el); setCw(Math.max(240, Math.floor(el.clientWidth)));
+    return () => ro.disconnect();
+  }, []);
+  const n = data.length;
+  const narrow = cw < 460;
+  const SLOT = narrow ? 58 : 64, PL = 42, PR = 46, PT = 14, PB = 32, H = narrow ? 250 : 270;
+  const IP = 8, mw = cw - PL - PR;
+  const W = Math.max(mw, n * SLOT + 2 * IP);
+  const slot = (W - 2 * IP) / Math.max(n, 1);
+  useEffect(() => { const e = scr.current; if (e) e.scrollLeft = e.scrollWidth; }, [n, W]);
+  const mx = Math.max(...data.map(([, e]) => e.c), 1);
+  const step = mx <= 5 ? 1 : mx <= 10 ? 2 : mx <= 25 ? 5 : mx <= 50 ? 10 : mx <= 100 ? 20 : mx <= 250 ? 50 : mx <= 500 ? 100 : mx <= 1000 ? 200 : 500;
+  const top = Math.max(Math.ceil(mx / step) * step, step);
+  const ticks: number[] = []; for (let v = 0; v <= top; v += step) ticks.push(v);
+  const ph = H - PT - PB;
+  const yv = (v: number) => PT + ph * (1 - v / top);
+  const yp = (p: number) => PT + ph * (1 - p / 100);
+  const xc = (i: number) => IP + slot * i + slot / 2;
+  const bw = Math.max(10, Math.min(24, slot * 0.28));
+  const pc = data.map(([, e]) => (e.c ? (e.p / e.c) * 100 : 0));
+  /* monotone cubic (Fritsch–Carlson): smooth, but never overshoots the data */
+  const pts = pc.map((p, i) => [xc(i), yp(p)] as [number, number]);
+  const path = (() => {
+    if (n === 0) return "";
+    if (n === 1) return `M${pts[0][0]},${pts[0][1]}`;
+    const dx = pts.slice(1).map((p, i) => p[0] - pts[i][0]);
+    const m = pts.slice(1).map((p, i) => (p[1] - pts[i][1]) / dx[i]);
+    const t = [m[0]];
+    for (let i = 1; i < n - 1; i++) t.push(m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2);
+    t.push(m[n - 2]);
+    for (let i = 0; i < n - 1; i++) {
+      if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+      const a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
+      if (s > 9) { const k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+    }
+    let d = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 0; i < n - 1; i++) { const h = dx[i] / 3; d += ` C${pts[i][0] + h},${pts[i][1] + t[i] * h} ${pts[i + 1][0] - h},${pts[i + 1][1] - t[i + 1] * h} ${pts[i + 1][0]},${pts[i + 1][1]}`; }
+    return d;
+  })();
+  const mon = (k: string, long?: boolean) => {
+    const d = new Date(`${k}-01T00:00:00Z`);
+    const m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+    return long ? `${m} ${d.getUTCFullYear()}` : `${m} '${String(d.getUTCFullYear()).slice(2)}`;
+  };
+  const every = Math.max(1, Math.ceil(52 / slot));          // label ≈ 52px wide
+  const showLbl = (i: number) => (n - 1 - i) % every === 0;   // always label the latest month
+  const first = pc[0] ?? 0, last = pc[n - 1] ?? 0;
+  const trend = n < 2 ? null : last - first;
+  const tip = hi !== null ? { i: hi, e: data[hi][1], k: data[hi][0], p: pc[hi] } : null;
+  const tipW = 150;
+  const tipX = tip ? Math.min(Math.max(xc(tip.i) - tipW / 2, 4), Math.max(W - tipW - 4, 4)) : 0;
+
+  return (
+    <div style={{ ...CARD, marginBottom: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+        <div>
+          <h3 style={H3}>Monthly PR to PO Progress</h3>
+          <div style={{ ...CAP, marginBottom: 6 }}>PR Creation, PO Release &amp; Conversion Trend</div>
+        </div>
+        {trend !== null && (
+          <span style={{ fontSize: 11, fontWeight: 800, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap",
+            background: trend >= 0 ? "#d6f3e6" : "#fbdcd8", color: trend >= 0 ? "#0f6647" : "#7e1f14" }}>
+            {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)} pts since {mon(data[0][0])}
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 11.5, fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
+        <span><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "#2a6fd0", marginRight: 6 }} />PR Created</span>
+        <span><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: GREEN, marginRight: 6 }} />PO Released</span>
+        <span><i style={{ display: "inline-block", width: 16, height: 3, borderRadius: 2, background: AMBER, marginRight: 6, verticalAlign: "middle" }} />Conversion %</span>
+      </div>
+      {n === 0 ? <div style={{ color: "var(--mut)", fontSize: 12, padding: "30px 0" }}>No PRs in this window.</div> : (
+        <div ref={wrap} style={{ display: "flex", alignItems: "flex-start" }}>
+          <svg width={PL} height={H} style={{ flexShrink: 0, display: "block" }}>
+            {ticks.map(v => <text key={v} x={PL - 8} y={yv(v) + 4} fontSize={11} textAnchor="end" fill="#6b7080">{v}</text>)}
+          </svg>
+          <div ref={scr} style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch", position: "relative" }}>
+            <div style={{ position: "relative", width: W, height: H }}>
+              <svg width={W} height={H} style={{ display: "block" }} onMouseLeave={() => setHi(null)}>
+                {ticks.map(v => <line key={v} x1={0} x2={W} y1={yv(v)} y2={yv(v)} stroke={v === 0 ? "#cfc8b6" : "#eee9dd"} />)}
+                {data.map(([k, e], i) => (
+                  <g key={k} style={{ cursor: "pointer" }} onClick={() => { setHi(i); onPick(k, mon(k, true)); }}
+                    onMouseEnter={() => setHi(i)} onTouchStart={() => setHi(i)}>
+                    <rect x={IP + slot * i} y={PT} width={slot} height={ph} fill={hi === i ? "rgba(20,33,61,.045)" : "transparent"} />
+                    <rect x={xc(i) - bw - 2} y={yv(e.c)} width={bw} height={Math.max(0, yv(0) - yv(e.c))} fill="#2a6fd0" fillOpacity={0.92} rx={3} />
+                    <rect x={xc(i) + 2} y={yv(e.p)} width={bw} height={Math.max(0, yv(0) - yv(e.p))} fill={GREEN} fillOpacity={0.92} rx={3} />
+                    {showLbl(i) && <text x={xc(i)} y={H - 10} fontSize={11.5} fontWeight={hi === i ? 800 : 600} textAnchor="middle" fill={hi === i ? "#14213d" : "#5b6070"}>{mon(k)}</text>}
+                  </g>
+                ))}
+                <path d={path} fill="none" stroke={AMBER} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
+                {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={hi === i ? 4.5 : 2.6} fill={hi === i ? AMBER : "#fff"} stroke={AMBER} strokeWidth={1.6} pointerEvents="none" />)}
+              </svg>
+              {tip && (
+                <div style={{ position: "absolute", left: tipX, top: 4, width: tipW, pointerEvents: "none", background: "#14213d", color: "#fff", borderRadius: 9, padding: "8px 11px", fontSize: 11.5, lineHeight: 1.55, boxShadow: "0 8px 22px rgba(20,33,61,.35)", zIndex: 3 }}>
+                  <div style={{ fontWeight: 800, marginBottom: 2 }}>{mon(tip.k, true)}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#9cc0f5" }}>PR Created</span><b>{fN(tip.e.c)}</b></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#8be0bb" }}>PO Released</span><b>{fN(tip.e.p)}</b></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#f5cd6e" }}>Conversion</span><b>{tip.p.toFixed(1)}%</b></div>
+                </div>
+              )}
+            </div>
+          </div>
+          <svg width={PR} height={H} style={{ flexShrink: 0, display: "block" }}>
+            {[0, 25, 50, 75, 100].map(q => <text key={q} x={8} y={yp(q) + 4} fontSize={11} fill="#b07a00">{q}%</text>)}
+          </svg>
+        </div>
+      )}
+      {n > 0 && W > mw && <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 4 }}>← swipe to see all months →</div>}
+    </div>
+  );
+}
+
 /* ---------------- executive scorecard (top of page) ----------------
  * Five headline KPIs → 5-step journey strip → stage / monthly / ageing
  * charts → project- and department-wise summary. Everything is derived
@@ -1021,7 +1146,6 @@ function Scorecard({ rows, flow, from, to, openList, onMonth }: {
     });
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [rows]);
-  const mLbl = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
 
   /* pending ageing (since PR creation) */
   const BANDS: [string, number, number, string][] = [["0–15 days", 0, 15, "#1BAF7A"], ["16–30 days", 16, 30, "#2a7fd4"], ["31–60 days", 31, 60, "#EDA100"], ["> 60 days", 61, 1e9, "#c0392b"]];
@@ -1052,15 +1176,6 @@ function Scorecard({ rows, flow, from, to, openList, onMonth }: {
       {s && <span style={{ fontSize: 11, color: "var(--mut)" }}>{s}</span>}
     </div>
   );
-
-  /* monthly chart geometry */
-  const W = 520, H = 210, PL = 38, PR = 38, PT = 12, PB = 26;
-  const mMax = Math.max(...monthly.map(([, e]) => e.c), 1);
-  const nice = Math.ceil(mMax / 100) * 100 || 100;
-  const bw = monthly.length ? (W - PL - PR) / monthly.length : 1;
-  const yv = (v: number) => PT + (H - PT - PB) * (1 - v / nice);
-  const yp = (p: number) => PT + (H - PT - PB) * (1 - p / 100);
-  const line = monthly.map(([, e], i) => `${PL + bw * i + bw / 2},${yp(e.c ? (e.p / e.c) * 100 : 0)}`).join(" ");
 
   /* donut */
   const R = 62, CIR = 2 * Math.PI * R; let acc = 0;
@@ -1109,6 +1224,7 @@ function Scorecard({ rows, flow, from, to, openList, onMonth }: {
       </div>
 
       {/* 3 · charts */}
+      <div style={{ marginBottom: 14 }}><MonthlyChart data={monthly} onPick={onMonth} /></div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
         <div style={{ ...CARD, marginBottom: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1136,36 +1252,6 @@ function Scorecard({ rows, flow, from, to, openList, onMonth }: {
               </div>
             );
           })}
-        </div>
-
-        <div style={{ ...CARD, marginBottom: 0 }}>
-          <h3 style={H3}>Monthly PR to PO Progress</h3>
-          <div style={CAP}><span style={{ color: "#2a6fd0" }}>■</span> PR created · <span style={{ color: GREEN }}>■</span> PO released · <span style={{ color: AMBER }}>●</span> conversion % (of that month's PRs)</div>
-          {monthly.length === 0 ? <div style={{ color: "var(--mut)", fontSize: 12 }}>No PRs in this window.</div> : (
-            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
-              {[0, 0.25, 0.5, 0.75, 1].map(f => (
-                <g key={f}>
-                  <line x1={PL} x2={W - PR} y1={yv(nice * f)} y2={yv(nice * f)} stroke="#eee9dd" />
-                  <text x={PL - 5} y={yv(nice * f) + 3} fontSize={9} textAnchor="end" fill="#7d8190">{Math.round(nice * f)}</text>
-                  <text x={W - PR + 5} y={yp(100 * f) + 3} fontSize={9} fill="#7d8190">{Math.round(100 * f)}%</text>
-                </g>
-              ))}
-              {monthly.map(([k, e], i) => {
-                const x = PL + bw * i, w = Math.min(bw * 0.34, 20);
-                return (
-                  <g key={k} style={{ cursor: "pointer" }} onClick={() => onMonth(k, mLbl(k))}
-                    onMouseEnter={ev => showTip(ev as unknown as React.MouseEvent, `<b>${mLbl(k)}</b><br/>PRs created — ${fN(e.c)}<br/>POs released — ${fN(e.p)}<br/>conversion — ${pct1(e.p, e.c)}<br/>click → list`)} onMouseLeave={hideTip}>
-                    <rect x={x} y={PT} width={bw} height={H - PT - PB} fill="transparent" />
-                    <rect x={x + bw / 2 - w - 1} y={yv(e.c)} width={w} height={H - PB - yv(e.c)} fill="#2a6fd0" rx={2} />
-                    <rect x={x + bw / 2 + 1} y={yv(e.p)} width={w} height={H - PB - yv(e.p)} fill={GREEN} rx={2} />
-                    <text x={x + bw / 2} y={H - 9} fontSize={9.5} fontWeight={700} textAnchor="middle" fill="#5b6070">{mLbl(k)}</text>
-                  </g>
-                );
-              })}
-              <polyline points={line} fill="none" stroke={AMBER} strokeWidth={2.2} />
-              {monthly.map(([k, e], i) => <circle key={k} cx={PL + bw * i + bw / 2} cy={yp(e.c ? (e.p / e.c) * 100 : 0)} r={3.2} fill="#fff" stroke={AMBER} strokeWidth={2} />)}
-            </svg>
-          )}
         </div>
 
         <div style={{ ...CARD, marginBottom: 0 }}>
