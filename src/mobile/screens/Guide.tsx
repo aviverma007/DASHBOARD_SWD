@@ -1,0 +1,253 @@
+import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { DATA_AS_ON } from "../../config/dataInfo";
+import { Card, Chip, Chips, Empty, SearchBar } from "../ui";
+
+interface GuideEntry { term: string; body: string; formula?: string }
+interface GuideSection { title: string; intro?: string; entries: GuideEntry[] }
+
+// Content mirrors src/features/workspace/GuidePage.tsx (not exported there).
+const GUIDE: GuideSection[] = [
+  {
+    title: "Text shortcuts & abbreviations",
+    intro: "Short forms used across cards, charts and tables.",
+    entries: [
+      { term: "TSV", body: "Total Sale Value — the sum of the Basic Selling Price of all sold units in the current scope. Shown in ₹ Crore." },
+      { term: "BSP", body: "Basic Selling Price of a unit — the base consideration value used for TSV and rate calculations." },
+      { term: "Cr (Crore)", body: "₹1 Crore = ₹1,00,00,000 (ten million rupees). All value figures are shown in Crores." },
+      { term: "L sq ft (Lakh sq ft)", body: "1 Lakh square feet = 1,00,000 sq ft. All area totals are shown in Lakh sq ft; individual units in plain sq ft." },
+      { term: "₹/sqft", body: "Rate per square foot of super area. All rates in the app are on super area, not carpet area." },
+      { term: "Inventory export", body: "Source of the full unit stock with each unit's status (Available / Booked / Blocked), area, tower, floor and configuration." },
+      { term: "Booking export", body: "The sales export — source of every sold unit's record: customer, booking date, area, BSP, payment plan, broker, collections." },
+      { term: "AOP", body: "Annual Operating Plan — the fiscal-year sales target (units, area, value) that Target vs Actual measures against." },
+      { term: "FY / Quarters", body: "Fiscal year runs April to March. Q1 = Apr–Jun, Q2 = Jul–Sep, Q3 = Oct–Dec, Q4 = Jan–Mar. \u201CFY 2026-27\u201D means Apr'26–Mar'27." },
+      { term: "CP", body: "Channel Partner — an external broker who sources a booking. \u201CDirect\u201D means the sale had no CP." },
+      { term: "H / L", body: "Highest / Lowest single-unit rate within the current scope (project, tower or floor)." },
+      { term: "Avg (blended)", body: "Wherever an average rate is shown, it is value-weighted (total value ÷ total area), not a simple average of unit rates." },
+      { term: "Blocked units", body: "Units held back by the developer and not open for sale (previously labelled \u201Cmanagement units\u201D). Shown in red everywhere." },
+      { term: "Absorption", body: "The share of total stock that has been booked/sold.", formula: "Absorption % = Booked units ÷ Total units × 100" },
+      { term: "Project codes ED · LC · RES · SA · ST · TR", body: "Short codes for The Edition, Le Courtyard, Residencies, Sky Arc, Suites and Trump Residences — used where space is tight." },
+      { term: "Data as on", body: `The date of the underlying inventory/booking extract (currently ${DATA_AS_ON}). Every number in the app reflects that snapshot, not live data.` },
+    ],
+  },
+  {
+    title: "Status colours",
+    entries: [
+      { term: "Green — Sold / Booked / Achieved", body: "Units that have been sold. On Target charts, green is the achieved series." },
+      { term: "Light yellow — Available", body: "Open, sellable stock. Where yellow is used for text, a darker amber shade keeps it readable." },
+      { term: "Red — Blocked", body: "Developer-held units not open for sale. Excluded from saleable area." },
+      { term: "Orange — Available (Overview)", body: "On the Overview page, orange marks the not-yet-sold side (open stock + blocked together)." },
+    ],
+  },
+  {
+    title: "Overview page — formulas & logic",
+    intro: "Sold comes from the booking export; unsold from the inventory export.",
+    entries: [
+      { term: "Sold / Available / Total", body: "Total = every unit in the inventory stock register — identical to the Inventory tab. Sold = records in the booking export. Available = stock units with no matching sale record (so Sold + Available = Total; includes blocked stock). A unit flagged booked in stock without a matching booking record counts as available until the exports reconcile.", formula: "Sold % = Sold ÷ Total × 100" },
+      { term: "TSV (per card)", body: "Sum of the BSP of every sold unit in that project (or all projects on the Business Overview card)." },
+      { term: "Avg rate", body: "Blended selling rate over sold units.", formula: "Avg rate = Σ TSV ÷ Σ super area  (₹/sqft)" },
+      { term: "H / L rate", body: "The single sold unit with the highest / lowest own rate.", formula: "Unit rate = unit TSV ÷ unit super area" },
+      { term: "Absorption bar", body: "Green vs orange split of the total — sold share vs unsold share." },
+      { term: "Rate extremes card (drill drawer)", body: "Recomputed for the current drill scope: at project level it scans all sold units; drill into a tower or floor and it narrows to that scope. Click either row to open the unit's full detail." },
+      { term: "Location filter", body: "Gurgaon = The Edition, Sky Arc, Trump Residences. Noida = Le Courtyard, Residencies, Suites. Selecting a location recomputes the Business Overview totals for that city only." },
+    ],
+  },
+  {
+    title: "Inventory page — formulas & logic",
+    entries: [
+      { term: "Total / Available / Booked / Blocked", body: "Unit counts by inventory status. Cards are clickable — each applies the matching status filter." },
+      { term: "Booked · absorption", body: "Booked units with the absorbed share of stock.", formula: "Absorption % = Booked ÷ Total × 100" },
+      { term: "Area available", body: "Sum of super area of AVAILABLE units only — i.e. area except blocked units (and excluding already-booked area).", formula: "Area available = Σ super area where status = Available" },
+      { term: "Area booked", body: "Sum of super area of sold units.", formula: "Area booked = Σ super area where status = Booked" },
+      { term: "Drill path", body: "Project → Tower → Floor → Unit. Each level's donut, KPIs and tables recompute for that scope. Breadcrumbs jump back up." },
+    ],
+  },
+  {
+    title: "Target vs Actual — formulas & logic",
+    intro: "Targets come from the AOP plan; actuals from the sales export, aligned on the same monthly timeline.",
+    entries: [
+      { term: "AOP summary card", body: "Fixed to the current fiscal year regardless of the Period filter; rolls to the next FY automatically each April.", formula: "%age = Achieved ÷ Total × 100" },
+      { term: "Current month card", body: "The running calendar month's target vs achieved for the selected projects." },
+      { term: "Adjusted (balance/mo)", body: "The pace now required on each remaining period to still hit the plan.", formula: "Adjusted = (Plan total − Achieved so far) ÷ remaining periods" },
+      { term: "Quarter rollover", body: "When a month misses its target, the shortfall is redistributed across the remaining months of that same quarter — so each later month's adjusted target grows until the quarter catches up." },
+      { term: "Catch-up badge (▲)", body: "The red ▲ number above a bar is the extra amount that period must now deliver on top of its original target." },
+      { term: "Avg Rate chart", body: "Achieved rate per bucket is value-weighted from actual sales; target rate is the plan's monthly rate. \u201CNew required rate\u201D is the rate needed on the remaining area to still reach the plan's TSV.", formula: "Achieved rate = (Σ TSV × 10⁷) ÷ (Σ area × 10⁵)" },
+      { term: "Merged target rate (multi-project)", body: "When several projects are selected, their target rate is value-weighted, never a simple average.", formula: "Merged rate = Σ sale value ÷ Σ area" },
+      { term: "Project-wise rollup", body: "With more than one project selected, the two tower charts collapse to one row per project; a project's year rate is its towers' rates weighted by sold units. Selecting a single project restores the tower-wise view." },
+      { term: "Units of measure", body: "Units chart in counts; TSV chart in ₹ Cr; Area chart in Lakh sq ft (plan area is stored in raw sq ft and normalised ÷ 1,00,000)." },
+      { term: "Custom period", body: "Period → Custom gives From/To month dropdowns bound to the plan timeline. Picking them in either order works." },
+    ],
+  },
+  {
+    title: "Channel Partners — logic",
+    entries: [
+      { term: "Active vs cancelled", body: "Cancelled bookings are excluded from CP totals; rebookings are tracked so a re-sold unit isn't double-counted." },
+      { term: "Direct sales", body: "Bookings with no channel partner. Shown separately and excluded from CP rankings." },
+      { term: "Top-N rankings", body: "Partners ranked by units, area or TSV of their active bookings within the current filter." },
+    ],
+  },
+  {
+    title: "Gallery Footfall — logic",
+    entries: [
+      { term: "Two tabs, two datasets", body: "Footfall = customer walk-ins from the presales footfall export (27,289 site visits, with CRM opportunity numbers). CP Visits = channel-partner reps visiting galleries from the dedicated CP-visit export (48,397 visits, 5,421 partners) — partner engagement, not customer traffic, so it carries no booking outcomes by design." },
+      { term: "Projects visited", body: "Counts distinct non-blank projects/campaigns; rows with the project left blank in the export are excluded from the count but never from totals." },
+      { term: "New partner vs revisit", body: "A partner is \u201Cnew\u201D if their first-ever visit in the data falls inside the selected period; any visit after a partner's first is a revisit." },
+      { term: "Future-dated visits", body: "The export contains scheduled (future) site visits; they appear in trends on their scheduled month, but momentum comparison never offers a period that hasn't begun." },
+    ],
+  },
+  {
+    title: "Digital Leads — logic",
+    entries: [
+      { term: "Enquiry funnel", body: "Enquiries → Qualified → Site visit+ → Booked, straight counts of opportunity stages from the digital presales export. Every enquiry row is EN-numbered; personal contact fields never enter the app." },
+      { term: "Stacked bars", body: "Sub-source, project, agency and owner charts show each value's total bar with a darker green overlay = how many of those reached Qualified; the tooltip gives the qualified share." },
+    ],
+  },
+  {
+    title: "Bookings — logic",
+    entries: [
+      { term: "Single source", body: "Overview, Bookings, Target drills, Reports and Channel Partners all derive from one booking export (actives + cancellations, with broker). Refreshing that one file updates them all; the inventory export separately drives Total/Available." },
+      { term: "Agreement value", body: "Σ basic selling price (TSV) of active bookings in scope; avg ticket = value ÷ bookings; area sold shows the blended ₹/sqft." },
+      { term: "Cancelled", body: "Bookings with status Cancelled in the booking export (rebooked units tracked separately so a re-sold unit isn't double-counted); scope-aware." },
+      { term: "Direct vs channel-partner", body: "Live per-booking broker attribution from the booking export: direct = no broker on the booking; the donut and leaderboard respect all filters." },
+      { term: "Financial-year periods", body: "All quarters follow the Indian FY: Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar, labelled by FY end year (Jul–Sep 2026 = Q2 FY27). Years in momentum are FYs too. Periods that haven't begun are never offered." },
+    ],
+  },
+  {
+    title: "EOI / Advance — logic",
+    intro: "Allotment-pending customers whose money is still in hand, from five project receipt exports; bounced instruments excluded everywhere.",
+    entries: [
+      { term: "EOI vs Advance", body: "Every RERA-registered project collects Advance money; only Code 67 Gurgaon (RERA awaited) is true EOI. The money-type toggle follows the selected projects automatically." },
+      { term: "In hand", body: "What we still hold for a customer after adjustments and refunds. Customers below ₹1,000 in hand are treated as settled.", formula: "In hand = Cleared + Adjustments (JV) + Refunds" },
+      { term: "Receipt statuses", body: "CLEARED adds money; ADJUSTMENT (journal voucher) usually moves it out; PAYMENT is a refund to the customer; BOUNCE is excluded from every figure." },
+      { term: "Collection pool accounts", body: "Pass-through codes where EOIs land first and then move to the customer's own code by JV — detected (100+ receipts, adjustments ≈ cleared) and kept out of customer money-in-hand." },
+      { term: "Ageing", body: "Days since the customer's first payment while still not allotted — the buckets card groups 0–90, 91–180, 180+ days." },
+    ],
+  },
+  {
+    title: "Collection — logic (live)",
+    intro: "The only live tab: data is read from the CRM team's two Excel files in the shared folder every time the page loads.",
+    entries: [
+      { term: "Two files, two toggles", body: "Monthly Collection = Collection Master.xlsx (its 'Master.' per-unit sheet + Inventory allotment pivot). Daily Collection = Daily Collection Report.xlsx (receipt sheets + the 'Fina l-2' RM/project targets). The two files keep their own project lists — the filters never mix them." },
+      { term: "Net Dues", body: "Taken directly from the Master sheet's own Net Due column and summed over all rows, credits netting off — so the KPI equals the team's pivot Grand Total to the paisa, never recomputed as Demanded − Received." },
+      { term: "Future Dues", body: "Value not yet demanded from the customer.", formula: "Future Dues = max(TCV − Demanded, 0) per unit" },
+      { term: "Recovery %", body: "How much of the demanded money has come in.", formula: "Recovery = Σ Received ÷ Σ Demanded × 100" },
+      { term: "When does it update?", body: "The CRM team saves the Excel (Ctrl+S) in the shared folder → anyone refreshes the Collection tab → fresh numbers in a few seconds. The banner's 'files saved' times are the proof. No timers, no manual upload." },
+      { term: "Arrange projects (▲▼)", body: "The Project Summary rows carry up/down arrows — arrange projects your way; the order is saved in your browser and the '⟲ default order' link restores dues-highest-first." },
+      { term: "Search suggestions", body: "Typing 2+ letters in the banner search suggests matching customers (name, reg no, unit) and banks from the active file; picking one filters the whole page." },
+    ],
+  },
+  {
+    title: "Project Tracker — logic",
+    intro: "Construction schedule progress across 7 projects from the planning exports (47k site activities).",
+    entries: [
+      { term: "Activities", body: "Only leaf tasks of the schedule count — rows with no children in the WBS — so phases and summary rows are never double-counted, whatever depth each project's export uses." },
+      { term: "Overall progress", body: "Simple average of each activity's Percent Complete in the current filter.", formula: "Progress = Σ activity % ÷ activities" },
+      { term: "Overdue", body: "Activities whose planned end has passed the data date and that are not complete (Complete / Quality checked / 100%)." },
+      { term: "Slipped vs baseline", body: "Activities whose planned end has moved beyond the baseline end — the average slip shows how far the plan has drifted.", formula: "Slip = Planned End − Baseline End (days)" },
+      { term: "Floor-by-Floor building", body: "The building card stacks a tower's floors bottom-up (basements inset below GROUND), fills each by completion, animates in-progress floors and places the 🏗 crane on the highest floor where work is running." },
+      { term: "Work reached", body: "On tower cards: the highest floor with any started activity — a one-line read of how high the structure has climbed." },
+    ],
+  },
+  {
+    title: "Loan Details — logic",
+    entries: [
+      { term: "Loan stages", body: "Sanction pending → Awaiting disbursement (sanctioned, nothing released) → Partly disbursed → Fully disbursed (≥99.5% released). The funnel card counts each stage." },
+      { term: "Undisbursed balance", body: "Sanctioned money the bank has not yet released.", formula: "Balance = Sanction Amt − Disbursed Amt" },
+      { term: "Bank names", body: "Normalised to upper case so the same bank spelt differently rolls up as one row in the bank-wise table." },
+      { term: "What it is not", body: "The customer's total due is the full unit consideration, not the loan — so no collectable-from-bank figures are shown anywhere on this tab." },
+    ],
+  },
+  {
+    title: "Case Management — logic",
+    entries: [
+      { term: "Resolved", body: "Cases whose status is Resolved, Closed or Close. Everything else counts as open backlog." },
+      { term: "TAT buckets", body: "Each case's escalation-level TAT gives a due window; cases are bucketed as within TAT, at-risk or overdue against it." },
+      { term: "Case numbers", body: "CRM ticket numbers are shown as whole IDs; search accepts a case number or the account name." },
+    ],
+  },
+  {
+    title: "Procurement — logic",
+    entries: [
+      { term: "PR to PO (live)", body: "The live journey of every SAP purchase requisition to its purchase order — approvals done, pending stage and number, and days pending — synced from SAP on a schedule by the VendorGlobe service." },
+      { term: "Cost — Utilized", body: "Non-project budget control from the SAP ZALR export.", formula: "Utilized = Actual + Commitment; Utilization % = Utilized ÷ Budget × 100" },
+      { term: "WBS health", body: "Healthy < 80% utilized · Watch 80–95% · Critical > 95% · No budget = spend without an approved budget." },
+    ],
+  },
+  {
+    title: "Interactions & shortcuts",
+    entries: [
+      { term: "Click to drill", body: "Almost everything is clickable: chart bars, donut slices, funnel rows, trend months and weekday bars open a side drill drawer scoped to that value; inside a drawer, further clicks stack as removable chips (removing the last chip closes it). Records rows open a second-level detail panel on top." },
+      { term: "Maximize any chart", body: "The \u2924-style button at each card's top-right opens the chart enlarged in an overlay; click outside, press Esc, or hit \u2715 to return." },
+      { term: "Sortable full lists", body: "Bar lists show every value with an inner scroll; the \u2193/\u2191 button flips between high\u2192low and low\u2192high." },
+      { term: "Bar / Line toggle", body: "Flips the three Target vs Achieved charts (Units, TSV, Area) between bar and line views together." },
+      { term: "Month / Quarter / Year toggle", body: "Re-buckets all four Target charts to the chosen granularity; the shortfall logic follows the same buckets." },
+      { term: "Shared chart slider", body: "The scroll slider above the Target charts moves all of them together so months stay aligned." },
+      { term: "Multi-select filters", body: "Project dropdowns support any combination; \u201CAll projects\u201D is the master option. Choosing a Location narrows the list and clears project picks." },
+      { term: "Reset", body: "Every filter bar's Reset returns that page to its default state (all projects, all time)." },
+      { term: "Sidebar", body: "The Collapse arrow shrinks the nav to an icon rail; section headings (SALES / INVENTORY / WORKSPACE) fold their groups." },
+      { term: "Wide charts scroll", body: "Charts with many towers or months keep a fixed readable scale and scroll horizontally instead of squeezing." },
+      { term: "Reports", body: "The Reports page previews and exports six Excel reports — inventory, bookings, EOI/advance money in hand, the home-loan book, construction tower summary and monthly CRM cases. Collection data stays live on its own tab." },
+      { term: "Notes", body: "The Notes page (Workspace) is a personal scratchpad saved in this browser — use the search box to filter your notes." },
+    ],
+  },
+];
+
+const hit = (e: GuideEntry, q: string) =>
+  !q || (e.term + " " + e.body + " " + (e.formula ?? "")).toLowerCase().includes(q);
+
+export default function Guide() {
+  const [query, setQuery] = useState("");
+  const [topic, setTopic] = useState<string>("");
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const q = query.trim().toLowerCase();
+
+  const sections = useMemo(
+    () => GUIDE.filter(s => !topic || s.title === topic)
+      .map(s => ({ ...s, entries: s.entries.filter(e => hit(e, q)) }))
+      .filter(s => !q || s.entries.length > 0),
+    [q, topic],
+  );
+  const total = sections.reduce((n, s) => n + s.entries.length, 0);
+
+  return (
+    <div className="m-stack">
+      <div><h1 className="m-h1">User Guide</h1><p className="m-sub">Formulas, calculations and shortcuts used across the dashboard</p></div>
+      <SearchBar value={query} onChange={setQuery} placeholder="Search — TSV, absorption, blocked…" />
+      <Chips>
+        <Chip on={!topic} onClick={() => setTopic("")}>All</Chip>
+        {GUIDE.map(s => <Chip key={s.title} on={topic === s.title} onClick={() => setTopic(topic === s.title ? "" : s.title)}>{s.title}</Chip>)}
+      </Chips>
+      {q && <p className="m-sub" style={{ margin: "0 2px" }}>{total} match{total === 1 ? "" : "es"} for “{query.trim()}”</p>}
+      {sections.length === 0 && <Empty title="No matches" sub={`Nothing in the guide matches “${query.trim()}”.`} />}
+      {sections.map(s => {
+        const expanded = !!q || !!open[s.title];
+        return (
+          <Card key={s.title}>
+            <button type="button" aria-expanded={expanded} onClick={() => setOpen(o => ({ ...o, [s.title]: !o[s.title] }))}
+              style={{ all: "unset", boxSizing: "border-box", width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, cursor: "pointer" }}>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ fontSize: 15.5, display: "block" }}>{s.title}</b>
+                <small className="m-sub" style={{ margin: 0 }}>{s.entries.length} item{s.entries.length === 1 ? "" : "s"}</small>
+              </span>
+              <ChevronDown size={20} style={{ flex: "0 0 auto", transition: "transform .2s", transform: expanded ? "rotate(180deg)" : "none" }} />
+            </button>
+            {expanded && (
+              <div style={{ marginTop: 10 }}>
+                {s.intro && <p className="m-sub" style={{ margin: "0 0 4px" }}>{s.intro}</p>}
+                {s.entries.map(e => (
+                  <div key={e.term} style={{ padding: "11px 0", borderTop: "1px solid var(--m-line)" }}>
+                    <b style={{ fontSize: 14 }}>{e.term}</b>
+                    <div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 3, color: "var(--m-ink)", overflowWrap: "anywhere" }}>{e.body}</div>
+                    {e.formula && (
+                      <code style={{ display: "block", marginTop: 7, background: "var(--m-soft)", border: "1px solid var(--m-line)", borderRadius: 10, padding: "8px 10px", fontSize: 12.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{e.formula}</code>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

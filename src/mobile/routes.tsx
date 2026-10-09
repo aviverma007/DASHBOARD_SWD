@@ -21,7 +21,15 @@ export const MTarget = lazy(() => import("./screens/Target"));
 export const MDigital = lazy(() => import("./screens/Digital"));
 export const MFootfall = lazy(() => import("./screens/Footfall"));
 export const MCases = lazy(() => import("./screens/Cases"));
-export const MOBILE_SCREENS = new Set<string>(["/", "/m/analytics", "/m/projects", "/m/more", "/reports", "/settings", "/bookings", "/inventory", "/sap-collections", "/cost", "/channel-partners", "/eoi", "/target", "/digital-leads", "/gallery-footfall", "/case-management"]);
+export const MCollection = lazy(() => import("./screens/CollectionLive"));
+export const MLoans = lazy(() => import("./screens/Loans"));
+export const MPrToPo = lazy(() => import("./screens/PrToPo"));
+export const MTracker = lazy(() => import("./screens/Tracker"));
+export const MStack = lazy(() => import("./screens/StackPlans"));
+export const MOverview = lazy(() => import("./screens/Overview"));
+export const MNotes = lazy(() => import("./screens/Notes"));
+export const MGuide = lazy(() => import("./screens/Guide"));
+export const MOBILE_SCREENS = new Set<string>(["/", "/m/analytics", "/m/projects", "/m/more", "/reports", "/settings", "/collections", "/loan-details", "/pr-to-po", "/project-tracker", "/projects", "/overview", "/notes", "/guide", "/bookings", "/inventory", "/sap-collections", "/cost", "/channel-partners", "/eoi", "/target", "/digital-leads", "/gallery-footfall", "/case-management"]);
 /** …and the ones that have no desktop twin to open as "full view" */
 export const NO_FULL = new Set<string>(["/", "/m/analytics", "/m/projects", "/m/more", "/settings"]);
 
