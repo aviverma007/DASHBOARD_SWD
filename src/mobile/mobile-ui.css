@@ -11,7 +11,8 @@
   --m-bg: #f3f4f8; --m-card: #fff; --m-ink: #14213d; --m-mut: #6b7488; --m-line: #e7e9f0;
   --m-navy: #1e3163; --m-navy2: #2a4488; --m-navy9: #0f1a38; --m-gold: #b8893c; --m-gold2: #d6ac5e;
   --m-teal: #0e7490; --m-ok: #16a06f; --m-bad: #d64545; --m-warn: #e0a21a; --m-soft: #eef1f8;
-  --m-top: calc(env(safe-area-inset-top, 0px) + 54px);
+  --m-sat: env(safe-area-inset-top, 0px);
+  --m-top: calc(var(--m-sat) + 54px);
   --m-bot: calc(env(safe-area-inset-bottom, 0px) + 62px);
   min-height: 100dvh; background: var(--m-bg); color: var(--m-ink);
   font-size: 14px; line-height: 1.4; -webkit-tap-highlight-color: transparent;
@@ -24,7 +25,7 @@
 /* ── top bar ── */
 .m-top {
   position: fixed; inset: 0 0 auto 0; z-index: 40; height: var(--m-top);
-  padding: env(safe-area-inset-top, 0px) 12px 0; display: flex; align-items: center; gap: 8px;
+  padding: var(--m-sat) 12px 0; display: flex; align-items: center; gap: 8px;
   background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--m-line);
 }
@@ -228,7 +229,7 @@ button.m-row:active, a.m-row:active { background: var(--m-soft); }
 .m-unit.mg { background: rgba(224, 162, 26, 0.16); border-color: rgba(224, 162, 26, 0.5); color: #96690a; }
 
 /* login */
-.m-login { min-height: 100dvh; background: linear-gradient(170deg, var(--m-navy) 0%, var(--m-navy9) 62%); color: #fff; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 28px) 22px calc(env(safe-area-inset-bottom, 0px) + 18px); position: relative; overflow: hidden; }
+.m-login { min-height: 100dvh; background: linear-gradient(170deg, var(--m-navy) 0%, var(--m-navy9) 62%); color: #fff; display: flex; flex-direction: column; padding: calc(var(--m-sat) + 28px) 22px calc(env(safe-area-inset-bottom, 0px) + 18px); position: relative; overflow: hidden; }
 .m-login::before { content: ""; position: absolute; width: 360px; height: 360px; border-radius: 50%; right: -140px; top: -120px; background: radial-gradient(circle, rgba(184, 137, 60, 0.35), transparent 65%); pointer-events: none; }
 .m-login::after { content: ""; position: absolute; width: 300px; height: 300px; border-radius: 50%; left: -150px; bottom: 80px; background: radial-gradient(circle, rgba(58, 88, 166, 0.5), transparent 65%); pointer-events: none; }
 .m-login > * { position: relative; z-index: 1; }
@@ -271,3 +272,6 @@ body:has(.m-app) .sa-fab { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px)
 .m-hero .m-trend.dn { color: #ffb4b4; background: rgba(255, 255, 255, 0.14); }
 .m-hero .m-trend.up { color: #9bf0cc; background: rgba(255, 255, 255, 0.14); }
 .m-hero .m-trend.flat { color: #fff; background: rgba(255, 255, 255, 0.14); }
+
+/* Android app: edge-to-edge webview often reports no top inset, so keep clear of the status bar (clock/battery) */
+html[data-native] .m-app { --m-sat: max(env(safe-area-inset-top, 0px), 30px); }
