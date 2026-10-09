@@ -1,5 +1,6 @@
 /** SmartDB mobile component kit — one design system, composed differently per module. */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import * as Icons from "lucide-react";
 import { Check, ChevronRight, ChevronsUpDown, Inbox, Search, SlidersHorizontal, TrendingDown, TrendingUp, X } from "lucide-react";
 import "./mobile-ui.css";
@@ -228,7 +229,7 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   if (!open) return null;
-  return (
+  const ui = (
     <>
       <div className="m-scrim" onClick={onClose} />
       <div className="m-sheet" role="dialog" aria-modal="true" aria-label={title}>
@@ -239,6 +240,8 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
       </div>
     </>
   );
+  // portal to the app root so the sheet stacks above the bottom tabs (page transitions make their own stacking context)
+  return createPortal(ui, document.querySelector(".m-app") ?? document.body);
 }
 
 /* ───────── filter bar: chips on top + a bottom sheet with the full form ───────── */
