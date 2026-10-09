@@ -7,6 +7,8 @@ import { Sidebar } from "./Sidebar";
 import { OverviewDrawer } from "../overview/OverviewDrawer";
 import { useIdleLogout } from "../../hooks/useIdleLogout";
 import { AssistantLauncher } from "../../features/assistant/AssistantLauncher";
+import { MobileShell } from "../../mobile/MobileShell";
+import { useIsMobile } from "../../mobile/useIsMobile";
 
 export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -14,6 +16,7 @@ export function AppShell() {
   const location = useLocation();
   const outlet = useOutlet();
   useIdleLogout(); // 30-min inactivity → sign out (AppShell only renders when authenticated)
+  const isPhone = useIsMobile();
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
   // Both Overview (/) and Inventory (/inventory) now ship their own
   // navy filter bar and full-bleed layout (redesigned to match
@@ -22,6 +25,8 @@ export function AppShell() {
   // suppressed here for every route except the still-generic
   // placeholder pages (Sales, Collections, etc.).
   const managesOwnChrome = location.pathname === "/" || location.pathname === "/overview" || location.pathname === "/inventory" || location.pathname === "/projects" || location.pathname === "/target" || location.pathname === "/channel-partners" || location.pathname === "/lead-conversion" || location.pathname === "/bookings" || location.pathname === "/case-management" || location.pathname === "/cost" || location.pathname === "/gallery-footfall" || location.pathname === "/digital-leads" || location.pathname === "/notes" || location.pathname === "/guide";
+
+  if (isPhone) return (<><MobileShell outlet={outlet} /><AssistantLauncher /></>);
 
   return (
     <div className="min-h-screen bg-surface">

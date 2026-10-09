@@ -5,6 +5,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { useAuthStore } from "./store/authStore";
 import { canAccess } from "./config/users";
 import { HomePage } from "./features/home/HomePage";
+import { Dual, MobileOnly, MHome, MAnalytics, MProjects, MMore, MReports, MSettings, MBookings, MInventory, MCollections, MCost, MChannel, MEoi, MTarget, MDigital, MFootfall, MCases } from "./mobile/routes";
 
 /* Route-level code splitting: each heavy page (and its dataset JSON)
  * downloads only when first visited, instead of one ~5.6 MB chunk on
@@ -82,28 +83,31 @@ function App() {
       <Suspense fallback={Fallback}>
       <Routes>
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Dual mobile={MHome} desktop={<HomePage />} />} />
+          <Route path="/m/analytics" element={<MobileOnly mobile={MAnalytics} />} />
+          <Route path="/m/projects" element={<MobileOnly mobile={MProjects} />} />
+          <Route path="/m/more" element={<MobileOnly mobile={MMore} />} />
           <Route path="/overview" element={<RequireAccess path="/overview"><InventoryOverviewPage /></RequireAccess>} />
-          <Route path="/inventory" element={<RequireAccess path="/inventory"><SmartworldInventoryPage /></RequireAccess>} />
-          <Route path="/target" element={<RequireAccess path="/target"><TargetActualPage /></RequireAccess>} />
-          <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><ChannelPartnerPage /></RequireAccess>} />
-          <Route path="/bookings" element={<RequireAccess path="/bookings"><BookingsPage /></RequireAccess>} />
-          <Route path="/eoi" element={<RequireAccess path="/eoi"><EoiPage /></RequireAccess>} />
-          <Route path="/cost" element={<RequireAccess path="/cost"><CostPage /></RequireAccess>} />
+          <Route path="/inventory" element={<RequireAccess path="/inventory"><Dual mobile={MInventory} desktop={<SmartworldInventoryPage />} /></RequireAccess>} />
+          <Route path="/target" element={<RequireAccess path="/target"><Dual mobile={MTarget} desktop={<TargetActualPage />} /></RequireAccess>} />
+          <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><Dual mobile={MChannel} desktop={<ChannelPartnerPage />} /></RequireAccess>} />
+          <Route path="/bookings" element={<RequireAccess path="/bookings"><Dual mobile={MBookings} desktop={<BookingsPage />} /></RequireAccess>} />
+          <Route path="/eoi" element={<RequireAccess path="/eoi"><Dual mobile={MEoi} desktop={<EoiPage />} /></RequireAccess>} />
+          <Route path="/cost" element={<RequireAccess path="/cost"><Dual mobile={MCost} desktop={<CostPage />} /></RequireAccess>} />
           <Route path="/pr-to-po" element={<RequireAccess path="/pr-to-po"><PrToPoPage /></RequireAccess>} />
-          <Route path="/case-management" element={<RequireAccess path="/case-management"><CaseManagementPage /></RequireAccess>} />
+          <Route path="/case-management" element={<RequireAccess path="/case-management"><Dual mobile={MCases} desktop={<CaseManagementPage />} /></RequireAccess>} />
           <Route path="/loan-details" element={<RequireAccess path="/loan-details"><LoanDetailsPage /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess path="/collections"><CollectionPage /></RequireAccess>} />
-          <Route path="/sap-collections" element={<RequireAccess path="/sap-collections"><SapCollectionsPage /></RequireAccess>} />
-          <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><LeadConversionPage mode="footfall" /></RequireAccess>} />
-          <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><LeadConversionPage mode="digital" /></RequireAccess>} />
+          <Route path="/sap-collections" element={<RequireAccess path="/sap-collections"><Dual mobile={MCollections} desktop={<SapCollectionsPage />} /></RequireAccess>} />
+          <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><Dual mobile={MFootfall} desktop={<LeadConversionPage mode="footfall" />} /></RequireAccess>} />
+          <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><Dual mobile={MDigital} desktop={<LeadConversionPage mode="digital" />} /></RequireAccess>} />
           <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage mode="footfall" /></RequireAccess>} />
           <Route path="/projects" element={<RequireAccess path="/projects"><ProjectsPage /></RequireAccess>} />
           <Route path="/project-tracker" element={<RequireAccess path="/project-tracker"><ProjectTrackerPage /></RequireAccess>} />
-          <Route path="/reports" element={<RequireAccess path="/reports"><ReportsPage /></RequireAccess>} />
+          <Route path="/reports" element={<RequireAccess path="/reports"><Dual mobile={MReports} desktop={<ReportsPage />} /></RequireAccess>} />
           <Route path="/notes" element={<RequireAccess path="/notes"><NotesPage /></RequireAccess>} />
           <Route path="/guide" element={<RequireAccess path="/guide"><GuidePage /></RequireAccess>} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={<Dual mobile={MSettings} desktop={<SettingsPage />} />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>
       </Routes>

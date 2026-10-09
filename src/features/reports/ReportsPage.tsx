@@ -4,7 +4,7 @@ import { REPORTS, getReportRows } from "./reportData";
 import type { ReportMeta } from "./reportData";
 
 /** Download report rows as a formatted .xlsx file via SheetJS */
-function downloadExcel(report: ReportMeta) {
+export function downloadExcel(report: ReportMeta) {
   const rows = getReportRows(report.id);
   if (!rows.length) return;
 
