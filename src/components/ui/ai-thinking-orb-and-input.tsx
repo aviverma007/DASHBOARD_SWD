@@ -1076,7 +1076,7 @@ const MorphOrb = forwardRef<MorphOrbHandle, MorphOrbProps>(function MorphOrb(pro
         <span key={"c" + lbl.n} className="mo-lab mo-in">{labelInner(lbl.cur)}</span>
       </div>
 
-      <button type="button" className="mo-reset" onClick={onReset}>{COPY.reset}</button>
+      <button type="button" className="mo-reset" onPointerDown={(e) => { e.preventDefault(); onReset(); }} onClick={onReset}>{COPY.reset}</button>
 
       <div className="mo-live" ref={liveRef} role="status" aria-live="polite" />
 
