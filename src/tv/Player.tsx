@@ -65,10 +65,10 @@ function KpiCard({ k, b, focus, dim, run, index, hov, setHov }: { k: TvKpi; b: B
       onHoverStart={() => wheel && setHov(k.id)} onHoverEnd={() => wheel && setHov(null)}
       whileHover={wheel ? { scale: 1.14 } : undefined}
       animate={{ left: b.x, top: b.y, width: b.w, height: b.h, fontSize: b.fs, rotate: b.rot ?? 0, filter: `blur(${blur}px)`,
-        opacity: b.mode === "hidden" ? 0 : b.op ?? (dim ? 0.8 : 1),
+        opacity: b.mode === "hidden" ? 0 : b.op ?? (dim ? 0.96 : 1),
         boxShadow: focus || (wheel && b.rot === 0) ? `0 0 0 2px ${c1}cc, 0 0 70px 8px ${c1}55, 0 30px 70px rgba(0,0,0,.5)` : "0 14px 40px rgba(0,0,0,.32)" }}
       transition={{ type: "spring", stiffness: 58, damping: 17, mass: 1.05, delay: b.mode === "hidden" || wheel ? 0 : Math.min(index * 0.06, 0.36), opacity: { duration: 0.7 }, filter: { duration: 0.35 } }}
-      style={{ zIndex: b.z ?? 1, background: `linear-gradient(150deg, ${c1}c4 0%, ${c2}7a 100%)` }}>
+      style={{ zIndex: b.z ?? 1, background: `linear-gradient(150deg, ${c1} 0%, ${c2} 100%)` }}>
       <div className="tv-glow" />
       {big ? (<>
         <div className="tv-k-label">{k.label}</div>
@@ -83,7 +83,7 @@ function KpiCard({ k, b, focus, dim, run, index, hov, setHov }: { k: TvKpi; b: B
 }
 
 export function Player({ dept, onExit, onDone, nextName }: { dept: TvDept; onExit: () => void; onDone?: () => void; nextName?: string }) {
-  const scenes = useMemo<Scene[]>(() => [{ kind: "intro" }, { kind: "overview" }, ...(dept.kpis.length >= 4 ? [{ kind: "wheel" as const }] : []), ...dept.stories.map((_, i) => ({ kind: "story" as const, i })), { kind: "recap" }], [dept]);
+  const scenes = useMemo<Scene[]>(() => [{ kind: "wheel" }, ...dept.stories.map((_, i) => ({ kind: "story" as const, i }))], [dept]);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const [ui, setUi] = useState(true);

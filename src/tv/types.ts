@@ -45,11 +45,11 @@ export interface TvDeptDef {
 }
 
 export const TONE: Record<Tone, [string, string]> = {
-  navy: ["#2b4a96", "#14224a"],
-  green: ["#1fa87a", "#0d5f45"],
-  teal: ["#1693b3", "#0b4f66"],
-  amber: ["#e0a030", "#8f5d10"],
-  red: ["#d8503f", "#7a1f14"],
-  violet: ["#8b5cc8", "#46277d"],
-  gold: ["#d6ac5e", "#8a6420"],
+  navy: ["#22397a", "#12204a"],
+  green: ["#1d9a6c", "#0f6a49"],
+  teal: ["#1b8aa6", "#0b4f66"],
+  amber: ["#c9923a", "#8f5d10"],
+  red: ["#b8362a", "#7d1f14"],
+  violet: ["#7c4fb8", "#46277d"],
+  gold: ["#b98a3e", "#8a6420"],
 };
