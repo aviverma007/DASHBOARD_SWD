@@ -24,8 +24,8 @@ export function Backdrop() {
         i, logo, size, kind: Math.floor(r() * 5),
         c: [NAVY, GOLD, GREEN][Math.floor(r() * 3)],
         x: r() * 100, y: r() * 100,
-        dx: (r() - 0.5) * 360, dy: (r() - 0.5) * 300, rot: (r() - 0.5) * 50,
-        dur: 16 + r() * 22, delay: -r() * 30, op: 0.07 + r() * 0.1, blur: r() < 0.35 ? 2 + r() * 2 : 0,
+        dx: (r() - 0.5) * 460, dy: (r() - 0.5) * 380, rot: (r() - 0.5) * 50,
+        dur: 7 + r() * 9, delay: -r() * 30, op: 0.07 + r() * 0.1, blur: r() < 0.35 ? 2 + r() * 2 : 0,
       };
     });
   }, []);
