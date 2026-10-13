@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import raw from "../../data/caseManagement.json";
 
 /** Case-management dataset — dict-coded rows.
@@ -46,7 +47,7 @@ export async function loadLiveCases(apiBase: string): Promise<string | null> {
     CM = j as CmDataset;
     CASES = buildCases(CM);
     closedIdx = new Set(CM.STA.map((s, i) => (CLOSED_NAMES.has(s) ? i : -1)).filter(i => i >= 0));
-    return CM.meta.asOn;
+    return `${CM.meta.asOn}${(CM.meta as { ver?: string }).ver ? ` #${(CM.meta as { ver?: string }).ver}` : ""}`;
   } catch {
     return null;                      // offline / service down → snapshot
   }
@@ -90,3 +91,21 @@ export const AGE_BANDS = [
   { k: 5, label: "60+ days", lo: 61, hi: Infinity },
 ];
 export const ageBand = (age: number) => AGE_BANDS.find(b => age >= b.lo && age <= b.hi)?.k ?? 5;
+
+
+/** Auto-refresh: loads the live case set now, then every `everyMs` (and when the tab
+ *  becomes visible again). The returned key changes only when the data really changed —
+ *  use it as a React `key` so the page remounts and every memo recomputes. */
+export function useLiveCasesKey(apiBase: string, everyMs = 5 * 60 * 1000): string {
+  const [key, setKey] = useState("snapshot");
+  useEffect(() => {
+    let alive = true;
+    const pull = () => { loadLiveCases(apiBase).then(st => { if (alive && st) setKey(k => (k === st ? k : st)); }); };
+    pull();
+    const t = window.setInterval(pull, everyMs);
+    const vis = () => { if (document.visibilityState === "visible") pull(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { alive = false; window.clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [apiBase, everyMs]);
+  return key;
+}

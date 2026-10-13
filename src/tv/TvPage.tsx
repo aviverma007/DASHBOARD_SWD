@@ -59,6 +59,17 @@ export default function TvPage() {
     void start(queue, (qi + 1) % queue.length);            // endless loop
   };
 
+  // keep the show current: silently re-load the playing department every 5 min
+  useEffect(() => {
+    if (!dept) return;
+    const def = ALL_DEFS.find(x => x.id === dept.id);
+    if (!def) return;
+    const t = window.setInterval(() => {
+      def.load().then(d => { cache.current.set(def.id, Promise.resolve(d)); setDept(cur => (cur && cur.id === d.id ? d : cur)); }).catch(() => {});
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, [dept?.id]);
+
   // kiosk link: /tv?dept=sales  or  /tv?dept=all
   useEffect(() => {
     const d = sp.get("dept");

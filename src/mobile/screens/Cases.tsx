@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AreaChart, Card, CardHead, Empty, FilterBar, FullViewLink, HBars, Hero, Kpi, Legend, Pill, Row, List, SearchBar, Section, SegBar, Seg, Sheet, type FilterValues } from "../ui";
 import { fN, pct } from "../fmt";
-import { AGE_BANDS, CASES, CM, ageBand, fmtDay, fyLbl, fyOf, isClosed, loadLiveCases, tatBucket, ymLbl, ymOf, type CaseRec } from "../../components/cases/caseShared";
+import { AGE_BANDS, CASES, CM, ageBand, fmtDay, fyLbl, fyOf, isClosed, useLiveCasesKey, tatBucket, ymLbl, ymOf, type CaseRec } from "../../components/cases/caseShared";
 
 export default function Cases() {
-  const [stamp, setStamp] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadLiveCases("http://192.168.66.28:5002").then(st => { if (alive && st) setStamp(st); });
-    return () => { alive = false; };
-  }, []);
-  return <CasesInner key={stamp ?? "snapshot"} />;
+  const liveKey = useLiveCasesKey("http://192.168.66.28:5002");   // re-checks every 5 min
+  return <CasesInner key={liveKey} />;
 }
 
 const opts = (names: string[]) => names.map((l, i) => ({ k: String(i), l })).filter(o => o.l);
