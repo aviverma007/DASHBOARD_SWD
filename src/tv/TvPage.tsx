@@ -38,8 +38,10 @@ export default function TvPage() {
     if (!cache.current.has(d.id)) cache.current.set(d.id, d.load());
     return cache.current.get(d.id)!;
   };
+  const goFull = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); };
   const start = async (defs: TvDeptDef[], at = 0) => {
-    setErr(null); setLoading(defs[at].name); setQueue(defs); setQi(at);
+    goFull();                                                          // go full screen straight from the click
+    setErr(null); if (!dept) setLoading(defs[at].name); setQueue(defs); setQi(at);
     try {
       const d = await fetchDept(defs[at]);
       setDept(d);
@@ -51,9 +53,9 @@ export default function TvPage() {
     }
     setLoading(null);
   };
-  const exit = () => { setDept(null); setQueue([]); setSp({}, { replace: true }); };
+  const exit = () => { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); setDept(null); setQueue([]); setSp({}, { replace: true }); };
   const next = () => {
-    if (qi + 1 < queue.length) { setDept(null); void start(queue, qi + 1); } else exit();
+    void start(queue, (qi + 1) % queue.length);            // endless loop
   };
 
   // kiosk link: /tv?dept=sales  or  /tv?dept=all
@@ -84,11 +86,11 @@ export default function TvPage() {
   return (
     <div className="tv-root">
       <div className="tv-stage" style={{ transform: `translate(-50%,-50%) scale(${scale})` }}>
-        <div className="tv-bg"><i className="o1" /><i className="o2" /></div>
+        <div className="tv-bg"><i className="o1" /><i className="o2" /><i className="o3" /></div>
         <AnimatePresence mode="wait">
           {dept ? (
             <motion.div key={dept.id} className="tv-fill" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
-              <Player dept={dept} onExit={exit} onDone={next} nextName={queue[qi + 1]?.name} />
+              <Player dept={dept} onExit={exit} onDone={queue.length > 1 ? next : undefined} nextName={queue.length > 1 ? queue[(qi + 1) % queue.length]?.name : undefined} />
             </motion.div>
           ) : (
             <motion.div key="picker" className="tv-fill tv-picker" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.04 }} transition={{ duration: 0.45 }}>

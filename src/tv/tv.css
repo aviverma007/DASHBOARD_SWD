@@ -119,3 +119,40 @@
 .tv-p-foot{bottom:18px}
 .tv-picker{padding-top:44px}
 .tv-tile{padding:34px 32px}.tv-tile.wide{padding:26px 34px}.tv-tiles{gap:24px}
+
+
+/* ===== v2: glassmorphism, wheel scene, kiosk chrome ===== */
+.tv-stage{background:radial-gradient(1500px 950px at 18% -5%,#1c2f66 0%,#0a1330 55%,#050a19 100%)}
+.tv-bg:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:96px 96px;mask-image:radial-gradient(ellipse at 50% 40%,#000 20%,transparent 75%)}
+.tv-bg .o1{opacity:.7}
+.tv-bg .o2{opacity:.7}
+.tv-bg .o3{width:700px;height:700px;left:560px;top:260px;background:radial-gradient(circle,rgba(139,92,200,.28),transparent 68%);animation:tvfloat 26s ease-in-out infinite}
+
+.tv-card{backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.34);will-change:left,top,width,height,transform}
+.tv-card:before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 60%);pointer-events:none}
+.tv-card:after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-18deg);animation:tvsheen 7s ease-in-out infinite;pointer-events:none}
+@keyframes tvsheen{0%,55%{left:-60%}100%{left:130%}}
+.tv-card.mini:after{display:none}
+.tv-card.wheel{padding:.75em 1em;cursor:pointer}
+
+.tv-story.glass{background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.22);border-radius:40px;padding:34px 44px 26px;backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%);box-shadow:0 30px 80px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.25);overflow:hidden}
+.tv-story.glass .tv-headline{font-size:42px}
+.tv-intro-t{background:linear-gradient(180deg,#fff,#d9e2ff 70%,#d6ac5e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 10px 40px rgba(0,0,0,.5))}
+.tv-logo{background:rgba(255,255,255,.92);backdrop-filter:blur(8px)}
+.tv-dname{text-shadow:0 6px 30px rgba(0,0,0,.45)}
+
+/* wheel */
+.tv-wcap{position:absolute;left:360px;right:360px;top:760px;text-align:center;z-index:3}
+.tv-wcap .a{font-size:24px;letter-spacing:8px;text-transform:uppercase;color:#d6ac5e;font-weight:800;margin-bottom:14px}
+.tv-wcap .b{font-family:Georgia,serif;font-size:46px;line-height:1.2;color:#fff;text-shadow:0 8px 30px rgba(0,0,0,.45)}
+
+/* kiosk chrome: nothing but a × that appears when the pointer reaches the top-right corner */
+.tv-dots{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);display:flex;gap:10px;align-items:center;z-index:5;margin:0;pointer-events:none}
+.tv-paused{position:absolute;left:50%;bottom:62px;transform:translateX(-50%);font-size:20px;letter-spacing:3px;color:#d6ac5e;background:rgba(8,14,34,.6);border:1px solid rgba(214,172,94,.4);border-radius:999px;padding:6px 20px;backdrop-filter:blur(8px);z-index:6}
+.tv-hot{position:absolute;right:0;top:0;width:300px;height:220px;z-index:40}
+.tv-x{position:absolute;right:34px;top:28px;width:70px;height:70px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(10,18,44,.55);backdrop-filter:blur(16px);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:scale(.7) rotate(-90deg);transition:opacity .3s,transform .35s cubic-bezier(.2,.9,.3,1.2),background .2s}
+.tv-hot:hover .tv-x,.tv-x:focus-visible{opacity:1;transform:none}
+.tv-x:hover{background:rgba(216,80,63,.75)}
+.tv-x svg{width:34px;height:34px}
+.tv-hot:hover{cursor:default}
+.tv-ctl{display:none}
