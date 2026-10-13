@@ -36,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Procurement" },
   { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Procurement" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
+  { key: "tv", label: "TV Preview", path: "/tv", icon: "MonitorPlay", status: "active", section: "Workspace" },
   { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },
   { key: "guide", label: "Guide", path: "/guide", icon: "BookOpen", status: "active", section: "Workspace" },
   { key: "settings", label: "Settings", path: "/settings", icon: "Settings", status: "active", section: "Workspace" },

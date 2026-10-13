@@ -5,6 +5,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { useAuthStore } from "./store/authStore";
 import { canAccess } from "./config/users";
 import { HomePage } from "./features/home/HomePage";
+const TvPage = lazy(() => import("./tv/TvPage"));
 import { Dual, MobileOnly, MHome, MAnalytics, MProjects, MMore, MReports, MSettings, MCollection, MLoans, MPrToPo, MTracker, MStack, MOverview, MNotes, MGuide, MBookings, MInventory, MCollections, MCost, MChannel, MEoi, MTarget, MDigital, MFootfall, MCases } from "./mobile/routes";
 
 /* Route-level code splitting: each heavy page (and its dataset JSON)
@@ -66,6 +67,10 @@ function RequireAccess({ path, children }: { path: string; children: React.React
   if (!canAccess(access, path)) return <Navigate to="/" replace />;
   return children;
 }
+function TvGate() {
+  const access = useAuthStore((s) => s.access);
+  return canAccess(access, "/tv") ? <TvPage /> : <Navigate to="/" replace />;
+}
 function PrefetchAll() {
   useEffect(() => {
     const t = window.setTimeout(() => { Object.values(load).forEach(fn => { fn().catch(() => {}); }); }, 300);
@@ -82,6 +87,7 @@ function App() {
       <PrefetchAll />
       <Suspense fallback={Fallback}>
       <Routes>
+        <Route path="/tv" element={<RequireAuth><TvGate /></RequireAuth>} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route path="/" element={<Dual mobile={MHome} desktop={<HomePage />} />} />
           <Route path="/m/analytics" element={<MobileOnly mobile={MAnalytics} />} />
