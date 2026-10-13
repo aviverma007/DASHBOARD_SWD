@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { ALL_DEFS } from "./registry";
 import { Player } from "./Player";
+import { Backdrop } from "./Backdrop";
 import { TONE, type TvDept, type TvDeptDef } from "./types";
 import "./tv.css";
 
@@ -86,7 +87,7 @@ export default function TvPage() {
   return (
     <div className="tv-root">
       <div className="tv-stage" style={{ transform: `translate(-50%,-50%) scale(${scale})` }}>
-        <div className="tv-bg"><i className="o1" /><i className="o2" /><i className="o3" /></div>
+        <div className="tv-bg"><i className="o1" /><i className="o2" /><i className="o3" /><Backdrop /></div>
         <AnimatePresence mode="wait">
           {dept ? (
             <motion.div key={dept.id} className="tv-fill" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>

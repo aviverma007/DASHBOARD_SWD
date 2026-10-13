@@ -33,11 +33,14 @@ function Columns({ v, color }: { v: Extract<Visual, { type: "columns" }>; color:
       <svg viewBox={`0 0 ${W} ${H}`} className="tv-svg">
         {[0.25, 0.5, 0.75, 1].map(f => <line key={f} x1={PL} x2={W - PL} y1={y(mx * f)} y2={y(mx * f)} stroke="rgba(20,34,74,.10)" />)}
         <line x1={PL} x2={W - PL} y1={y(0)} y2={y(0)} stroke="rgba(20,34,74,.3)" />
+        <defs><linearGradient id="tvscan" x1="0" x2="1"><stop offset="0" stopColor="#b98a3e" stopOpacity="0" /><stop offset=".5" stopColor="#d6ac5e" stopOpacity=".22" /><stop offset="1" stopColor="#b98a3e" stopOpacity="0" /></linearGradient></defs>
+        <rect className="tv-scan" x={0} y={PT - 10} width={170} height={H - PT - PB + 10} fill="url(#tvscan)" />
         {v.data.map((d, i) => {
           const cx = PL + slot * i + slot / 2;
           const hot = i === n - 1 || i === maxI;
           return (
             <g key={i}>
+              <g className="tv-bob" style={{ animationDelay: `${-i * 0.37}s` }}>
               <motion.rect x={two ? cx - bw - 3 : cx - bw / 2} width={bw} rx={7} fill={i === n - 1 ? "#d6ac5e" : color}
                 initial={{ y: y(0), height: 0 }} animate={{ y: y(d.value), height: y(0) - y(d.value) }}
                 transition={{ delay: 0.25 + i * 0.05, duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
@@ -46,6 +49,7 @@ function Columns({ v, color }: { v: Extract<Visual, { type: "columns" }>; color:
                   initial={{ y: y(0), height: 0 }} animate={{ y: y(d.value2), height: y(0) - y(d.value2) }}
                   transition={{ delay: 0.35 + i * 0.05, duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
               )}
+              </g>
               {hot && (
                 <motion.text x={two ? cx - bw / 2 - 3 : cx} y={y(d.value) - 14} textAnchor="middle" fontSize={25} fontWeight={800} fill="#14224a"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 + i * 0.03 }}>{v.format(d.value)}</motion.text>
@@ -90,15 +94,15 @@ function Donut({ v }: { v: Extract<Visual, { type: "donut" }> }) {
       <Title t={v.title} />
       <div className="tv-donut">
         <svg viewBox="0 0 400 400" width={470} height={470}>
-          <g transform="rotate(-90 200 200)">
+          <g transform="rotate(-90 200 200)"><g className="tv-spin">
             <circle cx={200} cy={200} r={R} fill="none" stroke="rgba(20,34,74,.08)" strokeWidth={54} />
             {v.parts.map((p, i) => {
               const len = (Math.max(p.value, 0) / tot) * C, off = acc; acc += len;
               return <motion.circle key={i} cx={200} cy={200} r={R} fill="none" stroke={p.color ?? PAL[i % PAL.length]} strokeWidth={54}
                 strokeDasharray={`${Math.max(len - 3, 0)} ${C}`} strokeDashoffset={-off}
-                initial={{ opacity: 0, strokeWidth: 20 }} animate={{ opacity: 1, strokeWidth: 54 }} transition={{ delay: 0.25 + i * 0.18, duration: 0.8 }} />;
+                initial={{ opacity: 0, strokeWidth: 20 }} animate={{ opacity: 1, strokeWidth: 54 }} transition={{ delay: 0.25 + i * 0.18, duration: 0.8 }} className="tv-pulse" style={{ animationDelay: `${1.2 + i * 0.45}s` }} />;
             })}
-          </g>
+          </g></g>
           <text x={200} y={200} textAnchor="middle" fontSize={v.centre.value.length > 8 ? 38 : v.centre.value.length > 6 ? 46 : 60} fontWeight={800} fill="#14224a" fontFamily="Georgia,serif">{v.centre.value}</text>
           <text x={200} y={242} textAnchor="middle" fontSize={26} fill="rgba(20,34,74,.65)">{v.centre.label}</text>
         </svg>
@@ -129,6 +133,7 @@ function Ring({ v, color }: { v: Extract<Visual, { type: "ring" }>; color: strin
             <motion.circle cx={230} cy={230} r={R} fill="none" stroke={color} strokeWidth={44} strokeLinecap="round" strokeDasharray={C}
               initial={{ strokeDashoffset: C }} animate={{ strokeDashoffset: C * (1 - p / 100) }} transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }} />
           </g>
+          <circle className="tv-orbit" cx={230} cy={230} r={R + 38} fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeDasharray="2 26" strokeOpacity=".55" />
           <text x={230} y={248} textAnchor="middle" fontSize={118} fontWeight={800} fill="#14224a" fontFamily="Georgia,serif">{shown.toFixed(0)}%</text>
           <text x={230} y={304} textAnchor="middle" fontSize={32} fill="rgba(20,34,74,.7)">{v.label}</text>
         </svg>

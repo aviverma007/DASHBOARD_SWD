@@ -136,6 +136,10 @@ export function Player({ dept, onExit, onDone, nextName }: { dept: TvDept; onExi
   const runKey = `${dept.id}-${idx}`;
   return (
     <div className={`tv-play ${ui ? "" : "noui"}`}>
+      {/* slide-change flourishes */}
+      <motion.div key={`sw${runKey}`} className="tv-sweep" initial={{ x: "-60%" }} animate={{ x: "340%" }} transition={{ duration: 1.25, ease: [0.65, 0, 0.35, 1] }} />
+      {story && <motion.div key={`au${runKey}`} className="tv-aura" style={{ background: `radial-gradient(closest-side, ${color}66, transparent)` }}
+        initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: [0, 1, 0.65], scale: [0.6, 1.25, 1.1] }} transition={{ duration: 1.6, ease: "easeOut" }} />}
       {/* header */}
       <div className="tv-head">
         <div className="tv-logo"><img src="/brand/smartworld-logo.png" alt="Smart World" /></div>
@@ -180,7 +184,7 @@ export function Player({ dept, onExit, onDone, nextName }: { dept: TvDept; onExi
       {/* story panel */}
       <AnimatePresence mode="wait">
         {story && (
-          <motion.div key={`s${dept.id}${scene.kind === "story" ? scene.i : ""}`} className="tv-story glass" initial={{ opacity: 0, x: 80 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}>
+          <motion.div key={`s${dept.id}${scene.kind === "story" ? scene.i : ""}`} className="tv-story glass" initial={{ opacity: 0, x: 120, scale: 0.94, filter: "blur(14px)" }} animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }} exit={{ opacity: 0, x: -90, scale: 0.96, filter: "blur(10px)" }} transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}>
             <div className="tv-headline">{story.headline}</div>
             {story.detail && <div className="tv-detail">{story.detail}</div>}
             <VisualView v={story.visual} color={color} />
