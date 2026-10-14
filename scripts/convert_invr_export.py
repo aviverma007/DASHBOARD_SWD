@@ -30,7 +30,7 @@ import json
 import re
 import pandas as pd
 
-SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/c76c5b3b-Merged_invr_05-10-2026.xlsx"
+SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/a218ee57-Merged_invr_14-10.xlsx"
 OUTPUT_JSON = "/home/claude/DASHBOARD_SWD/src/data/smartworldInventory.json"
 
 df = pd.read_excel(SOURCE_XLSX, sheet_name="Sheet1")
@@ -55,6 +55,29 @@ if _bad.any():
     if still.any():
         raise ValueError(f"Unrepairable Status values: {fixed.loc[still, 'Status'].unique()!r}")
     df = pd.concat([df[~_bad], fixed], ignore_index=True)
+
+# ---- Repair hand-appended units with blank Tower/Floor/BHK/Unit Type ----
+# 14-Oct export: Nature's Court I unit RES-2070-T14-1704 arrives with those
+# four columns empty. Derive them from the unit description ("T14-1704" →
+# tower T14, floor 17) and from sibling units with the same project+area
+# (BHK type / unit type). Anything we cannot derive still fails loudly.
+_miss = df[["Tower", "Floor", "BHK", "Unit Type"]].isna().any(axis=1)
+for ix in df.index[_miss]:
+    m = re.match(r"^(T\d+)-(\d+?)(\d{2})$", str(df.at[ix, "Unit Description"]))
+    if not m:
+        raise ValueError(f"Cannot repair row {ix}: {df.loc[ix, 'Unit Description']!r}")
+    fl = int(m.group(2))
+    suf = "th" if 10 <= fl % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(fl % 10, "th")
+    sib = df[(~_miss) & (df["Project Name"] == df.at[ix, "Project Name"])
+             & (df["Total Super Area"] == df.at[ix, "Total Super Area"])]
+    if sib.empty:
+        raise ValueError(f"No sibling units to infer BHK for row {ix}")
+    df.at[ix, "Tower"] = m.group(1)
+    df.at[ix, "Floor"] = f"{fl}{suf} Floor"
+    df.at[ix, "BHK"] = sib["BHK"].mode().iloc[0]
+    df.at[ix, "Unit Type"] = sib["Unit Type"].mode().iloc[0]
+    print("Repaired blank-attribute unit:", df.at[ix, "Unit Description"], "->",
+          df.at[ix, "Tower"], df.at[ix, "Floor"], df.at[ix, "BHK"], df.at[ix, "Unit Type"])
 
 # Oct 2026 export switched to mixed-case project names ("Smartworld Le
 # Courtyard"); the PDRN↔INVR project join (pdrnActive.ts uppercases PDRN
@@ -172,7 +195,7 @@ dataset = {
     "HY": {
         "rows_in": len(df),
         "rows_out": len(units),
-        "source_file": "Merged_invr_05-10-2026.xlsx",
+        "source_file": "Merged_invr_14-10.xlsx",
         "projects_included": len(projects),
     },
 }
