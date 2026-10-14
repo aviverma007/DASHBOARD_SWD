@@ -14,6 +14,19 @@ export let DG = raw as unknown as DigDataset;
 export interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number }
 const toRecords = (d: DigDataset): DigRec[] => d.R.map(r => ({ sub: r[0], p: r[1], sta: r[2], ag: r[3], ow: r[4], stg: r[5], day: r[6] }));
 export let RECORDS: DigRec[] = toRecords(DG);
+/** When the page last got the live set from the API (null = still showing the bundled snapshot). */
+export let DG_CHECKED: Date | null = null;
+
+const IST = { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true } as const;
+/** "Updated" line for the Digital banner: latest Salesforce record time (IST) + when this page last checked. */
+export function digitalUpdatedText(): string {
+  const a = DG.meta.asOn || "";
+  const m = a.match(/(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/);
+  if (!DG_CHECKED || !m) return `Snapshot as on ${a} · live service unreachable`;
+  const ist = (d: Date) => d.toLocaleString("en-IN", IST).replace(",", "");
+  const sf = new Date(`${m[1]}T${m[2]}:00Z`);
+  return `Updated ${ist(sf)} IST · auto-refreshes every 5 min`;
+}
 
 /** Swap the bundled snapshot for the live Salesforce set (VendorGlobe API). Returns a change key,
  *  or null when unreachable/empty (the snapshot stays). Callers remount on a new key. */
@@ -24,6 +37,7 @@ export async function loadLiveDigital(apiBase: string): Promise<string | null> {
     if (!j.ok || !Array.isArray(j.R) || j.R.length === 0) return null;
     DG = j as DigDataset;
     RECORDS = toRecords(DG);
+    DG_CHECKED = new Date();
     return `${DG.meta.asOn}#${(DG.meta as { ver?: string }).ver ?? DG.R.length}`;
   } catch {
     return null;

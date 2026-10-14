@@ -10,6 +10,7 @@ import {
   DG, RECORDS, applyChips, digMonthly, digWeekday,
   DIM_NAMES, type Dim, type Chip, type DigRec,
 } from "./digitalShared";
+import { digitalUpdatedText } from "./digitalShared";
 import { DigitalFunnelCard } from "./DigitalFunnelCard";
 import { DigitalDrillDrawer } from "./DigitalDrillDrawer";
 import { EnquiryRecordPanel } from "./EnquiryRecordPanel";
@@ -140,7 +141,7 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
       />
 
       {/* Filter bar */}
-      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
+      <PageBanner bleed title={banner.title} sub={<>{banner.sub} · <strong style={{ color: "#8be3b8" }}>{digitalUpdatedText()}</strong></>} right={banner.right} center={banner.center}>
         <div>
           <div style={BANNER_LBL}>Period</div>
           <BannerPills items={[["all", "All time"], ["y", "Year"], ["q", "Quarter"], ["m", "Month"], ["c", "Custom"]] as const} value={perMode}

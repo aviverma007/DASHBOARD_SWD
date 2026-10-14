@@ -7,6 +7,7 @@ import {
   type Chip, type DigRec,
   useLiveDigitalKey,
 } from "../../components/leads/digitalShared";
+import { digitalUpdatedText } from "../../components/leads/digitalShared";
 import { dayToDate } from "../../utils/footfallLogic";
 
 const fyOf = (d: number) => { const dt = dayToDate(d); return dt.getMonth() + 1 >= 4 ? dt.getFullYear() + 1 : dt.getFullYear(); };
@@ -78,7 +79,7 @@ function DigitalInner() {
 
   return (
     <div className="m-stack">
-      <div><h1 className="m-h1">Digital Leads</h1><p className="m-sub">Presales enquiries · as on {DG.meta.asOn}</p></div>
+      <div><h1 className="m-h1">Digital Leads</h1><p className="m-sub">Presales enquiries · {digitalUpdatedText()}</p></div>
       <FilterBar fields={fields} values={fv} onApply={setFv} quick={["per", "p"]} />
 
       <Hero label="Total enquiries" value={fN(total)} sub={`${perLbl} · ${fN(DG.meta.rows)} in export`}
