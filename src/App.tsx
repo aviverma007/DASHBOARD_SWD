@@ -105,9 +105,9 @@ function App() {
           <Route path="/loan-details" element={<RequireAccess path="/loan-details"><Dual mobile={MLoans} desktop={<LoanDetailsPage />} /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess path="/collections"><Dual mobile={MCollection} desktop={<CollectionPage />} /></RequireAccess>} />
           <Route path="/sap-collections" element={<RequireAccess path="/sap-collections"><Dual mobile={MCollections} desktop={<SapCollectionsPage />} /></RequireAccess>} />
-          <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><Dual mobile={MFootfall} desktop={<LeadConversionPage mode="footfall" />} /></RequireAccess>} />
-          <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><Dual mobile={MDigital} desktop={<LeadConversionPage mode="digital" />} /></RequireAccess>} />
-          <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage mode="footfall" /></RequireAccess>} />
+          <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><Dual mobile={MFootfall} desktop={<LeadConversionPage key="footfall" mode="footfall" />} /></RequireAccess>} />
+          <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><Dual mobile={MDigital} desktop={<LeadConversionPage key="digital" mode="digital" />} /></RequireAccess>} />
+          <Route path="/lead-conversion" element={<RequireAccess path="/lead-conversion"><LeadConversionPage key="footfall" mode="footfall" /></RequireAccess>} />
           <Route path="/projects" element={<RequireAccess path="/projects"><Dual mobile={MStack} desktop={<ProjectsPage />} /></RequireAccess>} />
           <Route path="/project-tracker" element={<RequireAccess path="/project-tracker"><Dual mobile={MTracker} desktop={<ProjectTrackerPage />} /></RequireAccess>} />
           <Route path="/reports" element={<RequireAccess path="/reports"><Dual mobile={MReports} desktop={<ReportsPage />} /></RequireAccess>} />
