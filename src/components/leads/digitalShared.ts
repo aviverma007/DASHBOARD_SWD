@@ -1,5 +1,6 @@
 /** Shared digital-enquiry dataset, types, scoping and funnel —
  * used by both the Digital tab section and its drill drawer. */
+import { useEffect, useState } from "react";
 import raw from "../../data/digitalEnquiries.json";
 import { dayToDate, dayToYm, ymLabel, DOW, fNum } from "../../utils/footfallLogic";
 
@@ -8,10 +9,41 @@ export interface DigDataset {
   epoch: string; R: number[][];
   meta: { rows: number; source: string; asOn: string; note: string };
 }
-export const DG = raw as unknown as DigDataset;
+export let DG = raw as unknown as DigDataset;
 
 export interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number }
-export const RECORDS: DigRec[] = DG.R.map(r => ({ sub: r[0], p: r[1], sta: r[2], ag: r[3], ow: r[4], stg: r[5], day: r[6] }));
+const toRecords = (d: DigDataset): DigRec[] => d.R.map(r => ({ sub: r[0], p: r[1], sta: r[2], ag: r[3], ow: r[4], stg: r[5], day: r[6] }));
+export let RECORDS: DigRec[] = toRecords(DG);
+
+/** Swap the bundled snapshot for the live Salesforce set (VendorGlobe API). Returns a change key,
+ *  or null when unreachable/empty (the snapshot stays). Callers remount on a new key. */
+export async function loadLiveDigital(apiBase: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${apiBase}/sfdc/digital/dataset`);
+    const j = await r.json();
+    if (!j.ok || !Array.isArray(j.R) || j.R.length === 0) return null;
+    DG = j as DigDataset;
+    RECORDS = toRecords(DG);
+    return `${DG.meta.asOn}#${(DG.meta as { ver?: string }).ver ?? DG.R.length}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Re-checks every `everyMs` and when the tab is visible again; the returned key changes only when data did. */
+export function useLiveDigitalKey(apiBase: string, everyMs = 5 * 60 * 1000): string {
+  const [key, setKey] = useState("snapshot");
+  useEffect(() => {
+    let alive = true;
+    const pull = () => { loadLiveDigital(apiBase).then(k => { if (alive && k) setKey(c => (c === k ? c : k)); }); };
+    pull();
+    const t = window.setInterval(pull, everyMs);
+    const vis = () => { if (document.visibilityState === "visible") pull(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { alive = false; window.clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [apiBase, everyMs]);
+  return key;
+}
 
 export type Dim = "sub" | "p" | "sta" | "ag" | "ow" | "stg" | "mon" | "dow";
 export interface Chip { dim: Dim; val: number | string; label: string }

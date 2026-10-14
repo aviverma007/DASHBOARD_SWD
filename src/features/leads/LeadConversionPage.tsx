@@ -2,8 +2,15 @@ import { useState } from "react";
 import { FootfallSection } from "../../components/leads/FootfallSection";
 import { CpVisitsSection } from "../../components/leads/CpVisitsSection";
 import { DigitalSection } from "../../components/leads/DigitalSection";
+import { useLiveDigitalKey } from "../../components/leads/digitalShared";
 import "../../components/inventory/smartworldInventory.css";
 import { BannerPills } from "../../components/layout/PageBanner";
+
+/** Live Salesforce enquiries: re-checked every 5 min; a change remounts the section so all memos recompute. */
+function DigitalLive({ banner }: { banner: React.ComponentProps<typeof DigitalSection>["banner"] }) {
+  const liveKey = useLiveDigitalKey("http://192.168.66.28:5002");
+  return <DigitalSection key={liveKey} banner={banner} />;
+}
 
 type Tab = "footfall" | "cpvisits" | "digital";
 
@@ -33,7 +40,7 @@ export function LeadConversionPage({ mode = "footfall" }: { mode?: "footfall" | 
       <div className="wrap">
         {tab === "footfall" && <FootfallSection banner={banner} />}
         {tab === "cpvisits" && <CpVisitsSection banner={banner} />}
-        {tab === "digital" && <DigitalSection banner={banner} />}
+        {tab === "digital" && <DigitalLive banner={banner} />}
       </div>
       </div>
     </div>

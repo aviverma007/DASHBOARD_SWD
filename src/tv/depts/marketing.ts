@@ -6,6 +6,7 @@ import { fN, pct } from "../../mobile/fmt";
 async function load(): Promise<TvDept> {
   const ff = await import("../../utils/footfallLogic");
   const dg = await import("../../components/leads/digitalShared");
+  await dg.loadLiveDigital("http://192.168.66.28:5002");      // live Salesforce set when reachable, bundled snapshot otherwise
 
   // Footfall — "All time", no filters (default view of the screen)
   const rows = ff.FF_RECORDS;

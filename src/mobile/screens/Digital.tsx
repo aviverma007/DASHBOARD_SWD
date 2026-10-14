@@ -5,6 +5,7 @@ import { fN, pct } from "../fmt";
 import {
   DG, RECORDS, applyChips, digInsights, digMonthly, digWeekday, digitalFunnel,
   type Chip, type DigRec,
+  useLiveDigitalKey,
 } from "../../components/leads/digitalShared";
 import { dayToDate } from "../../utils/footfallLogic";
 
@@ -17,6 +18,11 @@ const fyLbl = (fy: number) => `FY ${String(fy - 1).slice(2)}-${String(fy).slice(
 const dim = (names: string[]) => names.map((l, i) => ({ k: String(i), l })).filter(o => o.l);
 
 export default function Digital() {
+  const liveKey = useLiveDigitalKey("http://192.168.66.28:5002");   // re-checks every 5 min
+  return <DigitalInner key={liveKey} />;
+}
+
+function DigitalInner() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const [fv, setFv] = useState<FilterValues>({});
