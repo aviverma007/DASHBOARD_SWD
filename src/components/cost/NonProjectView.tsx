@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
 import raw from "../../data/costNonProject.json";
-import { fN, fMoney, WBS_ROWS } from "./costShared";
+import { fN, fMoney } from "./costShared";
 
 /** Non-project FY-26 PO detail (ZALR export, joined to the CN41 master).
  * L = [0 wbs, 1 wdesc, 2 vend, 3 pgrp, 4 plant, 5 gl, 6 dtyp, 7 comp,
@@ -13,6 +13,10 @@ interface NpDataset {
   WBS: string[]; WDESC: string[]; VEND: string[]; PGRP: string[]; PLANT: string[];
   GL: string[]; DTYP: string[]; COMP: string[]; ROOT: string[];
   L: (number | string)[][];
+  /** Per-WBS budget row from the Summary export:
+   *  [wbs, budget, basicBudget, assigned, basicAssigned, actual, basicActual, actualPO, actualNonPO,
+   *   commitment, basicCommitment, available, basicAvailable, root] */
+  B: number[][];
   meta: { asOn: string; lines: number; wbs: number; pos: number };
 }
 export const NP = raw as unknown as NpDataset;
@@ -32,11 +36,11 @@ export const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
 
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100";
 
-/** Approved budget per WBS from the 07-Sep ZALR budget run (same as-on
- * as the PO export) — the PO detail alone carries no budget columns. */
+/** Approved budget per WBS from the Summary export (same as-on as the PO and
+ * postings exports). Assigned = actual + commitment. */
 const BUDGET_BY_CODE = (() => {
-  const m = new Map<string, { budget: number; assigned: number }>();
-  WBS_ROWS.forEach(w => { if (w.typ === 0) m.set(w.wbs, { budget: w.budget, assigned: w.assigned }); });
+  const m = new Map<string, { budget: number; assigned: number; actual: number; commitment: number }>();
+  NP.B.forEach(b => m.set(NP.WBS[b[0]], { budget: b[1], assigned: b[3], actual: b[5], commitment: b[9] }));
   return m;
 })();
 const statusOf = (b: number, u: number) => b <= 0 ? "nobudget" : u / b > 0.95 ? "critical" : u / b > 0.8 ? "watch" : "healthy";
@@ -340,7 +344,7 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
         const risk = brows.filter(([, b]) => statusOf(b.budget, b.assigned) === "critical").length;
         const cards: [string, string, string, [string, string]][] = [
           ["Approved Budget", fMoney(budget), `across ${fN(brows.length)} WBS elements`, ["#1c3f6e", "#0f2547"]],
-          ["Utilized", fMoney(utilized), `from ${fN(pos)} PO documents`, ["#1a7f9c", "#0e5468"]],
+          ["Utilized", fMoney(utilized), `actual ${fMoney(brows.reduce((s2, [, b]) => s2 + b.actual, 0))} + committed ${fMoney(brows.reduce((s2, [, b]) => s2 + b.commitment, 0))}`, ["#1a7f9c", "#0e5468"]],
           ["Balance Available", fMoney(balance), `unspent as on ${NP.meta.asOn}`, ["#1e9a6c", "#0f6647"]],
           ["Utilization %", `${utilPct.toFixed(1)}%`, "watch >80% · critical >95%", ["#c99a3a", "#96691c"]],
           ["WBS at Risk", fN(risk), "critical (>95% utilized)", ["#c0392b", "#7e1f14"]],
