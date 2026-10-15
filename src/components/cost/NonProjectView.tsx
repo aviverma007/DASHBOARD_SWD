@@ -529,11 +529,11 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
           <h3 style={H3}>WBS-wise Summary</h3>
           <div style={CAP}>{fN(byWbs.length)} WBS in scope · click a row → drill</div>
           <div style={{ maxHeight: 400, overflow: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 960 }}>
               <thead>
                 <tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                  {["WBS", "Description", "Budget", "Ordered", "Delivered", "Still to deliver", "% Util", "Status"].map(h => (
-                    <th key={h} style={{ textAlign: ["Budget", "Ordered", "Delivered", "Still to deliver", "% Util"].includes(h) ? "right" : "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
+                  {["WBS", "Description", "Budget", "Ordered", "Delivered", "Still to deliver", "Actual PO", "Actual Non-PO", "Actual Total", "% Util", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: ["Budget", "Ordered", "Delivered", "Still to deliver", "Actual PO", "Actual Non-PO", "Actual Total", "% Util"].includes(h) ? "right" : "left", fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", padding: "8px 10px", borderBottom: "2px solid #eae6da", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -555,6 +555,9 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
                       <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{fMoney(e.o)}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", color: TEAL, borderBottom: "1px solid #f0ede5" }}>{fMoney(e.d)}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", color: st > 0 ? AMBER : "var(--mut)", fontWeight: st > 0 ? 700 : 500, borderBottom: "1px solid #f0ede5" }}>{fMoney(st)}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid #f0ede5" }}>{bud ? fMoney(bud.po) : "—"}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", color: bud && bud.nonpo < 0 ? RED : undefined, borderBottom: "1px solid #f0ede5" }}>{bud ? fMoney(bud.nonpo) : "—"}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{bud ? fMoney(bud.actual) : "—"}</td>
                       <td style={{ padding: "6px 10px", textAlign: "right", color: "var(--mut)", fontWeight: 700, borderBottom: "1px solid #f0ede5" }}>{utilPct === null ? "—" : `${utilPct.toFixed(1)}%`}</td>
                       <td style={{ padding: "6px 10px", borderBottom: "1px solid #f0ede5" }}>
                         <span style={{ background: `${ST_COL[stat]}1f`, color: ST_COL[stat], fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px", whiteSpace: "nowrap" }}>{ST_LBL[stat]}</span>
