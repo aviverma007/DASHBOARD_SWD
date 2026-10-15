@@ -43,7 +43,7 @@ def main(iw_f, sm_f, ta_f, as_on):
         raise ValueError("Duplicate WBS in Summary: " + str(smw[smw.WBS.duplicated()].WBS.tolist()[:5]))
     root_of = dict(zip(smw["WBS"], smw["Project Description"].map(s)))
 
-    lex = {k: {} for k in ["WBS", "WDESC", "VEND", "PGRP", "PLANT", "GL", "DTYP", "COMP", "ROOT"]}
+    lex = {k: {} for k in ["WBS", "WDESC", "VEND", "PGRP", "PLANT", "GL", "DTYP", "COMP", "ROOT", "BH"]}
 
     def ix(k, v):
         d = lex[k]
@@ -76,7 +76,19 @@ def main(iw_f, sm_f, ta_f, as_on):
                   round(c("Basic Commitment"), 2), round(c("Budget Available"), 2), round(c("Basic Available Budget"), 2),
                   ix("ROOT", s(r[sm.columns.get_loc("Project Description")])),
                   ix("PGRP", s(r[sm.columns.get_loc("P.Grp Name")])),
-                  round(float(po_basic.get(w, 0)), 2)])
+                  round(float(po_basic.get(w, 0)), 2),
+                  ix("BH", s(r[sm.columns.get_loc("Budget Head Description")])),
+                  ix("PLANT", s(r[sm.columns.get_loc("Plant Name")])),
+                  ix("WDESC", s(r[sm.columns.get_loc("WBS Description")]))])
+
+    # A = actual postings aggregated per WBS × posting month × (PO=WE | non-PO): [wbs, monthDay, isPO, gst, basic]
+    bw = set(smw["WBS"])
+    pa = ta[ta["WBS"].isin(bw) & ta["Posting Date"].notna()].copy()
+    pa["m"] = pa["Posting Date"].dt.to_period("M").dt.to_timestamp()
+    pa["po"] = (pa["Document Type"] == "WE").astype(int)
+    A = []
+    for (w, m, po), g in pa.groupby(["WBS", "m", "po"]):
+        A.append([ix("WBS", w), day(m), int(po), round(float(g["Total Actual Amount"].sum()), 2), round(float(g["Basic Value"].sum()), 2)])
 
     # tie-out: Summary actual per WBS vs GL postings file
     a = smw.groupby("WBS")["Total Actual"].sum(); b = ta.groupby("WBS")["Total Actual Amount"].sum()
@@ -90,9 +102,9 @@ def main(iw_f, sm_f, ta_f, as_on):
             "tieout": {"actualWbsChecked": int(len(j)), "actualMismatch": off, "poWbsNotInSummary": unm,
                        "actualTotal": round(float(a.sum()), 2), "postingsTotal": round(float(b.sum()), 2)},
             "fields": "L=[wbs,wdesc,vend,pgrp,plant,gl,dtyp,comp,root,day,po,ord,ordGst,del,delGst,still,mapped] "
-                      "B=[wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,actualNonPO,commitment,basicCommitment,available,basicAvailable,root,pgrp,poBasic]"}
+                      "B=[wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,actualNonPO,commitment,basicCommitment,available,basicAvailable,root,pgrp,poBasic,bh,plant,wdesc] A=[wbs,monthDay,isPO,gst,basic]"}
     out = {k: list(v) for k, v in lex.items()}
-    out["L"] = L; out["B"] = B; out["meta"] = meta
+    out["L"] = L; out["B"] = B; out["A"] = A; out["meta"] = meta
     json.dump(out, open(OUT, "w"), separators=(",", ":"))
     print(json.dumps(meta, indent=1))
 
