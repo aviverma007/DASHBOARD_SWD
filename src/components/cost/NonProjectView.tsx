@@ -39,8 +39,12 @@ const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", R
 /** Approved budget per WBS from the Summary export (same as-on as the PO and
  * postings exports). Assigned = actual + commitment. */
 const BUDGET_BY_CODE = (() => {
-  const m = new Map<string, { budget: number; assigned: number; actual: number; commitment: number }>();
-  NP.B.forEach(b => m.set(NP.WBS[b[0]], { budget: b[1], assigned: b[3], actual: b[5], commitment: b[9] }));
+  const m = new Map<string, { budget: number; assigned: number; actual: number; commitment: number; po: number; nonpo: number; pgrp: number }>();
+  NP.B.forEach(b => m.set(NP.WBS[b[0]], {
+    budget: b[1], assigned: b[3], actual: b[5], commitment: b[9],
+    po: b[7], nonpo: b[5] - b[7],   // non-PO = everything that is not a PO goods-receipt (WE) posting, net of reversals
+    pgrp: b[14],
+  }));
   return m;
 })();
 const statusOf = (b: number, u: number) => b <= 0 ? "nobudget" : u / b > 0.95 ? "critical" : u / b > 0.8 ? "watch" : "healthy";
@@ -360,6 +364,62 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
                 <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.75)", marginTop: 6 }}>{sub}</div>
               </div>
             ))}
+          </div>
+        );
+      })()}
+
+      {/* ── Actual spend — PO vs Non-PO (Total Actual report: Document Type WE = PO, everything else = non-PO) ── */}
+      {(() => {
+        const scopeCodes = new Set(rows.map(r => NP.WBS[r.wbs]));
+        const anyFilter = rows.length !== NP_ROWS.length;
+        const brows = [...BUDGET_BY_CODE.entries()].filter(([code]) => !anyFilter || scopeCodes.has(code));
+        const po = brows.reduce((s2, [, b]) => s2 + b.po, 0);
+        const nonpo = brows.reduce((s2, [, b]) => s2 + b.nonpo, 0);
+        const tot = po + nonpo;
+        const cards: [string, string, string, [string, string]][] = [
+          ["Actual — PO", fMoney(po), `${tot > 0 ? ((po / tot) * 100).toFixed(1) : "0"}% · goods receipts against POs`, ["#1a7f9c", "#0e5468"]],
+          ["Actual — Non-PO", fMoney(nonpo), `${tot > 0 ? ((nonpo / tot) * 100).toFixed(1) : "0"}% · salaries, fees, reimbursements`, ["#6b4fa0", "#3f2a73"]],
+          ["Actual — Total", fMoney(tot), `across ${fN(brows.length)} WBS · as on ${NP.meta.asOn}`, ["#1c3f6e", "#0f2547"]],
+        ];
+        const dep = new Map<number, { po: number; nonpo: number }>();
+        brows.forEach(([, b]) => { const e = dep.get(b.pgrp) ?? { po: 0, nonpo: 0 }; e.po += b.po; e.nonpo += b.nonpo; dep.set(b.pgrp, e); });
+        const list = [...dep.entries()].filter(([, e]) => Math.abs(e.nonpo) >= 1).sort((a, b) => Math.abs(b[1].nonpo) - Math.abs(a[1].nonpo));
+        const mx = Math.max(...list.map(([, e]) => Math.abs(e.nonpo)), 1);
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 1fr) minmax(300px, 1.4fr)", gap: 14, marginBottom: 14, alignItems: "stretch" }}>
+            <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: 12 }}>
+              {cards.map(([k, v, sub, [c1, c2]]) => (
+                <div key={k} className="g3d" style={GLASS(c1, c2)}
+                  onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${sub}`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}>
+                  <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "rgba(255,255,255,.85)" }}>{k}</div>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 27, fontWeight: 700, lineHeight: 1.1, marginTop: 6, whiteSpace: "nowrap" }}>{v}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.75)", marginTop: 6 }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+            <Zoomable title="Non-PO actual by department" collapsible>
+              <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
+                <h3 style={H3}>Non-PO Actual — by Department</h3>
+                <div style={CAP}>postings other than PO goods receipts · red = net credit · click → drill</div>
+                <div style={{ flex: 1, minHeight: 0, maxHeight: 300, overflowY: "auto", paddingRight: 6 }}>
+                  {list.map(([k, e]) => (
+                    <div key={k} className="barrow" onClick={() => open([{ dim: "pgrp", val: k, label: NP.PGRP[k] }])}
+                      onMouseEnter={ev => showTip(ev, `<b>${NP.PGRP[k]}</b><br/>Non-PO — ${fMoney(e.nonpo)}<br/>PO — ${fMoney(e.po)}`)}
+                      onMouseMove={ev => showTip(ev, `<b>${NP.PGRP[k]}</b> ${fMoney(e.nonpo)}`)} onMouseLeave={hideTip}
+                      style={{ padding: "4px 0", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                        <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>{NP.PGRP[k]}</span>
+                        <span style={{ color: e.nonpo < 0 ? RED : "var(--mut)", fontWeight: 700, flexShrink: 0 }}>{fMoney(e.nonpo)}</span>
+                      </div>
+                      <div style={{ position: "relative", height: 8, background: "#f0ede5", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ position: "absolute", inset: 0, width: `${(Math.abs(e.nonpo) / mx) * 100}%`, background: e.nonpo < 0 ? RED : "#6b4fa0", borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Zoomable>
           </div>
         );
       })()}
