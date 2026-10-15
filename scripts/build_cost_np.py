@@ -13,7 +13,7 @@ L = [wbs,wdesc,vend,pgrp,plant,gl,dtyp,comp,root,day,po,ord,ordGst,del,delGst,st
     ord = Ordered Value (excl GST), ordGst = Ordered with GST, del = Basic Delivered Value,
     delGst = Delivered Value with GST, still = ord - del, mapped = WBS present in Summary.
 B = [wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,actualNonPO,
-     commitment,basicCommitment,available,basicAvailable,root,pgrp]
+     commitment,basicCommitment,available,basicAvailable,root,pgrp,poBasic]
 Day numbers are days since 2022-01-01 (-1 = none).
 """
 import sys, json, datetime
@@ -64,6 +64,8 @@ def main(iw_f, sm_f, ta_f, as_on):
                   round(float(g("Delivered Value with GST") or 0), 2), round(ordv - delb, 2),
                   1 if w in root_of else 0])
 
+    # PO actual excl GST = Basic Value of the WE (goods-receipt) postings, per WBS
+    po_basic = ta[ta["Document Type"] == "WE"].groupby("WBS")["Basic Value"].sum().to_dict()
     B = []
     for r in smw.itertuples(index=False):
         c = lambda n: float(r[sm.columns.get_loc(n)] or 0)
@@ -73,7 +75,8 @@ def main(iw_f, sm_f, ta_f, as_on):
                   round(c("Actual PO Sum"), 2), round(c("Actual Non-PO"), 2), round(c("Commitment"), 2),
                   round(c("Basic Commitment"), 2), round(c("Budget Available"), 2), round(c("Basic Available Budget"), 2),
                   ix("ROOT", s(r[sm.columns.get_loc("Project Description")])),
-                  ix("PGRP", s(r[sm.columns.get_loc("P.Grp Name")]))])
+                  ix("PGRP", s(r[sm.columns.get_loc("P.Grp Name")])),
+                  round(float(po_basic.get(w, 0)), 2)])
 
     # tie-out: Summary actual per WBS vs GL postings file
     a = smw.groupby("WBS")["Total Actual"].sum(); b = ta.groupby("WBS")["Total Actual Amount"].sum()
@@ -87,7 +90,7 @@ def main(iw_f, sm_f, ta_f, as_on):
             "tieout": {"actualWbsChecked": int(len(j)), "actualMismatch": off, "poWbsNotInSummary": unm,
                        "actualTotal": round(float(a.sum()), 2), "postingsTotal": round(float(b.sum()), 2)},
             "fields": "L=[wbs,wdesc,vend,pgrp,plant,gl,dtyp,comp,root,day,po,ord,ordGst,del,delGst,still,mapped] "
-                      "B=[wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,actualNonPO,commitment,basicCommitment,available,basicAvailable,root,pgrp]"}
+                      "B=[wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,actualNonPO,commitment,basicCommitment,available,basicAvailable,root,pgrp,poBasic]"}
     out = {k: list(v) for k, v in lex.items()}
     out["L"] = L; out["B"] = B; out["meta"] = meta
     json.dump(out, open(OUT, "w"), separators=(",", ":"))

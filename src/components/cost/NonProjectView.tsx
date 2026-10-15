@@ -16,7 +16,7 @@ interface NpDataset {
   /** Per-WBS budget row from the Summary export:
    *  [wbs, budget, basicBudget, assigned, basicAssigned, actual, basicActual, actualPO, actualNonPO,
    *   commitment, basicCommitment, available, basicAvailable, root] */
-  B: number[][];
+  B: number[][];  // …, 14 pgrp, 15 poBasic
   meta: { asOn: string; lines: number; wbs: number; pos: number };
 }
 export const NP = raw as unknown as NpDataset;
@@ -38,15 +38,22 @@ const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", R
 
 /** Approved budget per WBS from the Summary export (same as-on as the PO and
  * postings exports). Assigned = actual + commitment. */
-const BUDGET_BY_CODE = (() => {
-  const m = new Map<string, { budget: number; assigned: number; actual: number; commitment: number; po: number; nonpo: number; pgrp: number }>();
-  NP.B.forEach(b => m.set(NP.WBS[b[0]], {
-    budget: b[1], assigned: b[3], actual: b[5], commitment: b[9],
-    po: b[7], nonpo: b[5] - b[7],   // non-PO = everything that is not a PO goods-receipt (WE) posting, net of reversals
-    pgrp: b[14],
-  }));
+interface Bud { budget: number; assigned: number; actual: number; commitment: number; available: number; po: number; nonpo: number; pgrp: number }
+/** GST view  → Budget · Assigned · Total Actual · Commitment · Budget Available.
+ *  Excl GST  → Basic Budget · Basic Assigned · Basic Total Actual · Basic Commitment · Basic Available Budget.
+ *  PO actual = WE (goods-receipt) postings; non-PO = rest of the actual (net of reversals). */
+const mkBud = (gstOn: boolean) => {
+  const m = new Map<string, Bud>();
+  NP.B.forEach(b => {
+    const actual = gstOn ? b[5] : b[6], po = gstOn ? b[7] : b[15];
+    m.set(NP.WBS[b[0]], {
+      budget: gstOn ? b[1] : b[2], assigned: gstOn ? b[3] : b[4], actual, commitment: gstOn ? b[9] : b[10],
+      available: gstOn ? b[11] : b[12], po, nonpo: actual - po, pgrp: b[14],
+    });
+  });
   return m;
-})();
+};
+const BUD_GST = mkBud(true), BUD_BASIC = mkBud(false);
 const statusOf = (b: number, u: number) => b <= 0 ? "nobudget" : u / b > 0.95 ? "critical" : u / b > 0.8 ? "watch" : "healthy";
 const ST_COL: Record<string, string> = { healthy: GREEN, watch: AMBER, critical: RED, nobudget: "#8a94a6" };
 const ST_LBL: Record<string, string> = { healthy: "Healthy (<80%)", watch: "Watch (80–95%)", critical: "Critical (>95%)", nobudget: "No budget" };
@@ -266,6 +273,7 @@ function NpDrillDrawer({ seed, baseRows, gst, onClose, onAddChip }: {
 
 /* ---------------- main view ---------------- */
 export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
+  const BUDGET_BY_CODE = gst ? BUD_GST : BUD_BASIC;
   const [drill, setDrill] = useState<{ chips: NpChip[] } | null>(null);
   const open = (chips: NpChip[]) => setDrill({ chips });
   const vOrd = (r: NpRow) => gst ? r.ordGst : r.ord;
@@ -343,7 +351,7 @@ export function NonProjectView({ rows, gst }: { rows: NpRow[]; gst: boolean }) {
         const brows = [...BUDGET_BY_CODE.entries()].filter(([code]) => !anyFilter || scopeCodes.has(code));
         const budget = brows.reduce((s2, [, b]) => s2 + b.budget, 0);
         const utilized = brows.reduce((s2, [, b]) => s2 + b.assigned, 0);
-        const balance = budget - utilized;
+        const balance = brows.reduce((s2, [, b]) => s2 + b.available, 0);
         const utilPct = budget > 0 ? (utilized / budget) * 100 : 0;
         const risk = brows.filter(([, b]) => statusOf(b.budget, b.assigned) === "critical").length;
         const cards: [string, string, string, [string, string]][] = [
