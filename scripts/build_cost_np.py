@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build src/data/costNonProject.json from the three Non-Project FY exports.
 
-Usage: python3 scripts/build_cost_np.py <Item_Wise.xlsx> <Summary.xlsx> <Total_Actual.xlsx> "<DD Mon YYYY>"
+Usage: python3 scripts/build_cost_np.py <Item_Wise.xlsx> <Summary.xlsx> <Total_Actual.xlsx> ["<DD Mon YYYY>"]
+  The "as on" date is the day the files are loaded (today) (IST) unless you pass one explicitly.
 
   Item_Wise   PO lines (ordered / delivered / still-to-deliver)      -> L
   Summary     per-WBS budget, assigned, actual, commitment, available -> B
@@ -94,4 +95,7 @@ def main(iw_f, sm_f, ta_f, as_on):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:5])
+    a = sys.argv[1:5]
+    if len(a) == 3:
+        a.append((datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)).strftime("%d %b %Y"))
+    main(*a)
