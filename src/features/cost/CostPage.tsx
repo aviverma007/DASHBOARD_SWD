@@ -233,7 +233,7 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
-        center={<BannerPills size="lg" items={[["np", "Non-Project FY-26"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
+        center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
         sub={view === "np"
           ? <>{fN(NP.B.length)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} PO lines · FY 2026-27 · data as on {NP.meta.asOn}</>
           : <>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>

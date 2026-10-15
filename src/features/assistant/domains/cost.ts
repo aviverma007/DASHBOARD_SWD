@@ -162,7 +162,7 @@ async function runNonProject(c: Ctx, dep: { label: string; np: RegExp }): Promis
   NP.PGRP.forEach((n, i) => { if (dep.np.test(norm(n))) pg.add(i); });
   const all = NP_ROWS.filter(r => pg.has(r.pgrp));
   let lines = all;
-  const scope = `Non-Project · FY-26 · ${[...pg].map(i => NP.PGRP[i]).join(" + ")}`;
+  const scope = `Non-Project · FY 26-27 · ${[...pg].map(i => NP.PGRP[i]).join(" + ")}`;
   if (c.period.explicit) lines = lines.filter(r => inPeriodDay(c.period, r.day));
   const codes = new Set(all.map(r => NP.WBS[r.wbs]));
   const brows = [...NP_BUDGET.entries()].filter(([code]) => codes.has(code)).map(([, w]) => w);
