@@ -35,6 +35,8 @@ interface PdrnDrawerProps {
   /** INVR stock complement for this project (units with no sale record) */
   unsoldUnits: number;
   unsoldArea: number;
+  /** blocked (management) units not sold — part of total, neither sold nor available */
+  blockedUnits?: number;
   totalUnits: number;
   totalArea: number;
 }
@@ -88,7 +90,8 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
     const soldNos = pdrnProjIdx >= 0
       ? new Set(PDRN.R.filter(r => r.projIdx === pdrnProjIdx).map(r => r.unitNo))
       : new Set<string>();
-    return INV.U.filter(u => (u[0] as number) === invProjIdx && !soldNos.has(u[12] as string))
+    // available = INVR Available (status 0) with no sale — blocked units are not for sale
+    return INV.U.filter(u => (u[0] as number) === invProjIdx && (u[8] as number) === 0 && !soldNos.has(u[12] as string))
       .map(u => ({ unitNo: String(u[12]), area: u[6] as number }))
       .sort((a, b) => b.area - a.area);
   }, [mode, invProjIdx, projectName]);
@@ -162,7 +165,7 @@ function Breadcrumbs({ path, onCrumb }: { path: DrillPath[]; onCrumb: (i: number
   );
 }
 
-export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUnits, unsoldArea, totalUnits, totalArea }: PdrnDrawerProps) {
+export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUnits, unsoldArea, blockedUnits = 0, totalUnits, totalArea }: PdrnDrawerProps) {
   const allSold = useMemo(() => getSoldRecords(invProjIdx, period), [invProjIdx, period]);
   const [path, setPath] = useState<DrillPath[]>([{ level: "project", label: projectName }]);
   const [selectedUnit, setSelectedUnit] = useState<SalesRecord | null>(null);
@@ -215,6 +218,7 @@ export function PdrnDrawer({ invProjIdx, projectName, period, onClose, unsoldUni
               scoped={scoped}
               unsoldUnits={current.level === "project" ? unsoldUnits : 0}
               unsoldArea={current.level === "project" ? unsoldArea : 0}
+              blockedUnits={current.level === "project" ? blockedUnits : 0}
               totalUnits={current.level === "project" ? totalUnits : 0}
               totalArea={current.level === "project" ? totalArea : 0}
               onTowerDrill={(towerIdx) =>
@@ -242,6 +246,8 @@ interface DrillContentProps {
   scoped: ReturnType<typeof summarise>;
   unsoldUnits: number;
   unsoldArea: number;
+  /** blocked (management) units not sold — part of total, neither sold nor available */
+  blockedUnits?: number;
   totalUnits: number;
   totalArea: number;
   invProjIdx: number;
@@ -250,7 +256,7 @@ interface DrillContentProps {
   onUnitClick: (r: SalesRecord) => void;
 }
 
-function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUnits, totalArea, invProjIdx, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
+function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, blockedUnits = 0, totalUnits, totalArea, invProjIdx, onTowerDrill, onFloorDrill, onUnitClick }: DrillContentProps) {
   const [unitsPanel, setUnitsPanel] = useState<null | "sold" | "available" | "all" | "bba" | "nobba">(null);
   const bbaReg = records.filter(r => r.bba >= 0);
   const bbaTsv = bbaReg.reduce((s, r) => s + r.tsv, 0);
@@ -261,7 +267,7 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUn
       <div className="insight">
         {scoped.units} units sold · {fArea(scoped.area)} · TSV {fCr(scoped.tsv)}
         {level === "project" && totalUnits > 0 &&
-          ` · ${totalUnits.toLocaleString("en-IN")} total · ${Math.round(((totalUnits - unsoldUnits) / totalUnits) * 100)}% absorbed · ${unsoldUnits} available (${fArea(unsoldArea)})`}
+          ` · ${totalUnits.toLocaleString("en-IN")} total · ${Math.round(((totalUnits - unsoldUnits - blockedUnits) / totalUnits) * 100)}% absorbed · ${unsoldUnits} available (${fArea(unsoldArea)})${blockedUnits ? ` · ${blockedUnits} blocked` : ""}`}
       </div>
 
       {/* KPI strip */}
@@ -279,7 +285,8 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, totalUn
             <DkpiRow k="Total area" v={fArea(totalArea)} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
             <DkpiRow k="Available" v={unsoldUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
             <DkpiRow k="Available area" v={fArea(unsoldArea)} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
-            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits) / Math.max(totalUnits, 1)) * 100) + "%"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
+            {blockedUnits > 0 && <DkpiRow k="Blocked" v={blockedUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />}
+            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits - blockedUnits) / Math.max(totalUnits, 1)) * 100) + "%"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
           </>
         )}
       </div>

@@ -1,9 +1,12 @@
 /**
  * Pure calculation layer for the PDRN (sales bookings) dataset.
- * SOLD   = active bookings in salesPDRN.json (PDRN active records)
- * UNSOLD = INVR available units + INVR management units
- *          (management units are held back and also not sold, so included)
- * TOTAL  = SOLD + UNSOLD
+ * TOTAL     = every INVR unit of the project (the stock register)
+ * SOLD      = distinct units with an active PDRN booking (one per unit —
+ *             duplicate active rows collapse, see dedupeActive), plus INVR
+ *             units marked Booked that have no PDRN row yet (export timing)
+ * AVAILABLE = INVR Available units that are not sold          (`unsold`)
+ * BLOCKED   = INVR Management/blocked units that are not sold (`blocked`)
+ * All-time: SOLD + AVAILABLE + BLOCKED = TOTAL, exactly.
  * TSV    = sum of Total Basic Selling Price (sold units only)
  *
  * Period filter applies to SFDC Booking Date (year/month on each record).
@@ -54,15 +57,24 @@ export interface InvDataset {
 const SD = salesRaw as unknown as { P: string[]; TW: string[]; FL: string[]; CFG: string[]; R: number[][]; meta: { rows: number; source: string; years: number[] } };
 const ID = invRaw as unknown as InvDataset;
 
+/** One active booking per unit. The PDRN export occasionally carries a
+ * second active row for the same unit with no booking date (Nature's
+ * Court T4-1104, Oct 2026) — drop undated rows when a dated row for the
+ * same project+unit exists, so units, area and TSV are not double-counted. */
+function dedupeActive(rows: SalesRecord[]): SalesRecord[] {
+  const dated = new Set(rows.filter(r => r.year > 0).map(r => `${r.projIdx}|${r.unitNo}`));
+  return rows.filter(r => r.year > 0 || !dated.has(`${r.projIdx}|${r.unitNo}`));
+}
+
 export const PDRN: PdrnDataset = {
   P: SD.P, TW: SD.TW, FL: SD.FL, CFG: SD.CFG,
   meta: SD.meta,
-  R: SD.R.map((r) => ({
+  R: dedupeActive(SD.R.map((r) => ({
     projIdx: r[0], towerIdx: r[1], floorNum: r[2], floorLabelIdx: r[3],
     cfgIdx: r[4], area: r[5], tsv: r[6], year: r[7], month: r[8],
     unitNo: String(r[9]), customerName: String(r[10]), paymentPlan: String(r[11]),
     bba: (r[12] as unknown as number) ?? -1,
-  })),
+  }))),
 };
 
 export const INV = ID;
@@ -89,8 +101,12 @@ export interface ProjectStats {
   projectName: string;
   pdrnProjIdx: number | null; // null if project is in INVR only (e.g. Residencies)
   invProjIdx: number;
-  sold: { units: number; area: number; tsv: number };
+  /** rateArea = area of the PDRN booking rows only (the TSV base for avg rate) */
+  sold: { units: number; area: number; tsv: number; rateArea: number };
+  /** INVR Available units not sold */
   unsold: { units: number; area: number };
+  /** INVR blocked/management units not sold */
+  blocked: { units: number; area: number };
   total: { units: number; area: number };
   soldPct: number;   // % of total units sold
   management: number; // management units (from INVR, not in sold/unsold/total)
@@ -100,8 +116,10 @@ export interface ProjectStats {
 }
 
 export interface OverallStats {
-  sold: { units: number; area: number; tsv: number };
+  /** rateArea = area of the PDRN booking rows only (the TSV base for avg rate) */
+  sold: { units: number; area: number; tsv: number; rateArea: number };
   unsold: { units: number; area: number };
+  blocked: { units: number; area: number };
   total: { units: number; area: number };
   bba: { units: number; tsv: number };
   soldPct: number;
@@ -189,12 +207,6 @@ export function calcProjectStats(
     ? PDRN.R.filter((r) => r.projIdx === pdrnProjIdx && recordInPeriod(r, period))
     : [];
 
-  const sold = {
-    units: soldRecords.length,
-    area: soldRecords.reduce((s, r) => s + r.area, 0),
-    tsv: soldRecords.reduce((s, r) => s + r.tsv, 0),
-  };
-
   // TOTAL: straight from INVR — the same stock register the Inventory
   // tab counts, so both tabs always show identical project totals.
   const invUnits = INV.U.filter((u) => (u[0] as number) === invProjIdx);
@@ -204,20 +216,32 @@ export function calcProjectStats(
     area: invUnits.reduce((s, u) => s + (u[6] as number), 0),
   };
 
-  // UNSOLD: INVR units with no matching ALL-TIME sale record, matched
-  // by unit number. Deliberately not `total − sold`: sold above is
-  // period-filtered, while stock is point-in-time. Unit-level matching
-  // also means a unit flagged Booked in INVR without a PDRN sale
-  // record (a timing gap between the two exports) counts as unsold
-  // here rather than silently shrinking the total.
-  const allTimeSoldNos = pdrnProjIdx >= 0
+  // A unit is sold if it has an active PDRN booking (any period) OR INVR
+  // marks it Booked — a booking can reach INVR before the PDRN export.
+  const pdrnSoldNos = pdrnProjIdx >= 0
     ? new Set(PDRN.R.filter((r) => r.projIdx === pdrnProjIdx).map((r) => r.unitNo))
     : new Set<string>();
-  const unsoldUnits = invUnits.filter((u) => !allTimeSoldNos.has(u[12] as string));
-  const unsold = {
-    units: unsoldUnits.length,
-    area: unsoldUnits.reduce((s, u) => s + (u[6] as number), 0),
+  const isSold = (u: (number | string)[]) => pdrnSoldNos.has(u[12] as string) || (u[8] as number) === 1;
+  // INVR-booked units with no PDRN row: no booking date, so they only
+  // count toward SOLD in the all-time view.
+  const bookedNoSale = period.type === "all"
+    ? invUnits.filter((u) => (u[8] as number) === 1 && !pdrnSoldNos.has(u[12] as string))
+    : [];
+
+  const invArea = new Map(invUnits.map((u) => [u[12] as string, u[6] as number]));
+  const sold = {
+    units: soldRecords.length + bookedNoSale.length,
+    // display area from INVR (same register as Total) so the columns reconcile;
+    // the avg-rate base stays the PDRN booking area (rateArea below)
+    area: soldRecords.reduce((s, r) => s + (invArea.get(r.unitNo) ?? r.area), 0) + bookedNoSale.reduce((s, u) => s + (u[6] as number), 0),
+    tsv: soldRecords.reduce((s, r) => s + r.tsv, 0),
+    rateArea: soldRecords.reduce((s, r) => s + r.area, 0),
   };
+
+  // AVAILABLE / BLOCKED: point-in-time INVR stock that is not sold.
+  const sum = (a: (number | string)[][]) => ({ units: a.length, area: a.reduce((s, u) => s + (u[6] as number), 0) });
+  const unsold = sum(invUnits.filter((u) => !isSold(u) && (u[8] as number) === 0));
+  const blocked = sum(invUnits.filter((u) => !isSold(u) && (u[8] as number) === 2));
 
   return {
     projectName: name,
@@ -225,6 +249,7 @@ export function calcProjectStats(
     invProjIdx,
     sold,
     unsold,
+    blocked,
     total,
     soldPct: total.units ? Math.round((sold.units / total.units) * 100) : 0,
     management: invMgmt.length,
@@ -243,10 +268,15 @@ export function calcOverall(period: PeriodFilter): OverallStats {
       units: projects.reduce((s, p) => s + p.sold.units, 0),
       area: projects.reduce((s, p) => s + p.sold.area, 0),
       tsv: projects.reduce((s, p) => s + p.sold.tsv, 0),
+      rateArea: projects.reduce((s, p) => s + p.sold.rateArea, 0),
     },
     unsold: {
       units: projects.reduce((s, p) => s + p.unsold.units, 0),
       area: projects.reduce((s, p) => s + p.unsold.area, 0),
+    },
+    blocked: {
+      units: projects.reduce((s, p) => s + p.blocked.units, 0),
+      area: projects.reduce((s, p) => s + p.blocked.area, 0),
     },
     total: {
       units: projects.reduce((s, p) => s + p.total.units, 0),
@@ -265,7 +295,7 @@ export function calcOverall(period: PeriodFilter): OverallStats {
     projects,
     rate: (() => {
       const totalTsv = projects.reduce((s, p) => s + p.sold.tsv, 0);
-      const totalArea = projects.reduce((s, p) => s + p.sold.area, 0);
+      const totalArea = projects.reduce((s, p) => s + p.sold.rateArea, 0);
       const maxes = projects.map((p) => p.rate.max).filter((v): v is number => v !== null);
       const mins = projects.map((p) => p.rate.min).filter((v): v is number => v !== null);
       return {

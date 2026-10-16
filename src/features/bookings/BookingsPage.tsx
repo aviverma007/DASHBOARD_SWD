@@ -655,6 +655,7 @@ export function BookingsPage() {
           onClose={() => setProjDrawer(null)}
           unsoldUnits={projDrawer.unsold.units}
           unsoldArea={projDrawer.unsold.area}
+          blockedUnits={projDrawer.blocked.units}
           totalUnits={projDrawer.total.units}
           totalArea={projDrawer.total.area}
         />

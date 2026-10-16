@@ -15,19 +15,29 @@ export interface CpRecord {
   bba: number;
 }
 
+/** Bookings with no channel partner (cpIdx −1 in the PDRN export, or a
+ * blank partner name) are Direct sales. They map to one explicit "Direct"
+ * entry so every `name !== "Direct"` filter drops them — otherwise they
+ * surface as nameless rows in the CP leaderboards and tables. */
+const CP_NAMES: string[] = CD.CP.includes("Direct") ? [...CD.CP] : [...CD.CP, "Direct"];
+export const DIRECT_IDX = CP_NAMES.indexOf("Direct");
+const cpIdxOf = (i: number): number =>
+  i == null || i < 0 || i >= CD.CP.length || !String(CD.CP[i] ?? "").trim() ? DIRECT_IDX : i;
+export const isDirect = (cpIdx: number): boolean => cpIdx === DIRECT_IDX;
+
 function toRecord(r: number[]): CpRecord {
   return {
     projIdx: r[0], towerIdx: r[1], floorNum: r[2], floorLabelIdx: r[3], cfgIdx: r[4],
     area: r[5], tsv: r[6], year: r[7], month: r[8],
     unitNo: String(r[9]), customerName: String(r[10]), paymentPlan: String(r[11]),
-    cpIdx: r[12], status: r[13] as 0 | 1, rebooked: r[14] as 0 | 1,
+    cpIdx: cpIdxOf(r[12]), status: r[13] as 0 | 1, rebooked: r[14] as 0 | 1,
     day: (r[18] as number) ?? -1,
     bba: (r[23] as number) ?? -1,
   };
 }
 
 export const CP = {
-  P: CD.P, TW: CD.TW, FL: CD.FL, CFG: CD.CFG, CP: CD.CP,
+  P: CD.P, TW: CD.TW, FL: CD.FL, CFG: CD.CFG, CP: CP_NAMES,
   R: CD.R.map(toRecord),
 };
 

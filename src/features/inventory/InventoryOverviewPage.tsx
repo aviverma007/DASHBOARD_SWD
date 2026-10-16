@@ -42,9 +42,10 @@ export function InventoryOverviewPage() {
   const visibleOverall = useMemo(() => {
     if (selectedProjects.size === 0 && !location) return overall;
     const projs = visibleProjects;
-    const sold   = { units: projs.reduce((s,p)=>s+p.sold.units,0), area: projs.reduce((s,p)=>s+p.sold.area,0), tsv: projs.reduce((s,p)=>s+p.sold.tsv,0) };
+    const sold   = { units: projs.reduce((s,p)=>s+p.sold.units,0), area: projs.reduce((s,p)=>s+p.sold.area,0), tsv: projs.reduce((s,p)=>s+p.sold.tsv,0), rateArea: projs.reduce((s,p)=>s+p.sold.rateArea,0) };
     const unsold = { units: projs.reduce((s,p)=>s+p.unsold.units,0), area: projs.reduce((s,p)=>s+p.unsold.area,0) };
-    const total  = { units: sold.units+unsold.units, area: sold.area+unsold.area };
+    const blocked = { units: projs.reduce((s,p)=>s+p.blocked.units,0), area: projs.reduce((s,p)=>s+p.blocked.area,0) };
+    const total  = { units: projs.reduce((s,p)=>s+p.total.units,0), area: projs.reduce((s,p)=>s+p.total.area,0) };
     const soldPct = total.units ? Math.round(sold.units/total.units*100) : 0;
     // Same derivation as calcOverall(): blended avg from summed tsv/area,
     // highest/lowest from the extremes of the selected projects' own
@@ -52,12 +53,12 @@ export function InventoryOverviewPage() {
     const maxes = projs.map(p => p.rate.max).filter((v): v is number => v !== null);
     const mins  = projs.map(p => p.rate.min).filter((v): v is number => v !== null);
     const rate = {
-      avg: sold.area > 0 ? sold.tsv / sold.area : null,
+      avg: sold.rateArea > 0 ? sold.tsv / sold.rateArea : null,
       max: maxes.length ? Math.max(...maxes) : null,
       min: mins.length ? Math.min(...mins) : null,
     };
     const bba = { units: projs.reduce((s,p)=>s+p.bba.units,0), tsv: projs.reduce((s,p)=>s+p.bba.tsv,0) };
-    return { sold, unsold, total, bba, soldPct, management: 0, projects: projs, rate };
+    return { sold, unsold, blocked, total, bba, soldPct, management: 0, projects: projs, rate };
   }, [overall, selectedProjects, location, visibleProjects]);
 
   /** Changing location clears any project picks that may not belong to
@@ -229,6 +230,7 @@ export function InventoryOverviewPage() {
           onClose={() => setDrawerProject(null)}
           unsoldUnits={drawerProject.unsold.units}
           unsoldArea={drawerProject.unsold.area}
+          blockedUnits={drawerProject.blocked.units}
           totalUnits={drawerProject.total.units}
           totalArea={drawerProject.total.area}
         />
