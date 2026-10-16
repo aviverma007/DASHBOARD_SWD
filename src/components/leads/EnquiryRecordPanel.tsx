@@ -3,9 +3,9 @@ import { DG, type DigRec } from "./digitalShared";
 import { dayToDate } from "../../utils/footfallLogic";
 
 /** Second-level slide-over for ONE digital enquiry — opened by
- * clicking a row in the Enquiry records table. Enquiry number will
- * appear here once the export is re-shared with that column included
- * in the dataset. */
+ * clicking a row in the Enquiry records table. The enquiry number comes
+ * from the live Salesforce feed (VendorGlobe API); the bundled snapshot
+ * has none, so it shows "—" until the live set loads. */
 export function EnquiryRecordPanel({ rec, onClose }: { rec: DigRec | null; onClose: () => void }) {
   const F = ({ k, v }: { k: string; v: string }) => (
     <div style={{ padding: "10px 0", borderBottom: "1px solid #eae6da" }}>
@@ -30,7 +30,7 @@ export function EnquiryRecordPanel({ rec, onClose }: { rec: DigRec | null; onClo
               <div>
                 <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#7fb8d4" }}>ENQUIRY RECORD</div>
                 <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", marginTop: 2 }}>
-                  {rec.day >= 0 ? dayToDate(rec.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Digital enquiry"}
+                  {rec.enq || (rec.day >= 0 ? dayToDate(rec.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Digital enquiry")}
                 </div>
               </div>
               <button onClick={onClose} aria-label="Close"
@@ -40,6 +40,7 @@ export function EnquiryRecordPanel({ rec, onClose }: { rec: DigRec | null; onClo
               <div style={{ margin: "4px 0 8px" }}>
                 <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 6, padding: "4px 12px", background: staBg, color: staColor }}>{sta}</span>
               </div>
+              <F k="Enquiry number" v={rec.enq || "—"} />
               <F k="Enquiry date" v={rec.day >= 0 ? dayToDate(rec.day).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }) : "—"} />
               <F k="Sub-source / channel" v={rec.sub >= 0 ? DG.SUB[rec.sub] : "—"} />
               <F k="Project" v={rec.p >= 0 ? DG.PRJ[rec.p] : "—"} />
@@ -48,8 +49,8 @@ export function EnquiryRecordPanel({ rec, onClose }: { rec: DigRec | null; onClo
               <F k="Presales owner" v={rec.ow >= 0 ? DG.OWN[rec.ow] : "—"} />
               <F k="Opportunity stage" v={rec.stg >= 0 ? DG.STG[rec.stg] : "—"} />
               <div style={{ fontSize: 11, color: "var(--mut)", marginTop: 12, lineHeight: 1.6 }}>
-                Enquiry number will show here once the export is re-loaded with that column included.
-                Personal contact fields never enter the app.
+                {rec.enq ? "Enquiry number from the live Salesforce feed." : "Enquiry number comes from the live Salesforce feed — it shows once the live data has loaded."}
+                {" "}Personal contact fields never enter the app.
               </div>
             </div>
           </motion.div>

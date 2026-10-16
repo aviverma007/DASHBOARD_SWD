@@ -292,13 +292,13 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
 
 
       {/* Records */}
-      <div><Banner title="ENQUIRY RECORDS" sub={`${fNum(total)} in scope · click a row for full detail · PII excluded`} /></div>
+      <div><Banner title="ENQUIRY RECORDS" sub={`${fNum(total)} in scope · click a row for full detail · customer contact details excluded`} /></div>
       <div style={{ ...CARD, paddingBottom: 6 }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--line)" }}>
-                {["Date", "Sub source", "Project", "Status", "Agency", "Owner", "Opp. stage"].map(h => (
+                {["Enquiry no.", "Date", "Sub source", "Project", "Status", "Agency", "Owner", "Opp. stage"].map(h => (
                   <th key={h} style={{ textAlign: "left", padding: "7px 8px", color: "var(--mut)", fontSize: 10.5, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -309,6 +309,7 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}
                   style={{ borderBottom: "1px solid var(--line)", cursor: "pointer" }}>
+                  <td style={{ padding: "7px 8px", whiteSpace: "nowrap", fontFamily: "ui-monospace,Menlo,monospace", fontSize: 11.5, fontWeight: 600 }}>{r.enq || "—"}</td>
                   <td style={{ padding: "7px 8px", whiteSpace: "nowrap" }}>{r.day >= 0 ? dayToDate(r.day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.sub >= 0 ? DG.SUB[r.sub] : "—"}</td>
                   <td style={{ padding: "7px 8px" }}>{r.p >= 0 ? DG.PRJ[r.p] : "—"}</td>

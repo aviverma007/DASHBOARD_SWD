@@ -6,13 +6,14 @@ import { dayToDate, dayToYm, ymLabel, DOW, fNum } from "../../utils/footfallLogi
 
 export interface DigDataset {
   SUB: string[]; PRJ: string[]; STA: string[]; AGN: string[]; OWN: string[]; STG: string[];
-  epoch: string; R: number[][];
+  epoch: string; R: (number | string)[][];
   meta: { rows: number; source: string; asOn: string; note: string };
 }
 export let DG = raw as unknown as DigDataset;
 
-export interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number }
-const toRecords = (d: DigDataset): DigRec[] => d.R.map(r => ({ sub: r[0], p: r[1], sta: r[2], ag: r[3], ow: r[4], stg: r[5], day: r[6] }));
+/** enq = enquiry number (live feed field 7); "" when the source doesn't carry it (bundled snapshot). */
+export interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number; enq: string }
+const toRecords = (d: DigDataset): DigRec[] => d.R.map(r => ({ sub: r[0] as number, p: r[1] as number, sta: r[2] as number, ag: r[3] as number, ow: r[4] as number, stg: r[5] as number, day: r[6] as number, enq: r[7] != null ? String(r[7]) : "" }));
 export let RECORDS: DigRec[] = toRecords(DG);
 /** When the page last got the live set from the API (null = still showing the bundled snapshot). */
 export let DG_CHECKED: Date | null = null;
