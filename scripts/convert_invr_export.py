@@ -2,8 +2,8 @@
 Converts an INVR "Merged"-sheet export into the RawInventoryDataset JSON
 schema the Inventory page expects (src/data/smartworldInventory.json).
 
-Re-run this whenever a fresh INVR export replaces the current one. Update
-SOURCE_XLSX below to point at the new file's path first.
+Re-run this whenever a fresh INVR export replaces the current one:
+    python scripts/convert_invr_export.py <path to export .xlsx>
 
 Standing rules for every run (confirmed by the user, 18 Aug 2026):
 1. Only the projects present in the uploaded file are kept — if the file
@@ -27,34 +27,53 @@ have its Payment Plan / Rate Band rows restored (see git history for the
 last version that displayed them, before this run removed them).
 """
 import json
+import os
 import re
+import sys
 import pandas as pd
 
-SOURCE_XLSX = "/root/.claude/uploads/949e0b69-8d70-5eb7-bd85-2845060442da/a218ee57-Merged_invr_14-10.xlsx"
-OUTPUT_JSON = "/home/claude/DASHBOARD_SWD/src/data/smartworldInventory.json"
+# Usage: python scripts/convert_invr_export.py <INVR export .xlsx>
+if len(sys.argv) < 2:
+    sys.exit("usage: convert_invr_export.py <INVR export .xlsx>")
+SOURCE_XLSX = sys.argv[1]
+OUTPUT_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "smartworldInventory.json")
 
 df = pd.read_excel(SOURCE_XLSX, sheet_name="Sheet1")
 
-# ---- Repair hand-appended rows with a one-column shift ----
-# The 05-Oct v2 export appends a few manually added units whose values
-# are shifted one column right from "Unit Description" onward (unit no.
-# lands in Status, status in Unit Type, ...). Detect by unknown Status
-# value and un-shift. Guard stays strict: any OTHER anomaly still fails.
+# ---- Repair hand-appended rows with a column shift ----
+# Manually added units sometimes arrive shifted right from "Unit
+# Description" onward (05-Oct v2: one column, so the unit no. lands in
+# Status; 14-Oct v2: one row shifted by one, another by two). Detect by
+# unknown Status, find the shift k at which a known status appears one
+# column after the unit description, and drop k cells at Unit
+# Description. Guard stays strict: any OTHER anomaly still fails.
 KNOWN_STATUS = {"Available", "Booked", "Management Unit", "In Progress", "N/A for Sale"}
 _i_desc = list(df.columns).index("Unit Description")
 _bad = ~df["Status"].astype(str).isin(KNOWN_STATUS)
 if _bad.any():
-    print(f"Repairing {int(_bad.sum())} column-shifted rows:",
-          df.loc[_bad, "Status"].tolist())
-    fixed = pd.DataFrame(
-        [list(df.loc[ix])[:_i_desc] + list(df.loc[ix])[_i_desc + 1:] + [None]
-         for ix in df.index[_bad]],
-        columns=df.columns,
-    )
-    still = ~fixed["Status"].astype(str).isin(KNOWN_STATUS)
-    if still.any():
-        raise ValueError(f"Unrepairable Status values: {fixed.loc[still, 'Status'].unique()!r}")
+    fixed_rows = []
+    for ix in df.index[_bad]:
+        vals = list(df.loc[ix])
+        k = next((k for k in range(1, 4)
+                  if all(pd.isna(v) or str(v).strip() in ("", "0") for v in vals[_i_desc:_i_desc + k])
+                  and str(vals[_i_desc + k + 1]) in KNOWN_STATUS), None)
+        if k is None:
+            raise ValueError(f"Unrepairable row {ix}: Status={df.at[ix, 'Status']!r}")
+        fixed_rows.append(vals[:_i_desc] + vals[_i_desc + k:] + [None] * k)
+        print(f"Repairing row {ix} shifted by {k}: {vals[_i_desc + k]!r} -> {vals[_i_desc + k + 1]!r}")
+    fixed = pd.DataFrame(fixed_rows, columns=df.columns)
     df = pd.concat([df[~_bad], fixed], ignore_index=True)
+
+# ---- Drop blank phantom duplicates ----
+# 14-Oct v1 export carried a second, attribute-less "Available" copy of
+# booked unit RES-2070-T14-1704. A row with blank Tower/Floor/BHK/Unit
+# Type whose unit already exists as a complete row is a phantom: drop it.
+_blank = df[["Tower", "Floor", "BHK", "Unit Type"]].isna().any(axis=1)
+_complete = set(zip(df.loc[~_blank, "Project Name"], df.loc[~_blank, "Unit Description"]))
+_phantom = _blank & pd.Series([(p, u) in _complete for p, u in zip(df["Project Name"], df["Unit Description"])], index=df.index)
+if _phantom.any():
+    print("Dropping blank duplicate rows:", df.loc[_phantom, "Unit Description"].tolist())
+    df = df[~_phantom].reset_index(drop=True)
 
 # ---- Repair hand-appended units with blank Tower/Floor/BHK/Unit Type ----
 # 14-Oct export: Nature's Court I unit RES-2070-T14-1704 arrives with those
@@ -195,7 +214,7 @@ dataset = {
     "HY": {
         "rows_in": len(df),
         "rows_out": len(units),
-        "source_file": "Merged_invr_14-10.xlsx",
+        "source_file": re.sub(r"^[0-9a-f]{8}-", "", os.path.basename(SOURCE_XLSX)),
         "projects_included": len(projects),
     },
 }
