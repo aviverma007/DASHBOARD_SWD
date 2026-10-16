@@ -90,8 +90,8 @@ function AllUnitsCard({ mode, records, invProjIdx, projectName, onUnitClick, onC
     const soldNos = pdrnProjIdx >= 0
       ? new Set(PDRN.R.filter(r => r.projIdx === pdrnProjIdx).map(r => r.unitNo))
       : new Set<string>();
-    // available = INVR Available (status 0) with no sale — blocked units are not for sale
-    return INV.U.filter(u => (u[0] as number) === invProjIdx && (u[8] as number) === 0 && !soldNos.has(u[12] as string))
+    // available = every unsold INVR unit (Available + blocked); INVR-Booked counts as sold
+    return INV.U.filter(u => (u[0] as number) === invProjIdx && (u[8] as number) !== 1 && !soldNos.has(u[12] as string))
       .map(u => ({ unitNo: String(u[12]), area: u[6] as number }))
       .sort((a, b) => b.area - a.area);
   }, [mode, invProjIdx, projectName]);
@@ -267,7 +267,7 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, blocked
       <div className="insight">
         {scoped.units} units sold · {fArea(scoped.area)} · TSV {fCr(scoped.tsv)}
         {level === "project" && totalUnits > 0 &&
-          ` · ${totalUnits.toLocaleString("en-IN")} total · ${Math.round(((totalUnits - unsoldUnits - blockedUnits) / totalUnits) * 100)}% absorbed · ${unsoldUnits} available (${fArea(unsoldArea)})${blockedUnits ? ` · ${blockedUnits} blocked` : ""}`}
+          ` · ${totalUnits.toLocaleString("en-IN")} total · ${Math.round(((totalUnits - unsoldUnits) / totalUnits) * 100)}% absorbed · ${unsoldUnits} available (${fArea(unsoldArea)})${blockedUnits ? `, incl. ${blockedUnits} blocked` : ""}`}
       </div>
 
       {/* KPI strip */}
@@ -285,8 +285,8 @@ function DrillContent({ level, records, scoped, unsoldUnits, unsoldArea, blocked
             <DkpiRow k="Total area" v={fArea(totalArea)} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
             <DkpiRow k="Available" v={unsoldUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
             <DkpiRow k="Available area" v={fArea(unsoldArea)} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />
-            {blockedUnits > 0 && <DkpiRow k="Blocked" v={blockedUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />}
-            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits - blockedUnits) / Math.max(totalUnits, 1)) * 100) + "%"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
+            {blockedUnits > 0 && <DkpiRow k="incl. blocked" v={blockedUnits.toLocaleString("en-IN") + " units"} onClick={() => setUnitsPanel(p => p === "available" ? null : "available")} />}
+            <DkpiRow k="Absorption" v={Math.round(((totalUnits - unsoldUnits) / Math.max(totalUnits, 1)) * 100) + "%"} onClick={() => setUnitsPanel(p => p === "all" ? null : "all")} />
           </>
         )}
       </div>

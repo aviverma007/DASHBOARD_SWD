@@ -4,9 +4,9 @@
  * SOLD      = distinct units with an active PDRN booking (one per unit —
  *             duplicate active rows collapse, see dedupeActive), plus INVR
  *             units marked Booked that have no PDRN row yet (export timing)
- * AVAILABLE = INVR Available units that are not sold          (`unsold`)
- * BLOCKED   = INVR Management/blocked units that are not sold (`blocked`)
- * All-time: SOLD + AVAILABLE + BLOCKED = TOTAL, exactly.
+ * AVAILABLE = every INVR unit that is not sold, blocked units included (`unsold`)
+ * BLOCKED   = the blocked/management subset of AVAILABLE, for display (`blocked`)
+ * All-time: SOLD + AVAILABLE = TOTAL, exactly.
  * TSV    = sum of Total Basic Selling Price (sold units only)
  *
  * Period filter applies to SFDC Booking Date (year/month on each record).
@@ -103,9 +103,9 @@ export interface ProjectStats {
   invProjIdx: number;
   /** rateArea = area of the PDRN booking rows only (the TSV base for avg rate) */
   sold: { units: number; area: number; tsv: number; rateArea: number };
-  /** INVR Available units not sold */
+  /** INVR units not sold — Available and blocked */
   unsold: { units: number; area: number };
-  /** INVR blocked/management units not sold */
+  /** blocked/management units not sold — a subset of unsold */
   blocked: { units: number; area: number };
   total: { units: number; area: number };
   soldPct: number;   // % of total units sold
@@ -240,7 +240,7 @@ export function calcProjectStats(
 
   // AVAILABLE / BLOCKED: point-in-time INVR stock that is not sold.
   const sum = (a: (number | string)[][]) => ({ units: a.length, area: a.reduce((s, u) => s + (u[6] as number), 0) });
-  const unsold = sum(invUnits.filter((u) => !isSold(u) && (u[8] as number) === 0));
+  const unsold = sum(invUnits.filter((u) => !isSold(u)));
   const blocked = sum(invUnits.filter((u) => !isSold(u) && (u[8] as number) === 2));
 
   return {

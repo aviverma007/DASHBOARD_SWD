@@ -23,9 +23,8 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
   const { sold, unsold, total, soldPct, rate } = stats;
   const blocked = stats.blocked ?? { units: 0, area: 0 };
   const tsv = sold.tsv;
-  // Sold + Available + Blocked = Total; blocked units are neither sold nor for sale.
-  const unsoldPct = total.units ? Math.round((unsold.units / total.units) * 100) : 0;
-  const blockedPct = Math.max(0, 100 - soldPct - unsoldPct);
+  // Sold + Available = Total; Available includes blocked units.
+  const unsoldPct = 100 - soldPct;
 
   const colStyle: React.CSSProperties = {
     flex: 1,
@@ -138,6 +137,12 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
           <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, fontWeight: 700, color: UNSOLD_COLOR }}>{unsoldPct}%</span>
           <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)", marginLeft: 8 }}>{fArea(unsold.area)}</span>
+          {blocked.units > 0 && (
+            <span title="Blocked / management units, counted in Available"
+              style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "#8a6425", marginLeft: 8 }}>
+              incl. {blocked.units.toLocaleString("en-IN")} blocked
+            </span>
+          )}
         </div>
       </div>
 
@@ -150,12 +155,7 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         </div>
         <div style={{ marginTop: isOverall ? 5 : 3, whiteSpace: "nowrap" }}>
           <span style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "var(--mut)" }}>{fArea(total.area)}</span>
-          {blocked.units > 0 && (
-            <span title="Blocked / management units — part of total, not sold and not for sale"
-              style={{ fontFamily: "Georgia,serif", fontSize: metaSize, color: "#8a6425", marginLeft: 8 }}>
-              incl. {blocked.units.toLocaleString("en-IN")} blocked
-            </span>
-          )}
+
         </div>
       </div>
 
@@ -183,7 +183,6 @@ export function KpiTable({ stats, label, location, onClick, accent = "var(--gold
         <div style={{ height: isOverall ? 14 : 10, borderRadius: 3, background: "var(--bg)", display: "flex", overflow: "hidden", marginBottom: isOverall ? 6 : 4 }}>
           <div style={{ height: "100%", width: `${soldPct}%`, background: SOLD_COLOR }} />
           <div style={{ height: "100%", width: `${unsoldPct}%`, background: UNSOLD_COLOR, opacity: 0.55 }} />
-          {blockedPct > 0 && <div title={`${blocked.units} blocked`} style={{ height: "100%", width: `${blockedPct}%`, background: "#9aa3b5", opacity: 0.6 }} />}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: isOverall ? 12 : 10.5 }}>
           <span style={{ color: SOLD_COLOR, fontWeight: 700 }}>{soldPct}%</span>
