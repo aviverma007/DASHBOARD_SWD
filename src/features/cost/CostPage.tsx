@@ -7,7 +7,7 @@ import {
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
-import { NonProjectView, NP, NP_ROWS, npScope } from "../../components/cost/NonProjectView";
+import { NonProjectView, NP, NP_ROWS, npScope, npAvail } from "../../components/cost/NonProjectView";
 import { VA, VA_ROWS } from "../../components/cost/vendorAgeingShared";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
@@ -121,6 +121,17 @@ export default function CostPage() {
   ), [typF, depts, projs, plants, stats, descs, q]);
   // one WBS scope drives budget, actuals and PO lines
   const npScopeSet = useMemo(() => npScope({ depts: npDepts, plants: npPlants, roots: npRoots, bhs: npBhs, q: npQ }), [npDepts, npPlants, npRoots, npBhs, npQ]);
+  // cascading filters: each dropdown lists only values that exist under the other selections
+  const npAv = useMemo(() => npAvail({ depts: npDepts, plants: npPlants, roots: npRoots, bhs: npBhs, q: npQ }), [npDepts, npPlants, npRoots, npBhs, npQ]);
+  useEffect(() => {
+    const keep = (sel: (number | string)[], av: Set<number>) => sel.filter(x => av.has(x as number));
+    const d = keep(npDepts, npAv.depts), p2 = keep(npPlants, npAv.plants), r = keep(npRoots, npAv.roots), b = keep(npBhs, npAv.bhs);
+    if (d.length !== npDepts.length) setNpDepts(d);
+    if (p2.length !== npPlants.length) setNpPlants(p2);
+    if (r.length !== npRoots.length) setNpRoots(r);
+    if (b.length !== npBhs.length) setNpBhs(b);
+  }, [npAv]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const npOpts = (names: string[], av: Set<number>) => names.map((n, i2) => ({ k: i2, l: n })).filter(o => av.has(o.k));
   const npRows = useMemo(() => NP_ROWS.filter(r => npScopeSet.has(r.wbs)), [npScopeSet]);
 
   const vaRows = useMemo(() => VA_ROWS.filter(r =>
@@ -243,10 +254,10 @@ export default function CostPage() {
             <input value={npQ} onChange={e => setNpQ(e.target.value)} placeholder="WBS code or vendor…"
               style={{ ...BANNER_CTL, width: 230, cursor: "text" }} />
           </div>
-          <MSFilter label="Company" options={NP.ROOT.map((n, i2) => ({ k: i2, l: n }))} sel={npRoots} onChange={setNpRoots} width={220} />
-          <MSFilter label="Plant" options={NP.PLANT.map((n, i2) => ({ k: i2, l: n }))} sel={npPlants} onChange={setNpPlants} width={200} />
-          <MSFilter label="Department" options={NP.PGRP.map((n, i2) => ({ k: i2, l: n }))} sel={npDepts} onChange={setNpDepts} width={190} />
-          <MSFilter label="Cost head" options={NP.BH.map((n, i2) => ({ k: i2, l: n }))} sel={npBhs} onChange={setNpBhs} width={200} />
+          <MSFilter label="Company" options={npOpts(NP.ROOT, npAv.roots)} sel={npRoots} onChange={setNpRoots} width={220} />
+          <MSFilter label="Plant" options={npOpts(NP.PLANT, npAv.plants)} sel={npPlants} onChange={setNpPlants} width={200} />
+          <MSFilter label="Department" options={npOpts(NP.PGRP, npAv.depts)} sel={npDepts} onChange={setNpDepts} width={190} />
+          <MSFilter label="Cost head" options={npOpts(NP.BH, npAv.bhs)} sel={npBhs} onChange={setNpBhs} width={200} />
           <div>
             <div style={BANNER_LBL as React.CSSProperties}>Financial year</div>
             <div style={{ ...BANNER_CTL, width: 110, cursor: "default" }}>FY 2026-27</div>

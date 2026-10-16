@@ -80,6 +80,22 @@ export const npScope = (f: NpFilter): Set<number> => {
   return out;
 };
 
+/** Cascading filters: for each filter, the values that still exist once the OTHER filters are applied. */
+export const npAvail = (f: NpFilter) => {
+  const a = { depts: new Set<number>(), plants: new Set<number>(), roots: new Set<number>(), bhs: new Set<number>() };
+  const q = f.q.trim().toLowerCase();
+  WB.forEach(w => {
+    if (q && !(HAY.get(w.w) ?? "").includes(q)) return;
+    const okD = !f.depts.length || f.depts.includes(w.pgrp), okP = !f.plants.length || f.plants.includes(w.plant);
+    const okR = !f.roots.length || f.roots.includes(w.root), okB = !f.bhs.length || f.bhs.includes(w.bh);
+    if (okP && okR && okB) a.depts.add(w.pgrp);
+    if (okD && okR && okB) a.plants.add(w.plant);
+    if (okD && okP && okB) a.roots.add(w.root);
+    if (okD && okP && okR) a.bhs.add(w.bh);
+  });
+  return a;
+};
+
 /* Glassmorphism KPI + 3D-lift card styles */
 const GLASS = (c1: string, c2: string): React.CSSProperties => ({
   background: `linear-gradient(150deg, ${c1} 0%, ${c2} 100%)`,
