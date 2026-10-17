@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { canAccess } from "../../config/users";
 import { DATA_AS_ON } from "../../config/dataInfo";
+import { IsoTower, DuskSkyline } from "./HomeArt";
 import "./home.css";
 
 /** Home — a launch page, not a report: where everything lives and a quick way in.
@@ -118,24 +119,13 @@ export function HomePage() {
               <span className="hm-chip"><ListChecks /></span>
             </div>
             <div className="hm-card hm-lavcard">
-              <h3>Sales pulse</h3>
-              <svg viewBox="0 0 120 120" width="112" height="112" style={{ alignSelf: "center" }}>
-                {[50, 38, 26].map((r, i) => (
-                  <g key={r}>
-                    <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(36,26,77,.16)" strokeWidth="8" />
-                    <motion.circle cx="60" cy="60" r={r} fill="none" stroke={["#5b43d6", "#8b6cff", "#ff8ec0"][i]} strokeWidth="8"
-                      strokeLinecap="round" transform="rotate(-90 60 60)" strokeDasharray={2 * Math.PI * r}
-                      initial={{ strokeDashoffset: 2 * Math.PI * r }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * r * [0.28, 0.42, 0.18][i] }}
-                      transition={{ duration: reduce ? 0 : 1.2, delay: 0.5 + i * 0.12, ease: "easeOut" }} />
-                  </g>
-                ))}
-              </svg>
-              <p>Bookings, targets and channel partners</p>
+              <h3>Unit by unit</h3>
+              <div className="hm-art"><IsoTower /></div>
+              <p>Every tower, floor and unit across the portfolio</p>
             </div>
             <div className="hm-card hm-photo">
-              <img src="/projects/sky_arc.png" alt="" loading="lazy" />
-              <span>Smartworld Sky Arc</span>
+              <DuskSkyline />
+              <span>Gurugram and Noida</span>
             </div>
             <div className="hm-card hm-darkcard">
               <div>
