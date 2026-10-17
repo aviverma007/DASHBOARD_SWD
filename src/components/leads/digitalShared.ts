@@ -7,9 +7,83 @@ import { dayToDate, dayToYm, ymLabel, DOW, fNum } from "../../utils/footfallLogi
 export interface DigDataset {
   SUB: string[]; PRJ: string[]; STA: string[]; AGN: string[]; OWN: string[]; STG: string[];
   epoch: string; R: (number | string)[][];
-  meta: { rows: number; source: string; asOn: string; note: string };
+  meta: { rows: number; source: string; asOn: string; note: string; removedTest?: number; removedSamples?: string[]; merged?: number };
 }
-export let DG = raw as unknown as DigDataset;
+
+/* ---- data hygiene, applied to the bundled snapshot AND every live load ----
+ * 1. Test / junk entries (an agency, owner, project or sub-source named test,
+ *    test7, Test_Butterfly, abcd, chatbot …) are dropped. Real channels that only
+ *    contain such a word (Chatbot_Facebook, Chatbot_Website) are kept.
+ * 2. Spelling variants are merged: case, spaces, "-" and "_" are ignored
+ *    (Axio / axio / AXIO; M3M-Inhouse / M3M_Inhouse). Agency names also ignore
+ *    word order and repeats (M3M-Alchemist / M3M Alchemist / Alchemist- M3M;
+ *    SW-SW_Inhouse / SW-Inhouse). The most common capitalised spelling is shown. */
+const JUNK_WORD = new Set(["test", "testing", "tester", "dummy"]);
+const JUNK_WHOLE = new Set(["abc", "abcd", "abcde", "xyz", "asdf", "qwerty", "chatbot", "demo", "sample"]);
+const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+export function isJunkName(s: string): boolean {
+  const w = words(s).map(x => x.replace(/\d+$/, "")).filter(Boolean);
+  if (!w.length) return false;
+  return w.some(x => JUNK_WORD.has(x)) || JUNK_WHOLE.has(w.join("")) || JUNK_WHOLE.has(w.join(" "));
+}
+function cleanDigital(src: DigDataset): DigDataset {
+  type Field = "SUB" | "PRJ" | "STA" | "AGN" | "OWN" | "STG";
+  const FIELDS: Field[] = ["SUB", "PRJ", "STA", "AGN", "OWN", "STG"];
+  const junkable = new Set<Field>(["SUB", "PRJ", "AGN", "OWN"]);
+  const keyOf = (f: Field, s: string) => {
+    const w = words(s);
+    return f === "AGN" ? [...new Set(w)].sort().join(" ") : w.join(" ");
+  };
+  const removedNames = new Set<string>();
+  const keep = src.R.filter(r => {
+    for (let i = 0; i < 4; i++) {
+      const f = FIELDS[[0, 1, 3, 4][i]], v = r[[0, 1, 3, 4][i]] as number;
+      if (junkable.has(f) && v >= 0 && isJunkName(src[f][v] ?? "")) { removedNames.add(src[f][v]); return false; }
+    }
+    return true;
+  });
+  // canonical label per key: most frequent spelling that has a capital letter, else title-cased
+  const out = { ...src, meta: { ...src.meta } } as DigDataset;
+  const remap: number[][] = [];
+  let merged = 0;
+  FIELDS.forEach((f, fi) => {
+    const cnt = new Map<number, number>();
+    keep.forEach(r => { const v = r[fi] as number; if (v >= 0) cnt.set(v, (cnt.get(v) ?? 0) + 1); });
+    const groups = new Map<string, number[]>();
+    src[f].forEach((name, i) => {
+      const k = keyOf(f, name) || name.trim();
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(i);
+    });
+    const labels: string[] = [];
+    const map = new Array(src[f].length).fill(-1);
+    [...groups.values()].forEach(ids => {
+      if (ids.every(i => !cnt.has(i)) && ids.some(i => removedNames.has(src[f][i]))) return;   // only junk rows used it
+      const by = [...ids].sort((a, b) => (cnt.get(b) ?? 0) - (cnt.get(a) ?? 0));
+      const cap = by.find(i => /[A-Z]/.test(src[f][i]));
+      const lbl = cap !== undefined ? src[f][cap].trim().replace(/\s+/g, " ")
+        : src[f][by[0]].trim().replace(/\b\w/g, c => c.toUpperCase());
+      if (ids.length > 1) merged += ids.length - 1;
+      labels.push(lbl);
+      ids.forEach(i => { map[i] = labels.length - 1; });
+    });
+    const order = labels.map((l, i) => [l, i] as const).sort((a, b) => a[0].localeCompare(b[0]));
+    const pos = new Array(labels.length); order.forEach(([, i], j) => { pos[i] = j; });
+    out[f] = order.map(([l]) => l);
+    remap[fi] = map.map(m => (m >= 0 ? pos[m] : -1));
+  });
+  out.R = keep.map(r => r.map((v, i) => (i < 6 && (v as number) >= 0 ? remap[i][v as number] : v)));
+  out.meta.removedTest = src.R.length - keep.length;
+  out.meta.removedSamples = [...removedNames].slice(0, 12);
+  out.meta.merged = merged;
+  return out;
+}
+
+export let DG = cleanDigital(raw as unknown as DigDataset);
+let QUAL_STA = DG.STA.indexOf("Qualified");
+/** ONE definition used by every card: presales Status = Qualified, or the enquiry already
+ *  became an opportunity (an opportunity is only created for a qualified lead). */
+export const isQualified = (r: { sta: number; stg: number }) => r.sta === QUAL_STA || r.stg >= 0;
 
 /** enq = enquiry number (live feed field 7); "" when the source doesn't carry it (bundled snapshot). */
 export interface DigRec { sub: number; p: number; sta: number; ag: number; ow: number; stg: number; day: number; enq: string }
@@ -36,7 +110,8 @@ export async function loadLiveDigital(apiBase: string): Promise<string | null> {
     const r = await fetch(`${apiBase}/sfdc/digital/dataset`);
     const j = await r.json();
     if (!j.ok || !Array.isArray(j.R) || j.R.length === 0) return null;
-    DG = j as DigDataset;
+    DG = cleanDigital(j as DigDataset);
+    QUAL_STA = DG.STA.indexOf("Qualified");
     RECORDS = toRecords(DG);
     DG_CHECKED = new Date();
     return `${DG.meta.asOn}#${(DG.meta as { ver?: string }).ver ?? DG.R.length}`;
@@ -90,10 +165,9 @@ export function applyChips(records: DigRec[], chips: Chip[]): DigRec[] {
  * opportunity was created). Steps are nested populations. */
 export function digitalFunnel(rows: DigRec[]) {
   const total = rows.length;
-  const QUAL = DG.STA.indexOf("Qualified");
   const svSet = new Set(["Site Visit", "In Progress", "Inventory", "Booked"].map(s => DG.STG.indexOf(s)).filter(i => i >= 0));
   const BK = DG.STG.indexOf("Booked");
-  const qualified = rows.filter(r => r.sta === QUAL || r.stg >= 0).length; // qualified status OR already an opportunity
+  const qualified = rows.filter(isQualified).length;
   const sv = rows.filter(r => svSet.has(r.stg)).length;
   const booked = rows.filter(r => r.stg === BK).length;
   const lost = rows.filter(r => DG.STG[r.stg] === "Closed Lost").length;
@@ -139,9 +213,8 @@ export function digInsights(rows: DigRec[]): DigInsight[] {
   if (ts) out.push({ k: "Top sub-source", v: `${ts.name} · ${Math.round((ts.n / total) * 100)}%`, hint: `${fNum(ts.n)} of ${fNum(total)} enquiries` });
   const tp = top(r => r.p, DG.PRJ);
   if (tp) out.push({ k: "Top project", v: `${tp.name} · ${Math.round((tp.n / total) * 100)}%`, hint: `${fNum(tp.n)} enquiries` });
-  const QUAL = DG.STA.indexOf("Qualified");
-  const q = rows.filter(r => r.sta === QUAL).length;
-  out.push({ k: "Qualification rate", v: `${((q / total) * 100).toFixed(1)}%`, hint: `${fNum(q)} presales-qualified` });
+  const q = rows.filter(isQualified).length;
+  out.push({ k: "Qualification rate", v: `${((q / total) * 100).toFixed(1)}%`, hint: `${fNum(q)} qualified (status or opportunity)` });
   const ta = top(r => r.ag, DG.AGN);
   if (ta) out.push({ k: "Top agency", v: ta.name, hint: `${fNum(ta.n)} enquiries` });
   const to_ = top(r => r.ow, DG.OWN);

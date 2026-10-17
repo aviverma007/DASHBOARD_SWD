@@ -8,7 +8,7 @@ import {
 } from "./footfallCharts";
 import {
   DG, RECORDS, applyChips, digMonthly, digWeekday,
-  DIM_NAMES, type Dim, type Chip, type DigRec,
+  DIM_NAMES, isQualified, type Dim, type Chip, type DigRec,
 } from "./digitalShared";
 import { digitalUpdatedText } from "./digitalShared";
 import { DigitalFunnelCard } from "./DigitalFunnelCard";
@@ -85,8 +85,7 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
   const has = (dim: Dim) => chips.some(c => c.dim === dim);
 
   // KPIs
-  const QUAL = DG.STA.indexOf("Qualified");
-  const qualified = rows.filter(r => r.sta === QUAL).length;
+  const qualified = rows.filter(isQualified).length;
   const opp = rows.filter(r => r.stg >= 0).length;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
 
@@ -100,14 +99,13 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
       .sort((a, b) => b.value - a.value).slice(0, top);
   };
   /** Stacked variant: total + qualified count per dimension value. */
-  const QUAL_I = DG.STA.indexOf("Qualified");
   const stackedFrom = (get: (r: DigRec) => number, names: string[]) => {
     const tot = new Map<number, number>(), ql = new Map<number, number>();
     rows.forEach(r => {
       const k = get(r);
       if (k < 0) return;
       tot.set(k, (tot.get(k) ?? 0) + 1);
-      if (r.sta === QUAL_I) ql.set(k, (ql.get(k) ?? 0) + 1);
+      if (isQualified(r)) ql.set(k, (ql.get(k) ?? 0) + 1);
     });
     return [...tot.entries()].map(([key, value]) => ({ key, label: names[key], value, hl: ql.get(key) ?? 0 }))
       .sort((a, b) => b.value - a.value);
@@ -258,7 +256,7 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
         {!has("stg") && (
           <div style={{ ...CARD, display: "flex", flexDirection: "column" }}>
             <h3 style={H3}>Opportunity stage</h3>
-            <div style={CAP}>{fNum(opp)} enquiries became opportunities · click a stage</div>
+            <div style={CAP}>{fNum(opp)} of the {fNum(qualified)} qualified enquiries are opportunities · click a stage</div>
             <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
 <Donut
               segs={listFrom(r => r.stg, DG.STG, 8).map((s, i) => ({
@@ -345,14 +343,13 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
         </button>
         {showLogic && (
           <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
-            Every figure is a straight count over the digital enquiry export ({fNum(DG.meta.rows)} enquiries,
-            Apr–Aug 2026) matching the active filters — no sampling or estimation.
-            <b> Qualified</b> counts the presales Status column. <b>Opportunities</b> = enquiries where an opportunity Stage exists
-            (a stage appears only once CRM creates the opportunity — {fNum(1925)} of {fNum(11946)} overall).
-            <b> Funnel</b> steps are nested populations: Qualified = presales-qualified OR already an opportunity;
-            Site&nbsp;visit+ = stage at Site Visit / In Progress / Inventory / Booked; Booked = stage exactly "Booked".
-            <b> Agency</b> names are case-normalised (Alchemist/alchemist merged). Blank cells are excluded from that card
-            but never from totals. {DG.meta.note}.
+            Every figure is a straight count over the {fNum(DG.R.length)} digital enquiries loaded matching the active filters — no sampling or estimation.
+            <b> Qualified</b> (every card, the funnel and the drill) = presales Status "Qualified" OR the enquiry already became an opportunity.
+            <b> Opportunities</b> = enquiries where an opportunity Stage exists (a stage appears only once CRM creates the opportunity).
+            <b> Funnel</b> steps are nested populations: Site&nbsp;visit+ = stage at Site Visit / In Progress / Inventory / Booked; Booked = stage exactly "Booked".
+            <b> Names</b>: spelling variants are merged (Axio / axio / AXIO; M3M-Alchemist / M3M Alchemist){DG.meta.merged ? ` — ${fNum(DG.meta.merged)} variants merged` : ""}.
+            <b> Test entries</b> (test, test7, abcd, chatbot …) are excluded{DG.meta.removedTest ? ` — ${fNum(DG.meta.removedTest)} removed` : ""}.
+            Blank cells are excluded from that card but never from totals.
           </div>
         )}
       </div>

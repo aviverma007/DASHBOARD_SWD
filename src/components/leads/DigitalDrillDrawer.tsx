@@ -8,7 +8,7 @@ import {
 } from "./footfallCharts";
 import {
   DG, applyChips, digMonthly, digWeekday, digInsights,
-  DIM_NAMES, type Dim, type Chip, type DigRec,
+  DIM_NAMES, isQualified, type Dim, type Chip, type DigRec,
 } from "./digitalShared";
 import { DigitalFunnelCard } from "./DigitalFunnelCard";
 
@@ -52,8 +52,7 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
   const insights = useMemo(() => digInsights(rows), [rows]);
   const monthly = useMemo(() => digMonthly(rows), [rows]);
   const weekday = useMemo(() => digWeekday(rows), [rows]);
-  const QUAL = DG.STA.indexOf("Qualified");
-  const qualified = rows.filter(r => r.sta === QUAL).length;
+  const qualified = rows.filter(isQualified).length;
   const opp = rows.filter(r => r.stg >= 0).length;
   const activeDays = new Set(rows.filter(r => r.day >= 0).map(r => r.day)).size;
 
@@ -63,14 +62,13 @@ export function DigitalDrillDrawer({ seed, baseRows, baseLabel, onClose }: {
     return [...m.entries()].map(([key, value]) => ({ key, label: names[key], value }))
       .sort((a, b) => b.value - a.value).slice(0, top);
   };
-  const QUAL_I = DG.STA.indexOf("Qualified");
   const stackedFrom = (get: (r: DigRec) => number, names: string[]) => {
     const tot = new Map<number, number>(), ql = new Map<number, number>();
     rows.forEach(r => {
       const k = get(r);
       if (k < 0) return;
       tot.set(k, (tot.get(k) ?? 0) + 1);
-      if (r.sta === QUAL_I) ql.set(k, (ql.get(k) ?? 0) + 1);
+      if (isQualified(r)) ql.set(k, (ql.get(k) ?? 0) + 1);
     });
     return [...tot.entries()].map(([key, value]) => ({ key, label: names[key], value, hl: ql.get(key) ?? 0 }))
       .sort((a, b) => b.value - a.value);
