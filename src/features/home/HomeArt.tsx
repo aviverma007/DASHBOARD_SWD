@@ -13,7 +13,7 @@ export function IsoTower() {
   const poly = (pts: number[][]) => pts.map(p => p.join(",")).join(" ");
   const quad = (a: number[], b: number[], c: number[], d: number[]) => poly([a, b, c, d]);
 
-  type Win = { pts: string; lit: string; dark: string; order: number };
+  type Win = { pts: string; lit: string; dark: string; order: number; blink?: boolean };
   const tower = (ox: number, oy: number, W: number, D: number, H: number, faces: [string, string, string], seed: number) => {
     const at = (x: number, y: number, z: number) => P(x + ox, y + oy, z);
     const wins: Win[] = [];
@@ -46,11 +46,17 @@ export function IsoTower() {
       <polygon points={t.right} fill={t.faces[1]} />
       <polygon points={t.top} fill={t.faces[2]} />
       <polygon points={t.crown} fill="#ffffff" opacity={0.35} />
-      {t.wins.map((w, i) => (
-        <motion.polygon key={i} points={w.pts}
-          initial={{ fill: reduce ? w.lit : w.dark }} animate={{ fill: w.order < 0.82 ? w.lit : w.dark }}
-          transition={{ duration: 0.35, delay: reduce ? 0 : base + w.order * 2.6 }} />
-      ))}
+      {t.wins.map((w, i) => {
+        const on = w.order < 0.82;
+        const blink = on && hash(i * 31 + base * 100) > 0.72;   // about a quarter of lit windows keep blinking
+        return (
+          <motion.polygon key={i} points={w.pts}
+            className={blink ? `hm-twinkle${i % 2 ? " hm-slow" : ""}` : undefined}
+            style={blink ? { animationDelay: `${(hash(i + 7) * 4 + 3).toFixed(2)}s` } : undefined}
+            initial={{ fill: reduce ? (on ? w.lit : w.dark) : w.dark }} animate={{ fill: on ? w.lit : w.dark }}
+            transition={{ duration: 0.35, delay: reduce ? 0 : base + w.order * 2.6 }} />
+        );
+      })}
     </g>
   );
 
@@ -75,7 +81,6 @@ const FRONT: [number, number, number][] = [ // x, width, height
 ];
 
 export function DuskSkyline() {
-  const reduce = useReducedMotion();
   const H = 160;
   const backPath = `M0 ${H} ` + BACK.map(([x, h]) => `L${x} ${H - h - 30} L${x + 14} ${H - h - 30}`).join(" ") + ` L240 ${H} Z`;
   const wins: { x: number; y: number; lit: boolean; tw: boolean; d: number }[] = [];
@@ -83,7 +88,7 @@ export function DuskSkyline() {
     for (let yy = H - h + 6; yy < H - 6; yy += 7) {
       for (let xx = x + 3; xx < x + w - 4; xx += 5) {
         const r = hash(bi * 97 + xx * 3 + yy);
-        wins.push({ x: xx, y: yy, lit: r > 0.48, tw: r > 0.9, d: hash(xx + yy) * 4 });
+        wins.push({ x: xx, y: yy, lit: r > 0.48, tw: r > 0.8, d: hash(xx + yy) * 5 });
       }
     }
   });
@@ -118,7 +123,7 @@ export function DuskSkyline() {
       {wins.map((w, i) => (
         <rect key={i} x={w.x} y={w.y} width={2.4} height={3} rx={0.4}
           fill={w.lit ? (i % 4 ? "#ffd38a" : "#ff9ecb") : "#2a2148"}
-          className={w.tw && !reduce ? "hm-twinkle" : undefined} style={w.tw ? { animationDelay: `${w.d}s` } : undefined} />
+          className={w.tw ? `hm-twinkle${i % 3 ? "" : " hm-slow"}` : undefined} style={w.tw ? { animationDelay: `${w.d.toFixed(2)}s` } : undefined} />
       ))}
     </svg>
   );

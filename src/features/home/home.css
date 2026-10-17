@@ -71,8 +71,10 @@
 .hm-photo > svg { position: absolute; inset: 0; display: block; }
 .hm-art { flex: 1; min-height: 120px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }
 .hm-art svg { max-height: 178px; }
-.hm-twinkle { animation: hm-tw 3.2s ease-in-out infinite; }
-@keyframes hm-tw { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+/* window lights: slow on/off blink, kept on under reduced motion (no movement, no flashing) */
+.hm .hm-twinkle { animation: hm-tw 3.4s ease-in-out infinite; }
+.hm .hm-twinkle.hm-slow { animation-duration: 5.2s; }
+@keyframes hm-tw { 0%, 38%, 100% { opacity: 1; } 50%, 62% { opacity: 0.12; } }
 .hm-photo span {
   position: absolute; left: 12px; bottom: 12px; font-size: 12px; font-weight: 600;
   background: rgba(12, 11, 20, 0.62); backdrop-filter: blur(6px); padding: 6px 11px; border-radius: 999px;
@@ -156,5 +158,5 @@
   .hm-tiles { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hm * { transition: none !important; animation: none !important; }
+  .hm *:not(.hm-twinkle) { transition: none !important; animation: none !important; }
 }
