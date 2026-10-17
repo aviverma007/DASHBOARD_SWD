@@ -114,7 +114,7 @@ export function digitalUpdatedText(): string {
   if (!DG_CHECKED || !m) return `Snapshot as on ${a} · live service unreachable`;
   const ist = (d: Date) => d.toLocaleString("en-IN", IST).replace(",", "");
   const sf = new Date(`${m[1]}T${m[2]}:00Z`);
-  return `Updated ${ist(sf)} IST · auto-refreshes every 5 min`;
+  return `Updated ${ist(sf)} IST`;
 }
 
 /** Swap the bundled snapshot for the live Salesforce set (VendorGlobe API). Returns a change key,
