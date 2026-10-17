@@ -7,7 +7,7 @@ import { dayToDate, dayToYm, ymLabel, DOW, fNum } from "../../utils/footfallLogi
 export interface DigDataset {
   SUB: string[]; PRJ: string[]; STA: string[]; AGN: string[]; OWN: string[]; STG: string[];
   epoch: string; R: (number | string)[][];
-  meta: { rows: number; source: string; asOn: string; note: string; removedTest?: number; removedSamples?: string[]; merged?: number };
+  meta: { rows: number; source: string; asOn: string; note: string; removedTest?: number; removedSamples?: string[]; merged?: number; promoted?: number };
 }
 
 /* ---- data hygiene, applied to the bundled snapshot AND every live load ----
@@ -21,9 +21,15 @@ export interface DigDataset {
 const JUNK_WORD = new Set(["test", "testing", "tester", "dummy"]);
 const JUNK_WHOLE = new Set(["abc", "abcd", "abcde", "xyz", "asdf", "qwerty", "chatbot", "demo", "sample"]);
 const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+/** Junk = any word that is test/testing/dummy (+digits), a name that STARTS with
+ *  "test" or "dummy" (Testlecourt1, test7, TestProject) unless it is a real word such as
+ *  "Testimonial", or a whole value like abcd / xyz / chatbot / demo. */
 export function isJunkName(s: string): boolean {
-  const w = words(s).map(x => x.replace(/\d+$/, "")).filter(Boolean);
+  const raw = words(s);
+  const w = raw.map(x => x.replace(/\d+$/, "")).filter(Boolean);
   if (!w.length) return false;
+  const flat = raw.join("");
+  if (/^(test|dummy)/.test(flat) && !/^testimon/.test(flat)) return true;
   return w.some(x => JUNK_WORD.has(x)) || JUNK_WHOLE.has(w.join("")) || JUNK_WHOLE.has(w.join(" "));
 }
 function cleanDigital(src: DigDataset): DigDataset {
@@ -73,6 +79,14 @@ function cleanDigital(src: DigDataset): DigDataset {
     remap[fi] = map.map(m => (m >= 0 ? pos[m] : -1));
   });
   out.R = keep.map(r => r.map((v, i) => (i < 6 && (v as number) >= 0 ? remap[i][v as number] : v)));
+  // An enquiry that became an opportunity IS qualified, whatever its presales status
+  // still says — set it so the status donut, status filter, records, KPI and funnel
+  // all count the same Qualified.
+  let qi = out.STA.findIndex(x => x.toLowerCase() === "qualified");
+  if (qi < 0) { out.STA = [...out.STA, "Qualified"]; qi = out.STA.length - 1; }
+  let promoted = 0;
+  out.R.forEach(r => { if ((r[5] as number) >= 0 && r[2] !== qi) { r[2] = qi; promoted++; } });
+  out.meta.promoted = promoted;
   out.meta.removedTest = src.R.length - keep.length;
   out.meta.removedSamples = [...removedNames].slice(0, 12);
   out.meta.merged = merged;

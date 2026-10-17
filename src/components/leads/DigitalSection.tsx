@@ -344,7 +344,8 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
         {showLogic && (
           <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.65, marginTop: 8 }}>
             Every figure is a straight count over the {fNum(DG.R.length)} digital enquiries loaded matching the active filters — no sampling or estimation.
-            <b> Qualified</b> (every card, the funnel and the drill) = presales Status "Qualified" OR the enquiry already became an opportunity.
+            <b> Qualified</b> (every card, the status donut, the funnel and the drill) = presales Status "Qualified" OR the enquiry already became an opportunity —
+            enquiries with an opportunity are shown with status Qualified{DG.meta.promoted ? ` (${fNum(DG.meta.promoted)} of them still had another presales status)` : ""}.
             <b> Opportunities</b> = enquiries where an opportunity Stage exists (a stage appears only once CRM creates the opportunity).
             <b> Funnel</b> steps are nested populations: Site&nbsp;visit+ = stage at Site Visit / In Progress / Inventory / Booked; Booked = stage exactly "Booked".
             <b> Names</b>: spelling variants are merged (Axio / axio / AXIO; M3M-Alchemist / M3M Alchemist){DG.meta.merged ? ` — ${fNum(DG.meta.merged)} variants merged` : ""}.
