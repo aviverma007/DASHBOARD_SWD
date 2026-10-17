@@ -8,6 +8,7 @@ import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../compon
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
 import { NonProjectView, NP, NP_ROWS, npScope, npAvail } from "../../components/cost/NonProjectView";
+import { ProjectView, PJ, PJ_ROWS, pjScope, pjAvail } from "../../components/cost/ProjectView";
 import { VA, VA_ROWS } from "../../components/cost/vendorAgeingShared";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
@@ -75,7 +76,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
 }
 
 export default function CostPage() {
-  const [view, setView] = useState<"np" | "budget" | "po" | "ageing">("np"); // budget/po legacy views await project data // Budget Control vs Actual-vs-Commitment (PO) view
+  const [view, setView] = useState<"np" | "pj" | "budget" | "po" | "ageing">("np"); // budget/po legacy views await project data // Budget Control vs Actual-vs-Commitment (PO) view
   const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
   const [depts, setDepts] = useState<(number | string)[]>([]);
   const [projs, setProjs] = useState<(number | string)[]>([]);
@@ -89,6 +90,12 @@ export default function CostPage() {
   const [npBhs, setNpBhs] = useState<(number | string)[]>([]);
   const [npQ, setNpQ] = useState("");   // non-project WBS / vendor search
   const [npGst, setNpGst] = useState(false);
+  // Project tab filters (same shape as non-project; dimensions are Project / Plant / Expense head / Segment)
+  const [pjDepts, setPjDepts] = useState<(number | string)[]>([]);
+  const [pjPlants, setPjPlants] = useState<(number | string)[]>([]);
+  const [pjRoots, setPjRoots] = useState<(number | string)[]>([]);
+  const [pjBhs, setPjBhs] = useState<(number | string)[]>([]);
+  const [pjQ, setPjQ] = useState("");
   const [vaQ, setVaQ] = useState("");   // vendor-ageing vendor search
   const [vaRecon, setVaRecon] = useState<(number | string)[]>([]);
   const [qOpen, setQOpen] = useState(false);
@@ -133,6 +140,17 @@ export default function CostPage() {
   }, [npAv]);   // eslint-disable-line react-hooks/exhaustive-deps
   const npOpts = (names: string[], av: Set<number>) => names.map((n, i2) => ({ k: i2, l: n })).filter(o => av.has(o.k));
   const npRows = useMemo(() => NP_ROWS.filter(r => npScopeSet.has(r.wbs)), [npScopeSet]);
+  const pjScopeSet = useMemo(() => pjScope({ depts: pjDepts, plants: pjPlants, roots: pjRoots, bhs: pjBhs, q: pjQ }), [pjDepts, pjPlants, pjRoots, pjBhs, pjQ]);
+  const pjAv = useMemo(() => pjAvail({ depts: pjDepts, plants: pjPlants, roots: pjRoots, bhs: pjBhs, q: pjQ }), [pjDepts, pjPlants, pjRoots, pjBhs, pjQ]);
+  useEffect(() => {
+    const keep = (sel: (number | string)[], av: Set<number>) => sel.filter(x => av.has(x as number));
+    const d = keep(pjDepts, pjAv.depts), p2 = keep(pjPlants, pjAv.plants), r = keep(pjRoots, pjAv.roots), b = keep(pjBhs, pjAv.bhs);
+    if (d.length !== pjDepts.length) setPjDepts(d);
+    if (p2.length !== pjPlants.length) setPjPlants(p2);
+    if (r.length !== pjRoots.length) setPjRoots(r);
+    if (b.length !== pjBhs.length) setPjBhs(b);
+  }, [pjAv]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pjRows = useMemo(() => PJ_ROWS.filter(r => pjScopeSet.has(r.wbs)), [pjScopeSet]);
 
   const vaRows = useMemo(() => VA_ROWS.filter(r =>
     (vaRecon.length === 0 || vaRecon.includes(r.recon)) &&
@@ -244,9 +262,11 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
-        center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
+        center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["pj", "Project"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
         sub={view === "np"
           ? <>{fN(NP.B.length)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} PO lines · FY 2026-27 · data as on {NP.meta.asOn}</>
+          : view === "pj"
+          ? <>{fN(PJ.B.length)} project WBS · {fN(PJ.meta.pos)} POs · {fN(PJ.meta.lines)} PO lines · project-to-date · with GST · data as on {PJ.meta.asOn}</>
           : <>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
         {view === "np" ? (<>
           <div>
@@ -275,6 +295,29 @@ export default function CostPage() {
             </div>
           </div>
           <button onClick={() => { setNpQ(""); setNpDepts([]); setNpPlants([]); setNpRoots([]); setNpBhs([]); }} className="pb-btn">⟲ Reset</button>
+        </>) : view === "pj" ? (<>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Search WBS / vendor</div>
+            <input value={pjQ} onChange={e => setPjQ(e.target.value)} placeholder="WBS code or vendor…"
+              style={{ ...BANNER_CTL, width: 230, cursor: "text" }} />
+          </div>
+          <MSFilter label="Project" options={npOpts(PJ.ROOT, pjAv.roots)} sel={pjRoots} onChange={setPjRoots} width={240} />
+          <MSFilter label="Segment" options={npOpts(PJ.BH, pjAv.bhs)} sel={pjBhs} onChange={setPjBhs} width={240} />
+          <MSFilter label="Plant" options={npOpts(PJ.PLANT, pjAv.plants)} sel={pjPlants} onChange={setPjPlants} width={210} />
+          <MSFilter label="Expense head" options={npOpts(PJ.PGRP, pjAv.depts)} sel={pjDepts} onChange={setPjDepts} width={200} />
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Period</div>
+            <div style={{ ...BANNER_CTL, width: 120, cursor: "default" }}>Project to date</div>
+          </div>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>As on date</div>
+            <div style={{ ...BANNER_CTL, width: 120, cursor: "default" }}>{PJ.meta.asOn}</div>
+          </div>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Values</div>
+            <div style={{ ...BANNER_CTL, width: 96, cursor: "default" }} title="The project export has GST-inclusive budget figures only">With GST</div>
+          </div>
+          <button onClick={() => { setPjQ(""); setPjDepts([]); setPjPlants([]); setPjRoots([]); setPjBhs([]); }} className="pb-btn">⟲ Reset</button>
         </>) : view !== "ageing" ? (<>
           <div>
             <div style={WLBL}>Budget type</div>
@@ -324,7 +367,7 @@ export default function CostPage() {
 
       <div style={{ padding: "16px 20px 40px" }}>
         {/* KPI tickets — reference set (budget/PO views only) */}
-        {view !== "ageing" && view !== "np" && (
+        {view !== "ageing" && view !== "np" && view !== "pj" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
           <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
@@ -342,6 +385,8 @@ export default function CostPage() {
 
         {view === "np" ? (
           <NonProjectView rows={npRows} scope={npScopeSet} gst={npGst} />
+        ) : view === "pj" ? (
+          <ProjectView rows={pjRows} scope={pjScopeSet} gst={true} />
         ) : view === "ageing" ? (
           <VendorAgeingView rows={vaRows} scopeLabel={vaScopeLabel} />
         ) : view === "budget" ? (<>

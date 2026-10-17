@@ -16,10 +16,10 @@ B = [wbs,budget,basicBudget,assigned,basicAssigned,actual,basicActual,actualPO,a
      commitment,basicCommitment,available,basicAvailable,root,pgrp,poBasic]
 Day numbers are days since 2022-01-01 (-1 = none).
 """
-import sys, json, datetime
+import sys, os, json, datetime
 import pandas as pd
 
-OUT = "/home/claude/DASHBOARD_SWD/src/data/costNonProject.json"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "costNonProject.json")
 EPOCH = datetime.datetime(2022, 1, 1)
 
 

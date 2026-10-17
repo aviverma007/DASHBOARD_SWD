@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showTip, hideTip } from "../common/hoverTip";
 import { Zoomable } from "../common/Zoomable";
-import raw from "../../data/costNonProject.json";
+import npRaw from "../../data/costNonProject.json";
 import { fN, fMoney } from "./costShared";
 
 /** Non-project FY-26 cost data (SAP exports: Item Wise PO lines · Summary · Total Actual).
@@ -13,20 +13,47 @@ import { fN, fMoney } from "./costShared";
  *               15 poBasic, 16 bh, 17 plant, 18 wdesc]
  * A = actual postings per WBS × posting month × PO/non-PO [wbs, monthDay, isPO, gst, basic]
  * GST view uses Budget/Assigned/Total Actual/Commitment/Budget Available; excl-GST uses the Basic* columns. */
-interface NpDataset {
+export interface NpDataset {
   WBS: string[]; WDESC: string[]; VEND: string[]; PGRP: string[]; PLANT: string[];
   GL: string[]; DTYP: string[]; COMP: string[]; ROOT: string[]; BH: string[];
   L: (number | string)[][]; B: number[][]; A: number[][];
   meta: { asOn: string; lines: number; wbs: number; pos: number };
 }
-export const NP = raw as unknown as NpDataset;
-
 export interface NpRow {
   i: number; wbs: number; wdesc: number; vend: number; pgrp: number; plant: number;
   gl: number; dtyp: number; comp: number; root: number; day: number; po: string;
   ord: number; ordGst: number; del: number; delGst: number; still: number;
 }
-export const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
+export interface Vals { budget: number; assigned: number; actual: number; commit: number; avail: number; po: number; nonpo: number }
+export interface Wb { w: number; root: number; pgrp: number; plant: number; bh: number; wdesc: number; has: boolean; v: [Vals, Vals] }   // v[0] excl GST · v[1] with GST
+export interface NpFilter { depts: (number | string)[]; plants: (number | string)[]; roots: (number | string)[]; bhs: (number | string)[]; q: string }
+export type NpDim = "wbs" | "vend" | "pgrp" | "plant" | "gl" | "comp" | "root" | "mon" | "dtyp" | "bh" | "status";
+export interface NpChip { dim: NpDim; val: number | string; label: string }
+
+/** Per-tab wording and data capabilities — Non-Project and Project share one implementation. */
+export interface CostModuleCfg {
+  /** first month shown individually in monthly charts; earlier months collapse into "Prior" */
+  fyStart: string;
+  /** labels for the reusable dimensions (root / pgrp / bh / comp …) */
+  dimNames: Partial<Record<NpDim, string>>;
+  drillTag: string; allLabel: string; nonPoNote: string;
+  /** monthly actual postings available (A); without them the trend uses delivered PO value by PO month */
+  hasPostings: boolean;
+  /** PO-level dimension for the drill drawer's second bar card */
+  poDim: "gl" | "dtyp";
+}
+
+export interface CostModule {
+  NP: NpDataset; NP_ROWS: NpRow[]; WB: Map<number, Wb>;
+  npScope: (f: NpFilter) => Set<number>;
+  npAvail: (f: NpFilter) => { depts: Set<number>; plants: Set<number>; roots: Set<number>; bhs: Set<number> };
+  View: (p: { rows: NpRow[]; scope: Set<number>; gst: boolean }) => React.JSX.Element;
+  cfg: CostModuleCfg;
+}
+
+export function createCostModule(NP: NpDataset, cfg: CostModuleCfg): CostModule {
+
+const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
   i, wbs: r[0] as number, wdesc: r[1] as number, vend: r[2] as number, pgrp: r[3] as number,
   plant: r[4] as number, gl: r[5] as number, dtyp: r[6] as number, comp: r[7] as number,
   root: r[8] as number, day: r[9] as number, po: String(r[10]).replace(/\.0$/, ""),
@@ -35,10 +62,8 @@ export const NP_ROWS: NpRow[] = NP.L.map((r, i) => ({
 }));
 
 /* ---- per-WBS model: attributes + budget/actual values for both GST modes ---- */
-interface Vals { budget: number; assigned: number; actual: number; commit: number; avail: number; po: number; nonpo: number }
-export interface Wb { w: number; root: number; pgrp: number; plant: number; bh: number; wdesc: number; has: boolean; v: [Vals, Vals] }   // v[0] excl GST · v[1] with GST
 const ZERO: Vals = { budget: 0, assigned: 0, actual: 0, commit: 0, avail: 0, po: 0, nonpo: 0 };
-export const WB = new Map<number, Wb>();
+const WB = new Map<number, Wb>();
 NP.B.forEach(b => {
   const mk = (g: boolean): Vals => {
     const actual = g ? b[5] : b[6], po = g ? b[7] : b[15];
@@ -58,7 +83,6 @@ const ST_LBL: Record<string, string> = { healthy: "Healthy (<80%)", watch: "Watc
 const NAVY = "#14213D", TEAL = "#0E7490", GOLD = "#B8893C", GREEN = "#1BAF7A", RED = "#c0392b", AMBER = "#EDA100", VIOLET = "#6b4fa0";
 
 /* ---- filters shared with the Cost page banner ---- */
-export interface NpFilter { depts: (number | string)[]; plants: (number | string)[]; roots: (number | string)[]; bhs: (number | string)[]; q: string }
 const HAY = (() => {   // search text per WBS: code + descriptions + vendors
   const m = new Map<number, string>();
   WB.forEach(w => m.set(w.w, `${NP.WBS[w.w]} ${NP.WDESC[w.wdesc] ?? ""} ${NP.BH[w.bh] ?? ""}`.toLowerCase()));
@@ -66,7 +90,7 @@ const HAY = (() => {   // search text per WBS: code + descriptions + vendors
   return m;
 })();
 /** WBS indices that satisfy the banner filters — budget, actual and PO views all follow this one set. */
-export const npScope = (f: NpFilter): Set<number> => {
+const npScope = (f: NpFilter): Set<number> => {
   const q = f.q.trim().toLowerCase();
   const out = new Set<number>();
   WB.forEach(w => {
@@ -81,7 +105,7 @@ export const npScope = (f: NpFilter): Set<number> => {
 };
 
 /** Cascading filters: for each filter, the values that still exist once the OTHER filters are applied. */
-export const npAvail = (f: NpFilter) => {
+const npAvail = (f: NpFilter) => {
   const a = { depts: new Set<number>(), plants: new Set<number>(), roots: new Set<number>(), bhs: new Set<number>() };
   const q = f.q.trim().toLowerCase();
   WB.forEach(w => {
@@ -111,14 +135,12 @@ const EPOCH = Date.UTC(2022, 0, 1);
 const dLbl = (d: number) => d >= 0 ? new Date(EPOCH + d * 86400000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const ymOf = (d: number) => { const t = new Date(EPOCH + d * 86400000); return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`; };
 const ymLbl = (k: string) => k === "0000" ? "Prior" : new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-const FY_START = "2026-04";
+const FY_START = cfg.fyStart;
 const fyKey = (d: number) => { const k = ymOf(d); return k < FY_START ? "0000" : k; };   // anything before the FY collapses into "Prior"
 const pctOf = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
 
 /* ---- drill chips: WBS-level dims act on budget + actuals + POs, PO-level dims only on PO lines ---- */
-export type NpDim = "wbs" | "vend" | "pgrp" | "plant" | "gl" | "comp" | "root" | "mon" | "dtyp" | "bh" | "status";
-export interface NpChip { dim: NpDim; val: number | string; label: string }
-const DIMN: Record<NpDim, string> = { wbs: "WBS", vend: "Vendor", pgrp: "Department", plant: "Plant", gl: "GL", comp: "Company code", root: "Company", mon: "Month", dtyp: "Doc type", bh: "Cost head", status: "Status" };
+const DIMN: Record<NpDim, string> = { wbs: "WBS", vend: "Vendor", pgrp: "Department", plant: "Plant", gl: "GL", comp: "Company code", root: "Company", mon: "Month", dtyp: "Doc type", bh: "Cost head", status: "Status", ...cfg.dimNames };
 const WBS_DIMS: NpDim[] = ["wbs", "pgrp", "plant", "root", "bh", "status"];
 const wbsMatches = (w: Wb, ch: NpChip, gi: 0 | 1): boolean => {
   switch (ch.dim) {
@@ -366,9 +388,9 @@ function NpDrillDrawer({ seed, baseRows, scope, gst, onClose, onAddChip }: {
             <div style={{ background: NAVY, padding: "14px 18px", borderBottom: "3px solid var(--gold)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>NON-PROJECT DRILL · {gst ? "WITH GST" : "EXCL GST"} · {fN(wbsList.length)} WBS</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>{cfg.drillTag} · {gst ? "WITH GST" : "EXCL GST"} · {fN(wbsList.length)} WBS</div>
                   <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", marginTop: 2 }}>
-                    {chips.length ? chips[chips.length - 1].label : "All non-project"}
+                    {chips.length ? chips[chips.length - 1].label : cfg.allLabel}
                   </div>
                 </div>
                 <button onClick={onClose} aria-label="Close"
@@ -383,7 +405,7 @@ function NpDrillDrawer({ seed, baseRows, scope, gst, onClose, onAddChip }: {
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
-              {mon ? (
+              {mon ? (!cfg.hasPostings ? null :
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
                   <Tile l="Actual PO (month)" v={fMoney(actPO)} c={TEAL} />
                   <Tile l="Actual non-PO (month)" v={fMoney(actNP)} c={VIOLET} />
@@ -434,10 +456,10 @@ function NpDrillDrawer({ seed, baseRows, scope, gst, onClose, onAddChip }: {
                   </div>
                 </div>
               )}
-              {!mon && !has("pgrp") && <div style={CARD}><h3 style={H3}>Actual cost by department</h3><div style={CAP}>PO + non-PO · click → add filter</div><Bars items={aggW(w => w.pgrp, NP.PGRP, v => v.actual)} dim="pgrp" /></div>}
-              {!mon && !has("bh") && <div style={CARD}><h3 style={H3}>Actual cost by cost head</h3><div style={CAP}>click → add filter</div><Bars items={aggW(w => w.bh, NP.BH, v => v.actual)} dim="bh" /></div>}
+              {!mon && !has("pgrp") && <div style={CARD}><h3 style={H3}>Actual cost by {DIMN.pgrp.toLowerCase()}</h3><div style={CAP}>PO + non-PO · click → add filter</div><Bars items={aggW(w => w.pgrp, NP.PGRP, v => v.actual)} dim="pgrp" /></div>}
+              {!mon && !has("bh") && <div style={CARD}><h3 style={H3}>Actual cost by {DIMN.bh.toLowerCase()}</h3><div style={CAP}>click → add filter</div><Bars items={aggW(w => w.bh, NP.BH, v => v.actual)} dim="bh" /></div>}
               {!has("vend") && rows.length > 0 && <div style={CARD}><h3 style={H3}>Top vendors</h3><div style={CAP}>PO ordered value · click → add filter</div><Bars items={agg(r => r.vend, NP.VEND)} dim="vend" /></div>}
-              {!has("gl") && rows.length > 0 && <div style={CARD}><h3 style={H3}>PO by GL</h3><div style={CAP}>click → add filter</div><Bars items={agg(r => r.gl, NP.GL)} dim="gl" /></div>}
+              {!has(cfg.poDim) && rows.length > 0 && <div style={CARD}><h3 style={H3}>PO by {DIMN[cfg.poDim]}</h3><div style={CAP}>PO ordered value · click → add filter</div><Bars items={agg(r => r[cfg.poDim], cfg.poDim === "gl" ? NP.GL : NP.DTYP)} dim={cfg.poDim} /></div>}
               <div style={CARD}>
                 <h3 style={H3}>PO lines</h3>
                 <div style={CAP}>top {Math.min(poLines.length, 200)} of {fN(rows.length)} by ordered value</div>
@@ -478,7 +500,7 @@ const sumV = (list: Wb[], gi: 0 | 1): Vals => list.reduce((s, w) => {
   return { budget: s.budget + v.budget, assigned: s.assigned + v.assigned, actual: s.actual + v.actual, commit: s.commit + v.commit, avail: s.avail + v.avail, po: s.po + v.po, nonpo: s.nonpo + v.nonpo };
 }, { ...ZERO });
 
-export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set<number>; gst: boolean }) {
+function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set<number>; gst: boolean }) {
   const gi: 0 | 1 = gst ? 1 : 0;
   const [drill, setDrill] = useState<{ chips: NpChip[] } | null>(null);
   const open = (chips: NpChip[]) => setDrill({ chips });
@@ -515,6 +537,8 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
     const m = new Map<string, { po: number; np: number; cm: number }>();
     const g = (k: string) => { if (!m.has(k)) m.set(k, { po: 0, np: 0, cm: 0 }); return m.get(k)!; };
     NP.A.forEach(a => { if (!scope.has(a[0])) return; const e = g(fyKey(a[1])); const v = gst ? a[3] : a[4]; if (a[2]) e.po += v; else e.np += v; });
+    // no posting file (projects): delivered PO value by PO month stands in for actual PO
+    if (!cfg.hasPostings) rows.forEach(r => { if (r.day >= 0) g(fyKey(r.day)).po += vDel(r); });
     rows.forEach(r => { if (r.day < 0) return; const s = vStill(r); if (s > 0) g(fyKey(r.day)).cm += s; });
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [scope, rows, gst]);
@@ -656,7 +680,7 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
       {/* ── Row 2 · PO vs non-PO actual and PO position ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
         <KPI k="Actual — PO" v={fMoney(T.po)} s={`${pctOf(T.po, T.actual).toFixed(0)}% · goods receipts against POs`} col={TEAL} onClick={() => open([])} />
-        <KPI k="Actual — Non-PO" v={fMoney(T.nonpo)} s={`${pctOf(T.nonpo, T.actual).toFixed(0)}% · salaries, fees, reimbursements`} col={VIOLET} onClick={() => open([])} />
+        <KPI k="Actual — Non-PO" v={fMoney(T.nonpo)} s={`${pctOf(T.nonpo, T.actual).toFixed(0)}% · ${cfg.nonPoNote}`} col={VIOLET} onClick={() => open([])} />
         <KPI k={`PO ordered ${gst ? "(with GST)" : "(excl GST)"}`} v={fMoney(ord)} s={`${fN(pos)} POs · ${fN(rows.length)} lines`} col={NAVY} onClick={() => open([])} />
         <KPI k="Delivered" v={fMoney(del)} s={`${ord > 0 ? ((del / ord) * 100).toFixed(1) : "—"}% of ordered`} col={GOLD} onClick={() => open([])} />
         <KPI k="Still to deliver" v={fMoney(still)} s="open PO value" col={AMBER} onClick={() => open([])} />
@@ -694,9 +718,12 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
         </Zoomable>
         <Zoomable title="Budget vs actual and commitment trend" collapsible>
           <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
-            <h3 style={H3}>Actual &amp; Commitment Trend</h3>
+            <h3 style={H3}>{cfg.hasPostings ? "Actual & Commitment Trend" : "Delivered & Commitment Trend"}</h3>
             <div style={CAP}>
-              <span style={{ color: TEAL, fontWeight: 800 }}>■</span> actual PO · <span style={{ color: VIOLET, fontWeight: 800 }}>■</span> actual non-PO (posting month) · <span style={{ color: AMBER, fontWeight: 800 }}>■</span> open commitment (PO month) · <span style={{ color: NAVY, fontWeight: 800 }}>━</span> cumulative (right axis) · click a month → drill
+              {cfg.hasPostings
+                ? <><span style={{ color: TEAL, fontWeight: 800 }}>■</span> actual PO · <span style={{ color: VIOLET, fontWeight: 800 }}>■</span> actual non-PO (posting month) · </>
+                : <><span style={{ color: TEAL, fontWeight: 800 }}>■</span> delivered against POs (PO month) · </>}
+              <span style={{ color: AMBER, fontWeight: 800 }}>■</span> open commitment (PO month) · <span style={{ color: NAVY, fontWeight: 800 }}>━</span> cumulative (right axis) · click a month → drill
             </div>
             <BudgetTrendChart data={bTrend} onMonth={(k, l) => open([{ dim: "mon", val: k, label: l }])} />
           </div>
@@ -705,8 +732,8 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
 
       {/* ── Company-wise · cost-head-wise ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <GroupTable title="Company-wise Budget Overview" sub={`(${gst ? "with GST" : "excl GST"})`} label="Company" data={byCompany} dim="root" cardTitle="Company wise budget overview" />
-        <GroupTable title="Cost Head-wise Analysis" sub={`(${gst ? "with GST" : "excl GST"})`} label="Cost Head" data={byCostHead} dim="bh" cardTitle="Cost head wise analysis" />
+        <GroupTable title={`${DIMN.root}-wise Budget Overview`} sub={`(${gst ? "with GST" : "excl GST"})`} label={DIMN.root} data={byCompany} dim="root" cardTitle={`${DIMN.root} wise budget overview`} />
+        <GroupTable title={`${DIMN.bh}-wise Analysis`} sub={`(${gst ? "with GST" : "excl GST"})`} label={DIMN.bh} data={byCostHead} dim="bh" cardTitle={`${DIMN.bh} wise analysis`} />
       </div>
 
       {/* ── Budget health donut + Top 10 WBS by utilization ── */}
@@ -778,9 +805,9 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
 
       {/* ── Department: non-PO actual · PO ordered vs delivered ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <Zoomable title="Non-PO actual by department" collapsible>
+        <Zoomable title={`Non-PO actual by ${DIMN.pgrp.toLowerCase()}`} collapsible>
           <div style={{ ...CARD, height: "100%", marginBottom: 0, display: "flex", flexDirection: "column" }}>
-            <h3 style={H3}>Non-PO Actual — by Department</h3>
+            <h3 style={H3}>Non-PO Actual — by {DIMN.pgrp}</h3>
             <div style={CAP}>postings other than PO goods receipts · red = net credit · click → drill</div>
             <div style={{ flex: 1, minHeight: 0, maxHeight: 320, overflowY: "auto", paddingRight: 6 }}>
               {depNP.map(d => (
@@ -800,7 +827,7 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
             </div>
           </div>
         </Zoomable>
-        <BarPair cardTitle="Ordered by department" title="Ordered vs Delivered — by Department" cap="navy = ordered · teal = delivered · click → drill" data={byDept} names={NP.PGRP} dim="pgrp" />
+        <BarPair cardTitle={`Ordered by ${DIMN.pgrp.toLowerCase()}`} title={`Ordered vs Delivered — by ${DIMN.pgrp}`} cap="navy = ordered · teal = delivered · click → drill" data={byDept} names={NP.PGRP} dim="pgrp" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
@@ -811,14 +838,14 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
             <MonthlyTrendChart data={trend} onMonth={(k, l) => open([{ dim: "mon", val: k, label: l }])} />
           </div>
         </Zoomable>
-        <BarPair cardTitle="Top vendors nonproject" title="Top Vendors" cap={`top 60 of ${fN(byVend.length)} · click → drill`} data={byVend} names={NP.VEND} dim="vend" />
+        <BarPair cardTitle="Top vendors" title="Top Vendors" cap={`top 60 of ${fN(byVend.length)} · click → drill`} data={byVend} names={NP.VEND} dim="vend" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <BarPair cardTitle="Ordered by company" title="PO Ordered by Company" cap="click → drill" data={byRoot} names={NP.ROOT} dim="root" />
+        <BarPair cardTitle={`Ordered by ${DIMN.root.toLowerCase()}`} title={`PO Ordered by ${DIMN.root}`} cap="click → drill" data={byRoot} names={NP.ROOT} dim="root" />
       </div>
 
-      <Zoomable title="WBS wise nonproject table" collapsible>
+      <Zoomable title="WBS wise table" collapsible>
         <div style={CARD}>
           <h3 style={H3}>WBS-wise Summary</h3>
           <div style={CAP}>{fN(tblWbs.length)} WBS in scope{tblWbs.length > 400 ? " · top 400 by utilized shown" : ""} · click a row → drill</div>
@@ -869,3 +896,17 @@ export function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set
     </>
   );
 }
+
+  return { NP, NP_ROWS, WB, npScope, npAvail, View: NonProjectView, cfg };
+}
+
+/* ---- the Non-Project FY tab ---- */
+export const NPM = createCostModule(npRaw as unknown as NpDataset, {
+  fyStart: "2026-04",
+  dimNames: {},
+  drillTag: "NON-PROJECT DRILL", allLabel: "All non-project",
+  nonPoNote: "salaries, fees, reimbursements",
+  hasPostings: true, poDim: "gl",
+});
+export const { NP, NP_ROWS, npScope, npAvail } = NPM;
+export const NonProjectView = NPM.View;
