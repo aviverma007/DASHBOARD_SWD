@@ -1,13 +1,12 @@
-/** Native-style phone sign-in. Same auth rules as the desktop login (findUser → authStore.login). */
+/** Native-style phone sign-in. Same login service as the desktop login (signInWithPassword → signIn). */
 import { useState } from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { findUser } from "../config/users";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore, signInWithPassword } from "../store/authStore";
 import { IDLE_LOGOUT_FLAG } from "../hooks/useIdleLogout";
 import "./mobile-ui.css";
 
 export function MobileLogin() {
-  const login = useAuthStore(s => s.login);
+  const signIn = useAuthStore(s => s.signIn);
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
@@ -19,16 +18,20 @@ export function MobileLogin() {
     return f;
   });
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: typeof err = {};
     if (!id.trim()) next.id = "Enter your user ID";
     if (!pw) next.pw = "Enter your password";
     if (next.id || next.pw) { setErr(next); return; }
-    const u = findUser(id, pw);
-    if (!u) { setErr({ form: "Invalid user ID or password. Please try again." }); return; }
     setErr({}); setBusy(true);
-    setTimeout(() => login(u.displayName, u.access, u.role), 700);
+    try {
+      const s = await signInWithPassword(id, pw);
+      setTimeout(() => signIn(s.token, s.user), 400);
+    } catch (e2) {
+      setBusy(false);
+      setErr({ form: e2 instanceof Error ? e2.message : "Sign-in failed. Please try again." });
+    }
   };
 
   return (

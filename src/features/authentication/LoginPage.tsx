@@ -3,19 +3,18 @@ import { LoginBuddy } from "../../components/common/LoginBuddy";
 import { CursorTrail } from "../../components/common/CursorTrail";
 import { LoginShowcase } from "./LoginShowcase";
 import AnimatedGradient from "../../components/ui/animated-gradient";
-import { findUser } from "../../config/users";
 import { IDLE_LOGOUT_FLAG } from "../../hooks/useIdleLogout";
 
 /** Apartment-building cursor (navy tower, gold windows) shown across
  * the whole login screen. Hotspot near the building base. */
 const APARTMENT_CURSOR = `url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2230%22%20height%3D%2230%22%20viewBox%3D%220%200%2030%2030%22%3E%3Cg%3E%3Crect%20x%3D%227%22%20y%3D%224%22%20width%3D%2213%22%20height%3D%2224%22%20rx%3D%221.5%22%20fill%3D%22%231E3163%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.4%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2212%22%20width%3D%227%22%20height%3D%2216%22%20rx%3D%221%22%20fill%3D%22%232A4488%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.2%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%227%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%227%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%229.5%22%20y%3D%2217%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%2214.5%22%20y%3D%2217%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2221.5%22%20y%3D%2215%22%20width%3D%222.5%22%20height%3D%222.5%22%20fill%3D%22%23F5D9A8%22/%3E%3Crect%20x%3D%2221.5%22%20y%3D%2219%22%20width%3D%222.5%22%20height%3D%222.5%22%20fill%3D%22%23B8893C%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2223%22%20width%3D%224%22%20height%3D%225%22%20fill%3D%22%23B8893C%22/%3E%3C/g%3E%3C/svg%3E") 8 26, auto`;
 import { Lock, ArrowRight } from "lucide-react";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore, signInWithPassword } from "../../store/authStore";
 
-// Hardcoded credentials — replace with a real auth backend when ready
+// Credentials are checked by the login service (VendorGlobe API · dash_auth.py)
 
 export function LoginPage() {
-  const login = useAuthStore((s) => s.login);
+  const signIn = useAuthStore((s) => s.signIn);
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,21 +28,23 @@ export function LoginPage() {
     return flag;
   });
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
-    const user = findUser(userId, password);
-    if (!user) {
-      setError("Invalid user ID or password. Please try again.");
+    if (!userId.trim() || !password) { setError("Enter your user ID and password."); return; }
+    setLoading(true);
+    let session;
+    try {
+      session = await signInWithPassword(userId, password);
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
       return;
     }
-
-    setLoading(true);
     setLoginSuccess(true); // buddy gives a thumbs-up…
     // …and holds it for a beat before the app takes over
     setTimeout(() => {
-      login(user.displayName, user.access, user.role);
+      signIn(session.token, session.user);
       setLoading(false);
     }, 1000);
   }

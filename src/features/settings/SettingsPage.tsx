@@ -1,17 +1,22 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
+import { UserRightsPanel } from "./UserRightsPanel";
 
 /**
- * Settings page — two actions:
- * 1. Change Password → navigates to /change-password within the same app
- * 2. Logout → inline confirmation popup, then signs out
+ * Settings page.
+ * Account tab: Change password · Log out (inline confirmation).
+ * User rights tab (admins only): create IDs, choose tabs per ID, reset passwords.
  */
 export function SettingsPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const logout = useAuthStore((s) => s.logout);
   const userLabel = useAuthStore((s) => s.userLabel);
+  const isAdmin = useAuthStore((s) => s.role) === "admin";
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = isAdmin && params.get("tab") === "users" ? "users" : "account";
+  const pick = (t: "account" | "users") => setParams(t === "users" ? { tab: "users" } : {}, { replace: true });
 
   function handleLogout() {
     logout();
@@ -21,7 +26,7 @@ export function SettingsPage() {
   return (
     <div
       style={{
-        maxWidth: 540,
+        maxWidth: tab === "users" ? 1180 : 540,
         margin: "48px auto",
         padding: "0 20px",
         fontFamily: "inherit",
@@ -47,7 +52,21 @@ export function SettingsPage() {
         )}
       </div>
 
-      {/* Options */}
+      {isAdmin && (
+        <div role="tablist" aria-label="Settings sections" style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #e4e0d6" }}>
+          {([["account", "Account"], ["users", "User rights"]] as const).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={tab === k} onClick={() => pick(k)}
+              style={{
+                padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                fontSize: 14, fontWeight: tab === k ? 700 : 500, color: tab === k ? "#14213d" : "#8a8f9e",
+                borderBottom: `2.5px solid ${tab === k ? "#B8893C" : "transparent"}`, marginBottom: -1,
+              }}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      {tab === "users" ? <UserRightsPanel /> : (
+      /* Options */
       <div
         style={{
           background: "#fff",
@@ -144,6 +163,8 @@ export function SettingsPage() {
           <span style={{ fontSize: 18, color: "#c0bbb0" }}>›</span>
         </button>
       </div>
+
+)}
 
       {/* Logout confirmation popup */}
       {showLogoutConfirm && (

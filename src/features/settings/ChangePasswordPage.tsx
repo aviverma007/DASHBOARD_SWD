@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
+import { authApi } from "../../services/authApi";
 
 /**
  * Change Password — rendered inside the app shell (same tab, same layout).
- * DEMO ONLY: no backend, no real password change.
+ * Saved by the login service. After an admin reset, the user lands here
+ * first and can't open anything else until a new password is set.
  */
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -13,14 +16,29 @@ export function ChangePasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const token = useAuthStore((s) => s.token);
+  const mustChange = useAuthStore((s) => s.mustChange);
+  const setUser = useAuthStore((s) => s.setUser);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!current) { setError("Please enter your current password."); return; }
+    if (!current) { setError("Enter your current password."); return; }
     if (next.length < 6) { setError("New password must be at least 6 characters."); return; }
-    if (next !== confirm) { setError("Passwords do not match."); return; }
-    setDone(true);
+    if (next !== confirm) { setError("The two new passwords don't match."); return; }
+    if (!token) { setError("Your session has ended. Sign in again."); return; }
+    setSaving(true);
+    try {
+      await authApi.changePassword(token, current, next);
+      const me = await authApi.me(token);
+      setUser(me.user);            // clears the "must change" lock
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't change the password. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -38,8 +56,8 @@ export function ChangePasswordPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: "40px auto", padding: "0 20px", fontFamily: "inherit" }}>
-      {/* Back button */}
-      <button
+      {/* Back button (hidden while a reset password must be replaced) */}
+      {!mustChange && <button
         onClick={() => navigate("/settings")}
         style={{
           display: "flex",
@@ -59,7 +77,7 @@ export function ChangePasswordPage() {
       >
         <ArrowLeft size={16} />
         Back to Settings
-      </button>
+      </button>}
 
       {/* Card */}
       <div
@@ -83,8 +101,10 @@ export function ChangePasswordPage() {
           >
             Change password
           </div>
-          <div style={{ fontSize: 13, color: "#8a8f9e" }}>
-            Update your account password below.
+          <div style={{ fontSize: 13, color: mustChange ? "#b3362c" : "#8a8f9e", fontWeight: mustChange ? 600 : 400 }}>
+            {mustChange
+              ? "Your password was reset by the admin. Set a new one to continue — use the temporary password as the current password."
+              : "Update your account password below."}
           </div>
         </div>
 
@@ -106,7 +126,7 @@ export function ChangePasswordPage() {
               Your password has been changed successfully.
             </div>
             <button
-              onClick={() => navigate("/settings")}
+              onClick={() => navigate("/")}
               style={{
                 padding: "11px 28px",
                 borderRadius: 9,
@@ -119,7 +139,7 @@ export function ChangePasswordPage() {
                 fontFamily: "inherit",
               }}
             >
-              Back to Settings
+              Go to Home
             </button>
           </div>
         ) : (
@@ -204,7 +224,7 @@ export function ChangePasswordPage() {
               onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#B8893C")}
               onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#1E3163")}
             >
-              Update password
+              {saving ? "Saving…" : "Update password"}
             </button>
           </form>
         )}
