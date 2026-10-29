@@ -5,8 +5,8 @@ import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
 import {
-  PROJECTS, LINKED, UNLINKED, AS_ON, PH4_SHARE_PCT, TIE_OUT, measure, pnl, monthly, sumOf,
-  type Bucket, type ProjKey,
+  PROJECTS, LINKED, UNLINKED, AS_ON, PH4_SHARE_PCT, TIE_OUT, ALL_MONTHS, view, pnl, sumOf,
+  type Bucket, type ProjKey, type Period, type ViewOpts,
 } from "./pnlData";
 
 /* ---------------- house styles (same as Cost / SAP Collection) ---------------- */
@@ -174,28 +174,31 @@ function TrendChart({ data, onMonth }: { data: [string, { sales: number; spend: 
 }
 
 /* ---------------- drill drawer ---------------- */
-function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
-  seed: Drill | null; scope: Bucket[]; gst: boolean; onClose: () => void; onAdd: (d: Drill) => void; onPop: (k: keyof Drill) => void;
+function PnlDrawer({ seed, scope, opts, perLbl, onClose, onAdd, onPop }: {
+  seed: Drill | null; scope: Bucket[]; opts: ViewOpts; perLbl: string; onClose: () => void; onAdd: (d: Drill) => void; onPop: (k: keyof Drill) => void;
 }) {
+  const gst = opts.gst;
   const [wbsOpen, setWbsOpen] = useState<string | null>(null);
   useEffect(() => setWbsOpen(null), [seed]);
-  const bs = seed?.proj ? LINKED.filter(b => b.key === seed.proj) : scope;
+  const pk = seed?.proj;
+  const bs = useMemo(() => (pk ? LINKED.filter(b => b.key === pk) : scope), [pk, scope]);
   const head = seed?.head, ym = seed?.ym;
-  const m = useMemo(() => measure(bs), [bs]);
-  const p = pnl(m, gst);
-  const cost = bs.flatMap(b => b.cost).filter(c => !head || c.head === head);
-  const po = bs.flatMap(b => b.po).filter(l => (!head || l.head === head) && (!ym || (l.day >= 0 && ymKey(l.day) === ym)));
-  const bookings = bs.flatMap(b => b.bookings).filter(b => !ym || b.ym === ym);
+  const v = useMemo(() => view(bs, opts), [bs, opts]);
+  const asAt = useMemo(() => view(bs, { gst: opts.gst, period: null }).m, [bs, opts.gst]);
+  const m = v.m, p = pnl(m, asAt);
+  const cost = v.cost.filter(c => !head || c.head === head);
+  const po = v.po.filter(l => (!head || l.head === head) && (!ym || l.ym === ym));
+  const bookings = v.bookings.filter(b => !ym || b.ym === ym);
   const byKey = <T,>(rows: T[], k: (r: T) => string, v: (r: T) => number) => {
     const mm = new Map<string, number>(); rows.forEach(r => mm.set(k(r), (mm.get(k(r)) ?? 0) + v(r)));
     return [...mm.entries()].map(([kk, vv]) => ({ k: kk, label: kk, v: vv })).filter(x => Math.abs(x.v) >= 1).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
   };
   const towers = (() => {
     const t = new Map<string, { n: number; tsv: number; rec: number; due: number }>();
-    bookings.forEach(b => { const e = t.get(b.tower) ?? { n: 0, tsv: 0, rec: 0, due: 0 }; e.n++; e.tsv += b.tsv; e.rec += gst ? b.recIn : b.recEx; e.due += b.due; t.set(b.tower, e); });
+    bookings.forEach(b => { const e = t.get(b.tower) ?? { n: 0, tsv: 0, rec: 0, due: 0 }; e.n++; e.tsv += b.tsv; e.rec += b.rec; e.due += b.due; t.set(b.tower, e); });
     return [...t.entries()].sort((a, b) => b[1].tsv - a[1].tsv);
   })();
-  const wbs = [...cost].sort((a, b) => Math.abs(b.actual) - Math.abs(a.actual)).slice(0, 60);
+  const wbs = [...cost].sort((a, b) => Math.abs(b.actualV) - Math.abs(a.actualV)).slice(0, 60);
   const title = seed?.proj ? PROJECTS.find(x => x.key === seed.proj)!.name : bs.length === LINKED.length ? "All projects" : `${bs.length} projects`;
   const chips: [keyof Drill, string][] = [];
   if (seed?.proj) chips.push(["proj", `Project: ${title}`]);
@@ -221,7 +224,7 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
             <div style={{ background: NAVY, padding: "14px 18px", borderBottom: "3px solid var(--gold)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>PROFIT VS LOSS DRILL · COLLECTION {gst ? "WITH" : "W/O"} GST</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.5px", color: "#c9b27c" }}>PROFIT VS LOSS DRILL · {gst ? "WITH" : "W/O"} GST · {perLbl.toUpperCase()}</div>
                   <div style={{ fontFamily: "Georgia,serif", fontSize: 18, fontWeight: 700, color: "#fff", marginTop: 2 }}>{head ?? (ym ? ymLbl(ym) : title)}</div>
                 </div>
                 <button onClick={onClose} aria-label="Close" style={{ background: "rgba(255,255,255,.12)", border: "none", color: "#fff", width: 32, height: 32, borderRadius: 8, fontSize: 15, cursor: "pointer" }}>✕</button>
@@ -241,30 +244,30 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
                   <Tile l={`Collection ${gst ? "(with GST)" : "(W/O GST)"}`} v={fCr(p.collection)} c={TEAL} s={`${fN(m.units)} units sold`} />
                   <Tile l="Expenditure" v={fCr(m.actual)} c={AMBER} s={`project ${fCr(m.projActual)} + non-project ${fCr(m.npActual)}`} />
                   <Tile l="Surplus / deficit" v={fCr(p.surplus)} c={p.surplus >= 0 ? GREEN : RED} />
-                  <Tile l="Approved budget" v={fCr(m.budget)} c={NAVY} s={`${fPct(p.spendPct)} spent`} />
-                  <Tile l="Open commitment" v={fCr(m.commit)} c={GOLD} s="ordered, not yet booked" />
+                  <Tile l="Approved budget" v={fCr(m.budget)} c={NAVY} s={`${fPct(p.spendPct)} spent as on today`} />
+                  <Tile l="Open commitment" v={fCr(m.commit)} c={GOLD} s={opts.period ? "open POs dated in the period" : "ordered, not yet booked"} />
                   <Tile l="Est. margin on sales" v={fPct(p.marginPct)} c={p.margin >= 0 ? GREEN : RED} s={fCr(p.margin)} />
                 </div>
               )}
               {head && (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
-                  <Tile l="Budget" v={fCr(sumOf(cost, "budget"))} c={NAVY} s={`${fN(cost.length)} WBS`} />
-                  <Tile l="Actual" v={fCr(sumOf(cost, "actual"))} c={AMBER} />
-                  <Tile l="Commitment" v={fCr(sumOf(cost, "commit"))} c={GOLD} />
+                  <Tile l="Budget" v={fCr(sumOf(cost, "budgetV"))} c={NAVY} s={`${fN(cost.length)} WBS · as on today`} />
+                  <Tile l="Actual" v={fCr(sumOf(cost, "actualV"))} c={AMBER} s={perLbl} />
+                  <Tile l="Commitment" v={fCr(sumOf(cost, "commitV"))} c={GOLD} s={perLbl} />
                 </div>
               )}
               {ym && (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
                   <Tile l="Sales booked" v={fCr(sumOf(bookings, "tsv"))} c={BLUE} s={`${fN(bookings.length)} bookings`} />
                   <Tile l="Delivered on POs" v={fCr(sumOf(po, "delivered"))} c={AMBER} s={`${fN(po.length)} PO lines dated this month`} />
-                  <Tile l="Collected so far" v={fCr(bookings.reduce((s, b) => s + (gst ? b.recIn : b.recEx), 0))} c={TEAL} s="on these bookings, to date" />
+                  <Tile l="Collected so far" v={fCr(sumOf(bookings, "rec"))} c={TEAL} s="on these bookings, to date" />
                 </div>
               )}
 
               {!head && towers.length > 0 && (
                 <div style={CARD}>
                   <h3 style={H3}>Revenue by tower</h3>
-                  <div style={CAP}>active bookings{ym ? ` made in ${ymLbl(ym)}` : ""}</div>
+                  <div style={CAP}>active bookings made {ym ? `in ${ymLbl(ym)}` : perLbl.toLowerCase()} · collected to date</div>
                   <div style={{ maxHeight: 260, overflow: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                       <thead><tr>{th("Tower", true)}{th("Units")}{th("Sales value")}{th("Collected")}{th("Due")}</tr></thead>
@@ -276,17 +279,17 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
                 </div>
               )}
               {!head && !ym && (
-                <div style={CARD}><h3 style={H3}>Cost by expense head</h3><div style={CAP}>project actual · click → drill into the head</div>
-                  <div style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}><Bars items={byKey(cost, c => c.head, c => c.actual).slice(0, 25)} onPick={k => onAdd({ head: k })} color={AMBER} /></div></div>
+                <div style={CARD}><h3 style={H3}>Cost by expense head</h3><div style={CAP}>project actual · {perLbl.toLowerCase()} · click → drill into the head</div>
+                  <div style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}><Bars items={byKey(cost, c => c.head, c => c.actualV).slice(0, 25)} onPick={k => onAdd({ head: k })} color={AMBER} /></div></div>
               )}
               {!ym && (
                 <div style={CARD}><h3 style={H3}>Cost by segment</h3><div style={CAP}>project actual{head ? ` · ${head}` : ""}</div>
-                  <Bars items={byKey(cost, c => c.segment, c => c.actual).slice(0, 12)} color={NAVY} /></div>
+                  <Bars items={byKey(cost, c => c.segment, c => c.actualV).slice(0, 12)} color={NAVY} /></div>
               )}
               {!ym && wbs.length > 0 && (
                 <div style={CARD}>
                   <h3 style={H3}>WBS elements</h3>
-                  <div style={CAP}>top {wbs.length} of {fN(cost.length)} by actual · click a row for its PO lines{bs.some(b => b.key === "onedxp2") ? ` · One DXP PH4 common work carried at ${PH4_SHARE_PCT.toFixed(1)}%` : ""}</div>
+                  <div style={CAP}>top {wbs.length} of {fN(cost.length)} by actual ({perLbl}) · % spent is as on today · click a row for its PO lines{bs.some(b => b.key === "onedxp2") ? ` · One DXP PH4 common work carried at ${PH4_SHARE_PCT.toFixed(1)}%` : ""}</div>
                   <div style={{ maxHeight: 340, overflow: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 600 }}>
                       <thead><tr>{th("WBS", true)}{th("Head", true)}{th("Budget")}{th("Actual")}{th("Commit")}{th("% spent")}</tr></thead>
@@ -295,14 +298,14 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
                           <tr onClick={() => setWbsOpen(o => (o === c.wbs ? null : c.wbs))} style={{ cursor: "pointer", background: wbsOpen === c.wbs ? "#faf8f2" : undefined }}>
                             <td style={{ ...TD, textAlign: "left", fontWeight: 700 }} title={c.desc}>{c.wbs}{c.share < 1 ? <span style={{ color: GOLD, fontWeight: 600 }}> ({(c.share * 100).toFixed(0)}%)</span> : null}</td>
                             <td style={{ ...TD, textAlign: "left", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{c.head}</td>
-                            <td style={TD}>{fMoney(c.budget)}</td><td style={{ ...TD, fontWeight: 700 }}>{fMoney(c.actual)}</td>
-                            <td style={{ ...TD, color: AMBER }}>{fMoney(c.commit)}</td>
+                            <td style={TD}>{fMoney(c.budgetV)}</td><td style={{ ...TD, fontWeight: 700 }}>{fMoney(c.actualV)}</td>
+                            <td style={{ ...TD, color: AMBER }}>{fMoney(c.commitV)}</td>
                             <td style={{ ...TD, color: c.budget > 0 && c.actual + c.commit > c.budget ? RED : "var(--mut)" }}>{c.budget > 0 ? fPct(((c.actual + c.commit) / c.budget) * 100, 0) : "—"}</td>
                           </tr>
                           {wbsOpen === c.wbs && (
                             <tr><td colSpan={6} style={{ padding: "4px 10px 10px", background: "#faf8f2" }}>
                               {(() => {
-                                const lines = bs.flatMap(b => b.po).filter(l => l.wbs === c.wbs).sort((a, b) => b.ordered - a.ordered).slice(0, 30);
+                                const lines = v.po.filter(l => l.wbs === c.wbs).sort((a, b) => b.ordered - a.ordered).slice(0, 30);
                                 return lines.length ? (
                                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                                     <thead><tr>{th("PO", true)}{th("Vendor", true)}{th("Date", true)}{th("Ordered")}{th("Delivered")}</tr></thead>
@@ -335,7 +338,7 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
                       <tbody>{[...bookings].sort((a, b) => b.tsv - a.tsv).slice(0, 100).map((b, i) => (
                         <tr key={i}><td style={{ ...TD, textAlign: "left", fontWeight: 700 }}>{b.unit}</td><td style={{ ...TD, textAlign: "left", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{b.customer}</td>
                           <td style={{ ...TD, textAlign: "left", color: "var(--mut)" }}>{b.ym ? ymLbl(b.ym) : "—"}</td><td style={TD}>{fMoney(b.tsv)}</td>
-                          <td style={{ ...TD, color: TEAL }}>{fMoney(gst ? b.recIn : b.recEx)}</td><td style={{ ...TD, color: b.due > 0 ? RED : "var(--mut)" }}>{fMoney(b.due)}</td></tr>
+                          <td style={{ ...TD, color: TEAL }}>{fMoney(b.rec)}</td><td style={{ ...TD, color: b.due > 0 ? RED : "var(--mut)" }}>{fMoney(b.due)}</td></tr>
                       ))}</tbody>
                     </table>
                   </div>
@@ -349,52 +352,65 @@ function PnlDrawer({ seed, scope, gst, onClose, onAdd, onPop }: {
   );
 }
 const dLbl = (d: number) => new Date(Date.UTC(2022, 0, 1) + d * 86400000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
-const ymKey = (d: number) => { const t = new Date(Date.UTC(2022, 0, 1) + d * 86400000); return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`; };
 
 /* ---------------- page ---------------- */
-type Range = "12" | "24" | "all";
+type Preset = "all" | "fy" | "12" | "24" | "custom";
+const ymOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function periodOf(preset: Preset, from: string, to: string): Period | null {
+  const now = new Date(), cur = ymOf(now);
+  if (preset === "all") return null;
+  if (preset === "fy") { const y = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1; return { from: `${y}-04`, to: cur }; }
+  if (preset === "custom") return from <= to ? { from, to } : { from: to, to: from };
+  return { from: ymOf(new Date(now.getFullYear(), now.getMonth() - Number(preset) + 1, 1)), to: cur };
+}
+const SEL: React.CSSProperties = { height: 34, fontSize: 12.5, fontWeight: 600, color: "var(--ink)", background: "#fff", border: "1px solid #d8d2c4", borderRadius: 8, padding: "0 6px", fontFamily: "inherit" };
+
 export function ProfitLossPage() {
   const [sel, setSel] = useState<ProjKey[]>([]);
   const [gst, setGst] = useState(false);
-  const [range, setRange] = useState<Range>("24");
+  const [preset, setPreset] = useState<Preset>("all");
+  const [cFrom, setCFrom] = useState(() => ALL_MONTHS[Math.max(ALL_MONTHS.length - 12, 0)] ?? "2024-01");
+  const [cTo, setCTo] = useState(() => ALL_MONTHS[ALL_MONTHS.length - 1] ?? "2026-12");
   const [drill, setDrill] = useState<Drill | null>(null);
   const [showLogic, setShowLogic] = useState(false);
   const scope = useMemo(() => (sel.length ? LINKED.filter(b => sel.includes(b.key as ProjKey)) : LINKED), [sel]);
-  const m = useMemo(() => measure(scope), [scope]);
-  const p = pnl(m, gst);
+  const period = useMemo(() => periodOf(preset, cFrom, cTo), [preset, cFrom, cTo]);
+  const opts = useMemo<ViewOpts>(() => ({ gst, period }), [gst, period]);
+  const perLbl = period ? `${ymLbl(period.from)} – ${ymLbl(period.to)}` : "All time";
+  const basis = gst ? "with GST" : "W/O GST";
+  const v = useMemo(() => view(scope, opts), [scope, opts]);
+  const asAt = useMemo(() => view(scope, { gst, period: null }).m, [scope, gst]);
+  const m = v.m;
+  const p = pnl(m, asAt);
   const open = (d: Drill) => setDrill(d);
 
   const heads = useMemo(() => {
     const mm = new Map<string, number>();
-    scope.flatMap(b => b.cost).forEach(c => mm.set(c.head, (mm.get(c.head) ?? 0) + c.actual));
+    v.cost.forEach(c => mm.set(c.head, (mm.get(c.head) ?? 0) + c.actualV));
     const arr = [...mm.entries()].sort((a, b) => b[1] - a[1]);
     const top = arr.slice(0, 6).map(([k, v]) => ({ k, v }));
     const rest = arr.slice(6).reduce((s, [, v]) => s + v, 0);
     return Math.abs(rest) >= 1 ? [...top, { k: "Other", v: rest }] : top;
-  }, [scope]);
+  }, [v]);
   const npDepts = useMemo(() => {
     const mm = new Map<string, number>();
-    scope.flatMap(b => b.np).forEach(n => mm.set(n.dept, (mm.get(n.dept) ?? 0) + n.actual));
-    return [...mm.entries()].map(([k, v]) => ({ k, label: k, v })).filter(x => Math.abs(x.v) >= 1).sort((a, b) => b.v - a.v);
-  }, [scope]);
-  const series = useMemo(() => {
-    const all = monthly(scope);
-    if (range === "all") return all;
-    const now = new Date(), n = Number(range);
-    const from = new Date(Date.UTC(now.getFullYear(), now.getMonth() - n + 1, 1));
-    const fk = `${from.getUTCFullYear()}-${String(from.getUTCMonth() + 1).padStart(2, "0")}`;
-    return all.filter(([k]) => k >= fk);
-  }, [scope, range]);
-  const rows = useMemo(() => LINKED.map(b => ({ b, m: measure([b]) })).map(r => ({ ...r, p: pnl(r.m, gst) })), [gst]);
-  const unl = useMemo(() => UNLINKED.map(b => ({ b, m: measure([b]) })).filter(r => Math.abs(r.m.actual) + Math.abs(r.m.budget) >= 1), []);
+    v.np.forEach(n => mm.set(n.dept, (mm.get(n.dept) ?? 0) + n.actualV));
+    return [...mm.entries()].map(([k, x]) => ({ k, label: k, v: x })).filter(x => Math.abs(x.v) >= 1).sort((a, b) => b.v - a.v);
+  }, [v]);
+  const series = v.monthly;
+  const rows = useMemo(() => LINKED.map(b => {
+    const mm = view([b], opts).m;
+    return { b, m: mm, p: pnl(mm, view([b], { gst: opts.gst, period: null }).m) };
+  }), [opts]);
+  const unl = useMemo(() => UNLINKED.map(b => ({ b, m: view([b], opts).m })).filter(r => Math.abs(r.m.actual) + Math.abs(r.m.budget) >= 1), [opts]);
   const unlTotal = unl.reduce((s, r) => s + r.m.actual, 0);
 
   const glass: [string, string, string, [string, string], () => void][] = [
-    [`Collection ${gst ? "(with GST)" : "(W/O GST)"}`, fCr(p.collection), "received from customers, net of uncleared cheques", ["#1a7f9c", "#0e5468"], () => open({})],
-    ["Total expenditure (actual)", fCr(m.actual), `project ${fCr(m.projActual)} + non-project ${fCr(m.npActual)}`, ["#c99a3a", "#96691c"], () => open({})],
-    [p.surplus >= 0 ? "Surplus" : "Deficit", `${p.surplus >= 0 ? "▲" : "▼"} ${fCr(Math.abs(p.surplus))}`, "collection − expenditure", p.surplus >= 0 ? ["#1e9a6c", "#0f6647"] : ["#c0392b", "#7e1f14"], () => open({})],
+    [`Collection (${basis})`, fCr(p.collection), period ? "collected to date on bookings made in the period" : "received from customers, net of uncleared cheques", ["#1a7f9c", "#0e5468"], () => open({})],
+    [`Expenditure (${basis})`, fCr(m.actual), `project ${fCr(m.projActual)} + non-project ${fCr(m.npActual)}`, ["#c99a3a", "#96691c"], () => open({})],
+    [p.surplus >= 0 ? "Surplus" : "Deficit", `${p.surplus >= 0 ? "▲" : "▼"} ${fCr(Math.abs(p.surplus))}`, `collection − expenditure · ${perLbl}`, p.surplus >= 0 ? ["#1e9a6c", "#0f6647"] : ["#c0392b", "#7e1f14"], () => open({})],
     ["Est. margin on sales", fPct(p.marginPct), `${fCr(p.margin)} on ${fCr(m.tsv)} sold`, ["#1c3f6e", "#0f2547"], () => open({})],
-    ["Cost to complete", fCr(p.costToComplete), `budget ${fCr(m.budget)} − project actual`, ["#6b4fa0", "#3f2a73"], () => open({})],
+    ["Cost to complete", fCr(p.costToComplete), `as on today · budget ${fCr(asAt.budget)} − project actual`, ["#6b4fa0", "#3f2a73"], () => open({})],
   ];
   const KPI = ({ k, v, s, col, onClick }: { k: string; v: string; s: string; col: string; onClick?: () => void }) => (
     <div onClick={onClick} onMouseEnter={e => showTip(e, `<b>${k}</b><br/>${v} · ${s}`)} onMouseMove={e => showTip(e, `<b>${k}</b> ${v}`)} onMouseLeave={hideTip}
@@ -408,9 +424,9 @@ export function ProfitLossPage() {
   const glance: { l: string; v: number; disp: string; c: string; money: boolean }[] = [
     { l: "Units sold", v: m.units, disp: fN(m.units), c: "#0E7490", money: false },
     { l: "Area sold", v: m.area, disp: `${(m.area / 1e5).toFixed(2)} L sq ft`, c: "#7b5cb8", money: false },
-    { l: "Revenue recognised", v: m.demandEx, disp: fCr(m.demandEx), c: "#1BAF7A", money: true },
-    { l: "Collection (with GST)", v: m.recIn, disp: fCr(m.recIn), c: "#1a7f9c", money: true },
-    { l: "Collection (W/O GST)", v: m.recEx, disp: fCr(m.recEx), c: "#22a7c9", money: true },
+    { l: "Sales value", v: m.tsv, disp: fCr(m.tsv), c: "#2a78d6", money: true },
+    { l: "Demand raised", v: m.demand, disp: fCr(m.demand), c: "#1BAF7A", money: true },
+    { l: "Collection", v: m.rec, disp: fCr(m.rec), c: "#1a7f9c", money: true },
     { l: "Expenditure", v: m.actual, disp: fCr(m.actual), c: "#e34948", money: true },
     { l: "Outstanding dues", v: m.due, disp: fCr(m.due), c: "#EDA100", money: true },
     { l: p.surplus >= 0 ? "Surplus" : "Deficit", v: Math.abs(p.surplus), disp: fCr(p.surplus), c: p.surplus >= 0 ? "#0f8a5f" : RED, money: true },
@@ -418,7 +434,7 @@ export function ProfitLossPage() {
   const gMax = Math.max(...glance.filter(g => g.money).map(g => g.v), 1);
 
   const progress = rows.filter(r => !sel.length || sel.includes(r.b.key as ProjKey));
-  const subLine = <>{fN(m.units)} active bookings · {sel.length ? `${sel.length} of ${PROJECTS.length}` : PROJECTS.length} projects · cost as on {AS_ON.cost} · non-project as on {AS_ON.nonProject}</>;
+  const subLine = <>{perLbl} · {basis} · {fN(m.units)} active bookings · {sel.length ? `${sel.length} of ${PROJECTS.length}` : PROJECTS.length} projects · cost as on {AS_ON.cost} · non-project as on {AS_ON.nonProject}</>;
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
@@ -426,7 +442,7 @@ export function ProfitLossPage() {
         <PageBanner title="Profit vs Loss" sub={subLine}>
           <ProjectPicker sel={sel} onChange={setSel} />
           <div>
-            <div style={BANNER_LBL}>Collection basis</div>
+            <div style={BANNER_LBL}>GST basis</div>
             <div className="pb-pills">
               {([[false, "W/O GST"], [true, "With GST"]] as const).map(([k, l]) => (
                 <button key={l} className={`pb-pill${gst === k ? " on" : ""}`} onClick={() => setGst(k)}>{l}</button>
@@ -434,17 +450,35 @@ export function ProfitLossPage() {
             </div>
           </div>
           <div>
-            <div style={BANNER_LBL}>Trend range</div>
+            <div style={BANNER_LBL}>Period</div>
             <div className="pb-pills">
-              {([["12", "12 months"], ["24", "24 months"], ["all", "All"]] as const).map(([k, l]) => (
-                <button key={k} className={`pb-pill${range === k ? " on" : ""}`} onClick={() => setRange(k)}>{l}</button>
+              {([["all", "All time"], ["fy", "This FY"], ["12", "12 months"], ["24", "24 months"], ["custom", "Custom"]] as const).map(([k, l]) => (
+                <button key={k} className={`pb-pill${preset === k ? " on" : ""}`} onClick={() => setPreset(k)}>{l}</button>
               ))}
             </div>
           </div>
-          <button onClick={() => { setSel([]); setGst(false); setRange("24"); }} className="pb-btn">⟲ Reset</button>
+          {preset === "custom" && (
+            <div>
+              <div style={BANNER_LBL}>From – to</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <select aria-label="From month" value={cFrom} onChange={e => setCFrom(e.target.value)} style={SEL}>{ALL_MONTHS.map(k => <option key={k} value={k}>{ymLbl(k)}</option>)}</select>
+                <span style={{ color: "var(--mut)" }}>–</span>
+                <select aria-label="To month" value={cTo} onChange={e => setCTo(e.target.value)} style={SEL}>{ALL_MONTHS.map(k => <option key={k} value={k}>{ymLbl(k)}</option>)}</select>
+              </div>
+            </div>
+          )}
+          <button onClick={() => { setSel([]); setGst(false); setPreset("all"); }} className="pb-btn">⟲ Reset</button>
         </PageBanner>
 
         <div style={{ padding: "16px 20px 40px" }}>
+          {period && (
+            <div style={{ fontSize: 12, color: "#5a4a1a", background: "#fbf3df", border: "1px solid #eedcae", borderRadius: 10, padding: "8px 12px", marginBottom: 12, lineHeight: 1.55 }}>
+              <b>{perLbl}:</b> sales figures are bookings made in the period, with what has been collected on them to date.
+              Project spend is placed by PO delivery month, non-project by posting month.
+              {v.undatedActual >= 1e5 && <> {fCr(v.undatedActual)} of project actual has no PO dates and is left out of the period.</>}
+              {" "}Budget, cost to complete, funding cover and unsold stock are as on today.
+            </div>
+          )}
           {/* headline P&L */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, marginBottom: 14 }}>
             {glass.map(([k, v, s, [c1, c2], go]) => (
@@ -461,14 +495,14 @@ export function ProfitLossPage() {
           {/* team KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 400px), 1fr))", gap: 12, marginBottom: 14 }}>
             <KPI k="Sales value booked" v={fCr(m.tsv)} s={`${fN(m.units)} units · ${(m.area / 1e5).toFixed(2)} L sq ft`} col={BLUE} onClick={() => open({})} />
-            <KPI k="Revenue recognised" v={fCr(m.demandEx)} s={`demand raised excl GST · ${fPct(p.billedPct)} of TCV billed`} col={GREEN} />
-            <KPI k="Collection efficiency" v={fPct(p.collectionEff)} s="collected ÷ demanded (with GST)" col={TEAL} />
+            <KPI k={gst ? "Demand raised (with GST)" : "Revenue recognised"} v={fCr(m.demand)} s={`demand raised ${basis} · ${fPct(p.billedPct)} of TCV billed`} col={GREEN} />
+            <KPI k="Collection efficiency" v={fPct(p.collectionEff)} s={`collected ÷ demanded (${basis})`} col={TEAL} />
             <KPI k="Outstanding dues" v={fCr(m.due)} s="demanded, not yet received" col={RED} />
             <KPI k="Future receivables" v={fCr(m.future)} s="TCV not yet demanded" col={GOLD} />
-            <KPI k="Funding cover" v={isFinite(p.fundingCover) ? `${p.fundingCover.toFixed(2)}×` : "—"} s="receivables ÷ cost to complete" col={p.fundingCover >= 1 ? GREEN : RED} />
-            <KPI k="Open commitment" v={fCr(m.commit)} s="POs ordered, not yet booked" col={AMBER} />
-            <KPI k="Unsold stock" v={`${fN(m.unsoldUnits)} units`} s={`${(m.unsoldArea / 1e5).toFixed(2)} L sq ft · ≈${fCr(m.unsoldValue)} at avg booked rate`} col="#7b5cb8" />
-            <KPI k="Rate vs cost per sq ft" v={`₹${fN(p.ratePerSqft)} / ₹${fN(p.costPerSqft)}`} s="avg selling rate vs budgeted cost" col={NAVY} />
+            <KPI k="Funding cover" v={isFinite(p.fundingCover) ? `${p.fundingCover.toFixed(2)}×` : "—"} s="as on today · receivables ÷ cost to complete" col={p.fundingCover >= 1 ? GREEN : RED} />
+            <KPI k="Open commitment" v={fCr(m.commit)} s={period ? "open POs dated in the period" : "POs ordered, not yet booked"} col={AMBER} />
+            <KPI k="Unsold stock" v={`${fN(m.unsoldUnits)} units`} s={`as on today · ${(m.unsoldArea / 1e5).toFixed(2)} L sq ft · ≈${fCr(m.unsoldValue)} at avg booked rate`} col="#7b5cb8" />
+            <KPI k="Rate vs cost per sq ft" v={`₹${fN(p.ratePerSqft)} / ₹${fN(p.costPerSqft)}`} s={`avg selling rate (${perLbl.toLowerCase()}) vs budgeted cost`} col={NAVY} />
           </div>
 
           {/* cost composition */}
@@ -476,14 +510,14 @@ export function ProfitLossPage() {
             <Zoomable title="Cost of construction" collapsible>
               <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0 }}>
                 <h3 style={H3}>Cost of Construction — Project Expenditure</h3>
-                <div style={CAP}>project actual by expense head · click a head → drill</div>
+                <div style={CAP}>project actual by expense head · {perLbl.toLowerCase()} · {basis} · click a head → drill</div>
                 <HeadDonut heads={heads} total={m.projActual} onPick={k => open({ head: k })} />
               </div>
             </Zoomable>
             <Zoomable title="Non-project expenditure" collapsible>
               <div className="g3d" style={{ ...CARD, height: "100%", marginBottom: 0 }}>
                 <h3 style={H3}>Non-Project Expenditure</h3>
-                <div style={CAP}>FY 26-27 site and sales overheads booked on these projects' plants, by department</div>
+                <div style={CAP}>site and sales overheads booked on these projects' plants, by department · {perLbl.toLowerCase()} · {basis} (export covers FY 26-27)</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
                   <span style={{ fontSize: 12, color: "var(--mut)" }}>Total</span>
                   <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)" }}>{fCr(m.npActual)}</span>
@@ -501,7 +535,7 @@ export function ProfitLossPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", paddingRight: 64 }}>
                 <div>
                   <h3 style={H3}>Sales Booked vs Spend vs Net</h3>
-                  <div style={{ ...CAP, marginBottom: 6 }}>monthly · sales by booking month · spend = delivered PO value by PO month + non-project actuals by posting month · click a month → drill</div>
+                  <div style={{ ...CAP, marginBottom: 6 }}>monthly · {perLbl.toLowerCase()} · {basis} · sales by booking month · spend = project actual phased by PO delivery month + non-project by posting month · click a month → drill</div>
                 </div>
                 <div style={{ display: "flex", gap: 14, fontSize: 11.5, fontWeight: 700, color: "var(--mut)" }}>
                   <span><span style={{ color: BLUE }}>■</span> Sales booked</span><span><span style={{ color: AMBER }}>■</span> Spend</span><span><span style={{ color: GREEN }}>╌</span> Net</span>
@@ -515,7 +549,7 @@ export function ProfitLossPage() {
           <Zoomable title="Project at a glance" collapsible>
             <div style={CARD}>
               <h3 style={H3}>{sel.length === 1 ? `${PROJECTS.find(x => x.key === sel[0])!.name} at a Glance` : "Projects at a Glance"}</h3>
-              <div style={CAP}>money columns share one scale; units and area are shown for reference</div>
+              <div style={CAP}>{perLbl} · {basis} · money columns share one scale; units and area are shown for reference</div>
               <div style={{ display: "grid", gridTemplateColumns: `repeat(${glance.length}, minmax(0, 1fr))`, gap: 10, alignItems: "end", height: 200, padding: "0 4px" }}>
                 {glance.map(g => {
                   const h = g.money ? Math.max((g.v / gMax) * 150, 3) : 40;
@@ -539,7 +573,7 @@ export function ProfitLossPage() {
           <Zoomable title="Sold, billed and spent" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Sold vs Billed vs Spent</h3>
-              <div style={CAP}>units sold of total · TCV demanded · budget spent — billing far behind spend means construction is being funded ahead of collections</div>
+              <div style={CAP}>units sold of total ({perLbl.toLowerCase()}) · TCV demanded · budget spent as on today — billing far behind spend means construction is being funded ahead of collections</div>
               {progress.map(({ b, p: pp }) => (
                 <div key={b.key} onClick={() => open({ proj: b.key as ProjKey })} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, alignItems: "center", padding: "6px 0", cursor: "pointer", borderBottom: "1px solid #f4f1ea" }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>{b.name}</div>
@@ -561,7 +595,7 @@ export function ProfitLossPage() {
           <Zoomable title="Project-wise P&L" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Project-wise Profit &amp; Loss</h3>
-              <div style={CAP}>click a project → drill · collection {gst ? "with" : "W/O"} GST</div>
+              <div style={CAP}>click a project → drill · {perLbl} · {basis} · budget and funding cover as on today</div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 1150 }}>
                   <thead><tr>
@@ -599,7 +633,7 @@ export function ProfitLossPage() {
           <Zoomable title="Cost not linked to a sales project" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Cost Not Linked to a Sales Project</h3>
-              <div style={CAP}>{fCr(unlTotal)} of actual cost on phases, sites and offices with no bookings in the sales export — kept out of project surplus so every rupee is still accounted for</div>
+              <div style={CAP}>{fCr(unlTotal)} of actual cost ({perLbl.toLowerCase()}, {basis}) on phases, sites and offices with no bookings in the sales export — kept out of project surplus so every rupee is still accounted for</div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 640 }}>
                   <thead><tr><th style={{ ...TH, textAlign: "left" }}>Cost centre</th>{["Budget", "Project actual", "Non-project actual", "Commitment"].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
@@ -620,20 +654,24 @@ export function ProfitLossPage() {
             {showLogic && (
               <div style={{ fontSize: 12.5, color: "#3d4a63", lineHeight: 1.7, marginTop: 8 }}>
                 <b>Collection (with GST)</b> = net received including tax − pending for clearance, the same as the SAP Collection tab. <b>W/O GST</b> takes the GST share out per booking (demand excl GST ÷ demand with GST).
-                <b> Revenue recognised</b> = demand raised excluding GST. <b>Expenditure</b> = project actual from the ZALR project export (with GST) + non-project actual (FY 26-27) booked on the project's plant.
+                <b> Revenue recognised</b> = demand raised excluding GST. <b>Expenditure</b> = project actual from the ZALR project export + non-project actual (FY 26-27) booked on the project's plant.
                 <b> Surplus / deficit</b> = collection − expenditure. <b>Est. margin on sales</b> = sales value booked − approved budget × sold area ÷ saleable area.
                 <b> Cost to complete</b> = approved budget − project actual. <b>Funding cover</b> = (outstanding dues + future receivables) ÷ cost to complete.
                 <br /><b>Project mapping:</b> The Edition = RE/0066 · Sky Arc = RE/0069 residential on the Sky Arc plant · Trump Residences = RE/0069 Trump Tower · Nature's Court L = RE/M011 residential ·
                 One DXP Street = RE/0113 PH2 · One DXP Phase-2 = RE/0113 PH4 towers O and P plus {PH4_SHARE_PCT.toFixed(1)}% of PH4 common work (their share of PH4 tower budgets) ·
                 Le Courtyard = RE/0098 commercial · Suites = RE/0098 service apartments. Everything else is listed under "not linked".
-                <br /><b>Monthly chart:</b> the sales export has no receipt dates and the project export no posting dates, so the trend uses sales value by booking month and spend as delivered PO value by PO month plus non-project actuals by posting month.
+                <br /><b>Toggles:</b> project, GST basis and period apply to every card, table and the drill panel.
+                <b> GST basis</b> — W/O GST takes tax out of sales and collection per booking, out of project cost per WBS (basic ÷ GST value of its PO lines) and uses the basic amounts of non-project cost.
+                <b> Period</b> — the sales export has no receipt dates, so sales, demand and collection are for bookings made in the period (collected to date).
+                The project export has no posting dates, so each WBS's actual is spread over months by when its PO lines were delivered; WBS with no PO lines can't be dated and drop out of a period.
+                Open commitment is placed by PO month. Budget, cost to complete, funding cover, spend % and unsold stock are positions as on today.
                 <br /><b>Reconciliation:</b> project actual {fCr(TIE_OUT.projActualMapped)} of {fCr(TIE_OUT.projActualFile)} and non-project actual {fCr(TIE_OUT.npActualMapped)} of {fCr(TIE_OUT.npActualFile)} placed — every rupee in exactly one row. Sales file: {AS_ON.sales || "PDRN export"}.
               </div>
             )}
           </div>
         </div>
 
-        <PnlDrawer seed={drill} scope={scope} gst={gst} onClose={() => setDrill(null)}
+        <PnlDrawer seed={drill} scope={scope} opts={opts} perLbl={perLbl} onClose={() => setDrill(null)}
           onAdd={d => setDrill(cur => ({ ...(cur ?? {}), ...d }))}
           onPop={k => setDrill(cur => { if (!cur) return cur; const n = { ...cur }; delete n[k]; return n; })} />
       </div>
