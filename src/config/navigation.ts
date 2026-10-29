@@ -10,7 +10,7 @@ export interface NavItem {
 
 /** Section display order in the sidebar. */
 /** "Top" renders without a heading — standalone items above the groups. */
-export const NAV_SECTIONS = ["Top", "Sales", "Inventory Tracker", "CRM", "Procurement", "Workspace"] as const;
+export const NAV_SECTIONS = ["Top", "Sales", "Inventory Tracker", "CRM", "Procurement", "P&L", "Workspace"] as const;
 
 /**
  * Only Overview and Inventory are fully built in this phase.
@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "sapcollection", label: "SAP Collection", path: "/sap-collections", icon: "IndianRupee", status: "active", section: "CRM" },
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Procurement" },
   { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Procurement" },
+  { key: "pnl", label: "Profit vs Loss", path: "/profit-loss", icon: "Scale", status: "active", section: "P&L" },
   { key: "reports", label: "Reports", path: "/reports", icon: "FileText", status: "active", section: "Workspace" },
   { key: "tv", label: "TV Preview", path: "/tv", icon: "MonitorPlay", status: "active", section: "Workspace" },
   { key: "notes", label: "Notes", path: "/notes", icon: "NotebookPen", status: "active", section: "Workspace" },

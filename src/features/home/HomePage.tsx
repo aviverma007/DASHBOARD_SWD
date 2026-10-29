@@ -56,7 +56,7 @@ const GROUPS: Group[] = [
     title: "Procurement & cost", icon: Wallet,
     blurb: "Budgets, purchase orders and what is still to be delivered.",
     art: "radial-gradient(90% 90% at 100% 0%, #e9a55b 0%, transparent 55%), radial-gradient(80% 90% at 0% 100%, #c27cff 0%, transparent 60%), #3a2418",
-    mods: [{ label: "Cost", path: "/cost" }, { label: "PR to PO", path: "/pr-to-po" }],
+    mods: [{ label: "Cost", path: "/cost" }, { label: "PR to PO", path: "/pr-to-po" }, { label: "Profit vs Loss", path: "/profit-loss" }],
   },
   {
     title: "Workspace", icon: NotebookPen,

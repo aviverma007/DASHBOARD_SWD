@@ -23,6 +23,7 @@ const load = {
   eoi: () => import("./features/eoi/EoiPage"),
   cases: () => import("./features/cases/CaseManagementPage"),
   cost: () => import("./features/cost/CostPage"),
+  pnl: () => import("./features/pnl/ProfitLossPage"),
   pr2po: () => import("./features/pr2po/PrToPoPage"),
   tracker: () => import("./features/tracker/ProjectTrackerPage"),
   loans: () => import("./features/loans/LoanDetailsPage"),
@@ -44,6 +45,7 @@ const BookingsPage = lazy(() => load.bookings().then(m => ({ default: m.Bookings
 const EoiPage = lazy(() => load.eoi().then(m => ({ default: m.EoiPage })));
 const CaseManagementPage = lazy(load.cases);
 const CostPage = lazy(load.cost);
+const ProfitLossPage = lazy(() => load.pnl().then(m => ({ default: m.ProfitLossPage })));
 const PrToPoPage = lazy(load.pr2po);
 const ProjectTrackerPage = lazy(load.tracker);
 const LoanDetailsPage = lazy(load.loans);
@@ -99,6 +101,7 @@ function App() {
           <Route path="/channel-partners" element={<RequireAccess path="/channel-partners"><Dual mobile={MChannel} desktop={<ChannelPartnerPage />} /></RequireAccess>} />
           <Route path="/bookings" element={<RequireAccess path="/bookings"><Dual mobile={MBookings} desktop={<BookingsPage />} /></RequireAccess>} />
           <Route path="/eoi" element={<RequireAccess path="/eoi"><Dual mobile={MEoi} desktop={<EoiPage />} /></RequireAccess>} />
+          <Route path="/profit-loss" element={<RequireAccess path="/profit-loss"><ProfitLossPage /></RequireAccess>} />
           <Route path="/cost" element={<RequireAccess path="/cost"><Dual mobile={MCost} desktop={<CostPage />} /></RequireAccess>} />
           <Route path="/pr-to-po" element={<RequireAccess path="/pr-to-po"><Dual mobile={MPrToPo} desktop={<PrToPoPage />} /></RequireAccess>} />
           <Route path="/case-management" element={<RequireAccess path="/case-management"><Dual mobile={MCases} desktop={<CaseManagementPage />} /></RequireAccess>} />
