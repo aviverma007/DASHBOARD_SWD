@@ -122,6 +122,7 @@ function mapNonProjectPlant(plant: string): Target[] {
   if (P === "SMARTWORLD SUITES") return [{ key: "suites", w: 1 }];
   if (P === "SMARTWORLD ONE DXP") return UNL("One DXP Phase 1");
   if (P === "SMARTWORLD RESIDENCIES") return UNL("Smartworld Residencies");
+  if (P.includes("RETAIL") && P.includes("69")) return UNL("Riverday Retail, Sector 69");
   return [{ key: "corp", w: 1 }];
 }
 
