@@ -25,7 +25,8 @@ import sys, json, re, datetime
 import pandas as pd
 
 EPOCH = datetime.datetime(2022, 1, 1)
-OUT = "/home/claude/DASHBOARD_SWD/src/data/cpAnalytics.json"
+import os
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "cpAnalytics.json")
 
 
 def floor_num(label: str) -> float:
