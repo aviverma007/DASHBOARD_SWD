@@ -12,11 +12,12 @@ Shapes verified row-for-row against the 22 Sep 2026 build. PII columns
 (names, emails, phones, enquiry numbers, rep names, internal notes)
 are deliberately excluded; footfall keeps the Opportunity Number only.
 """
+import os
 import sys, json, datetime, re
 import pandas as pd
 
 EPOCH = datetime.datetime(2022, 1, 1)
-OUTDIR = "/home/claude/DASHBOARD_SWD/src/data"
+OUTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data")
 
 
 def pick_sheet(path, must_have):

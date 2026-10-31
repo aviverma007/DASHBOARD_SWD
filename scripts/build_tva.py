@@ -17,7 +17,8 @@ consistent app-wide.)
 """
 import json, re, collections
 
-D = "/home/claude/DASHBOARD_SWD/src/data"
+import os
+D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data")
 cp = json.load(open(f"{D}/cpAnalytics.json"))
 inv = json.load(open(f"{D}/smartworldInventory.json"))
 td = json.load(open(f"{D}/targetData.json"))
