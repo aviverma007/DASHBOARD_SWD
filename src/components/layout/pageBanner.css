@@ -154,6 +154,7 @@
   font-family: inherit;
   padding: 0 13px;
   border-radius: 999px;
+  white-space: nowrap;
   cursor: pointer;
   transition: color 0.2s, transform 0.12s ease-out;
   -webkit-tap-highlight-color: transparent;

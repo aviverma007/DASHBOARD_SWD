@@ -5,11 +5,20 @@ import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
 import raw from "../../data/projectTracker.json";
+import { VL, TASKS, projAsOn, towerOrder } from "./vlData";
+import { VlDrawer, type VDrill } from "./vlUi";
+import { ReviewView } from "./views/ReviewView";
+import { LookaheadView } from "./views/LookaheadView";
+import { ActivityView } from "./views/ActivityView";
+import { EarnedValueView } from "./views/EarnedValueView";
+import { MilestoneView } from "./views/MilestoneView";
+import { ContractorView } from "./views/ContractorView";
 
-/** Project Tracker — construction schedule progress, from the site
- * planning export (VisiLean/MS Project WBS). One row per task; the
- * page works on ACTIVITIES (the deep WBS levels), so parent summary
- * rows never double-count. Overdue = planned end passed, not complete.
+/** Project Tracker — construction schedule progress.
+ * Overview tab: one row per activity (WBS leaves), from the VisiLean Table View
+ * export where a project has one (trackerVL.json), else the older Gantt export.
+ * The other tabs rebuild the VisiLean Power BI reports from the Table View export
+ * (see vlData.ts for the rules). Overdue = planned end passed, not complete.
  * Slip = planned end moved beyond the baseline end. */
 
 /* ---------------- palette / styles (same language as other tabs) ---------------- */
@@ -31,7 +40,7 @@ const fN = (n: number) => Math.round(n).toLocaleString("en-IN");
 const EPOCH = Date.UTC(2022, 0, 1);
 const DAY = 86400000;
 const fD = (d: number) => d < 0 ? "—" : new Date(EPOCH + d * DAY).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
-const AS_ON = Math.round((Date.UTC(2026, 8, 28) - EPOCH) / DAY);
+const AS_ON_OLD = Math.round((Date.UTC(2026, 8, 28) - EPOCH) / DAY);
 
 interface TrkFile {
   meta: { asOn: string };
@@ -39,6 +48,11 @@ interface TrkFile {
   T: (string | number)[][];
 }
 const D = raw as unknown as TrkFile;
+/* projects with a VisiLean Table View export use it everywhere (fresher, with cost) */
+const dIdx = (arr: string[], v: string) => { let i = arr.indexOf(v); if (i < 0) { arr.push(v); i = arr.length - 1; } return i; };
+const VL_TO_D = VL.PROJECTS.map(p => dIdx(D.PROJECTS, p));
+const CUT_OF = (pi: number) => { const v = VL_TO_D.indexOf(pi); return v >= 0 ? projAsOn(v) : AS_ON_OLD; };
+const AS_ON_LBL = (pi: number) => { const v = VL_TO_D.indexOf(pi); return v >= 0 ? VL.META[VL.PROJECTS[v]].asOn : D.meta.asOn; };
 
 interface Task {
   proj: number; name: string; depth: number; pct: number; st: number;
@@ -46,7 +60,7 @@ interface Task {
   trade: number; owner: number; tower: number; floor: number; frank: number;
   done: boolean; active: boolean; overdue: boolean; slip: number; leaf: boolean;
 }
-const ALL: Task[] = D.T.map(t => {
+const OLD: Task[] = D.T.filter(t => !VL_TO_D.includes(t[0] as number)).map(t => {
   const st = t[4] as number, pct = t[3] as number, pe = t[6] as number, be = t[9] as number;
   const sName = D.STATUS[st];
   const done = sName === "Complete" || sName === "Quality checked" || pct >= 100;
@@ -56,10 +70,22 @@ const ALL: Task[] = D.T.map(t => {
     trade: t[10] as number, owner: t[11] as number, tower: t[12] as number, floor: t[13] as number, frank: t[14] as number,
     leaf: (t[15] as number) === 1,
     done, active: sName === "Started",
-    overdue: !done && pe >= 0 && pe < AS_ON,
+    overdue: !done && pe >= 0 && pe < AS_ON_OLD,
     slip: pe >= 0 && be >= 0 && pe > be ? pe - be : 0,
   };
 });
+const FROM_VL: Task[] = TASKS.map(v => {
+  const proj = VL_TO_D[v.proj], done = v.phase === "done";
+  return {
+    proj, name: v.name, depth: 9, pct: v.prog, st: dIdx(D.STATUS, v.status),
+    ps: v.ps, pe: v.pe, as: v.as, ae: v.ae, be: v.be,
+    trade: dIdx(D.TRADES, v.trade === "—" ? "" : v.trade), owner: dIdx(D.OWNERS, v.owner), tower: dIdx(D.TOWERS, v.tower),
+    floor: dIdx(D.FLOORS, v.floor), frank: v.frank >= 500 || v.frank < -6 ? 999 : v.frank, leaf: true,
+    done, active: v.phase === "started", overdue: !done && v.pe >= 0 && v.pe < CUT_OF(proj),
+    slip: v.pe >= 0 && v.be >= 0 && v.pe > v.be ? v.pe - v.be : 0,
+  };
+});
+const ALL: Task[] = [...OLD, ...FROM_VL];
 /** activities = leaf tasks (no children in the WBS), so summary rows
  * are excluded and nothing is counted twice — robust per project */
 const ACTS = ALL.filter(t => t.leaf);
@@ -129,7 +155,7 @@ function TrkDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void })
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>Actual</div><div>{fD(task.as)} → {fD(task.ae)}</div>
                 <div style={{ color: "var(--mut)", fontWeight: 700 }}>Baseline end</div><div>{fD(task.be)}</div>
                 {task.slip > 0 && <><div style={{ color: "var(--mut)", fontWeight: 700 }}>Slip vs baseline</div><div style={{ color: RED, fontWeight: 800 }}>{task.slip} days later than baselined</div></>}
-                {task.overdue && <><div style={{ color: "var(--mut)", fontWeight: 700 }}>Overdue by</div><div style={{ color: RED, fontWeight: 800 }}>{AS_ON - task.pe} days past planned end</div></>}
+                {task.overdue && <><div style={{ color: "var(--mut)", fontWeight: 700 }}>Overdue by</div><div style={{ color: RED, fontWeight: 800 }}>{CUT_OF(task.proj) - task.pe} days past planned end</div></>}
               </div>
             </div>
           ) : (
@@ -199,14 +225,38 @@ function TowerSelect({ towers, selected, onChange }: { towers: string[]; selecte
 }
 
 /* ---------------- page ---------------- */
+type Tab = "overview" | "review" | "lookahead" | "activity" | "ev" | "milestone" | "contractor";
+const TABS = [["overview", "Overview"], ["review", "Review"], ["lookahead", "Lookahead"], ["activity", "Activity"], ["ev", "Earned Value"], ["milestone", "Milestones"], ["contractor", "Contractors"]] as const;
+
 export default function ProjectTrackerPage() {
-  const [projF, setProjF] = useState(0);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [projF, setProjF] = useState(() => Math.max(0, D.PROJECTS.indexOf("Sky Arc — Sector 69")));
+  const AS_ON = CUT_OF(projF);
   const [towerF, setTowerF] = useState<string[]>([]);
   const [tradeF, setTradeF] = useState(-1);
   const [statusF, setStatusF] = useState<"all" | "done" | "run" | "todo" | "late">("all");
   const [q, setQ] = useState("");
   const [drill, setDrill] = useState<Drill | null>(null);
   const [heatTower, setHeatTower] = useState("T1");
+  /* VisiLean tabs: own filters, shared by every tab and card */
+  const [vTower, setVTower] = useState<string[]>([]);
+  const [vTrade, setVTrade] = useState("");
+  const [vType, setVType] = useState("");
+  const [vCrit, setVCrit] = useState<"all" | "yes">("all");
+  const [vq, setVq] = useState("");
+  const [vDrill, setVDrill] = useState<VDrill | null>(null);
+  const vlPi = VL_TO_D.indexOf(projF);
+  const vCut = vlPi >= 0 ? projAsOn(vlPi) : AS_ON_OLD;
+  const vlAll = useMemo(() => TASKS.filter(t => t.proj === vlPi), [vlPi]);
+  const vlTowers = useMemo(() => towerOrder(vlAll.map(t => t.tower)), [vlAll]);
+  const vlTrades = useMemo(() => [...new Set(vlAll.map(t => t.trade))].filter(x => x && x !== "—").sort(), [vlAll]);
+  useEffect(() => { setVTower([]); setVTrade(""); }, [vlPi]);
+  const vts = useMemo(() => {
+    const s = vq.trim().toLowerCase();
+    return vlAll.filter(t => (!vTower.length || vTower.includes(t.tower)) && (!vTrade || t.trade === vTrade) && (!vType || t.type === vType)
+      && (vCrit === "all" || t.critical)
+      && (!s || t.name.toLowerCase().includes(s) || String(t.id).includes(s) || t.owner.toLowerCase().includes(s) || t.loc.toLowerCase().includes(s) || t.trade.toLowerCase().includes(s)));
+  }, [vlAll, vTower, vTrade, vType, vCrit, vq]);
 
   const towerNames = useMemo(() => {
     const present = new Set(ACTS.filter(t => t.proj === projF).map(t => D.TOWERS[t.tower]).filter(Boolean));
@@ -304,6 +354,7 @@ export default function ProjectTrackerPage() {
   }, [scoped]);
 
   /* monthly: planned finishes vs completed-of-those */
+  const curYm = new Date(EPOCH + AS_ON * DAY).toISOString().slice(0, 7);
   const months = useMemo(() => {
     const m = new Map<string, { plan: Task[]; done: Task[] }>();
     scoped.forEach(t => {
@@ -323,7 +374,13 @@ export default function ProjectTrackerPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
-      <PageBanner bleed title="Project Tracker" sub={<>construction schedule progress · {fN(ACTS.length)} site activities from the planning export · data as on {D.meta.asOn}</>}>
+      <PageBanner bleed title="Project Tracker"
+        center={<BannerPills size="lg" items={TABS} value={tab} onChange={setTab} />}
+        sub={tab === "overview"
+          ? <>construction schedule progress · {fN(ACTS.filter(t => t.proj === projF).length)} site activities · data as on {AS_ON_LBL(projF)}</>
+          : vlPi >= 0 ? <>VisiLean · {D.PROJECTS[projF]} · {fN(vts.length)} of {fN(vlAll.length)} activities · baseline AOP · data as on {VL.META[VL.PROJECTS[vlPi]].asOn}</>
+          : <>VisiLean Table View export not loaded for {D.PROJECTS[projF]} yet</>}>
+        {tab === "overview" ? <>
         <div>
           <label style={BANNER_LBL}>Project</label>
           <select value={projF} onChange={e => setProjF(+e.target.value)} style={{ ...BANNER_CTL, minWidth: 210 }}>
@@ -349,8 +406,72 @@ export default function ProjectTrackerPage() {
             style={{ ...BANNER_CTL, cursor: "text", width: 190 }} />
         </div>
         <button onClick={handleReset} className="pb-btn">⟲ Reset</button>
+        </> : <>
+        <div>
+          <label style={BANNER_LBL}>Project</label>
+          <select value={projF} onChange={e => setProjF(+e.target.value)} style={{ ...BANNER_CTL, minWidth: 210 }}>
+            {D.PROJECTS.map((p, i) => <option key={p} value={i}>{p}{VL_TO_D.includes(i) ? "" : " (no VisiLean export)"}</option>)}
+          </select>
+        </div>
+        <TowerSelect towers={vlTowers} selected={vTower} onChange={setVTower} />
+        <div>
+          <label style={BANNER_LBL}>Trade</label>
+          <select value={vTrade} onChange={e => setVTrade(e.target.value)} style={{ ...BANNER_CTL, maxWidth: 210 }}>
+            <option value="">All trades</option>
+            {vlTrades.map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={BANNER_LBL}>Type of work</label>
+          <select value={vType} onChange={e => setVType(e.target.value)} style={BANNER_CTL}>
+            <option value="">All</option>
+            {VL.TYPES.map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={BANNER_LBL}>Critical activity</label>
+          <BannerPills items={[["all", "All"], ["yes", "Critical"]] as const} value={vCrit} onChange={setVCrit} />
+        </div>
+        <div>
+          <label style={BANNER_LBL}>Search</label>
+          <input value={vq} onChange={e => setVq(e.target.value)} placeholder="Activity / task id / owner…"
+            style={{ ...BANNER_CTL, cursor: "text", width: 180 }} />
+        </div>
+        <button onClick={() => { setVTower([]); setVTrade(""); setVType(""); setVCrit("all"); setVq(""); }} className="pb-btn">⟲ Reset</button>
+        </>}
       </PageBanner>
 
+      <style>{`@media (max-width: 1100px) { .trk-2col { grid-template-columns: 1fr !important; } }`}</style>
+      {tab !== "overview" ? (
+        <div style={{ padding: "14px 20px 24px", flex: 1 }}>
+          {vlPi < 0 ? (
+            <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8" }}>
+              <h3 style={H3}>No VisiLean export for {D.PROJECTS[projF]} yet</h3>
+              <div style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.65 }}>
+                These tabs are built from VisiLean's <b>New Table View → Tasks → Export</b> (all 55 columns, date range covering the whole project).
+                Projects loaded so far: {VL.PROJECTS.join(", ")}. The Overview tab still shows this project from the earlier schedule export.
+              </div>
+            </div>
+          ) : tab === "review" ? <ReviewView ts={vts} cut={vCut} open={setVDrill} />
+            : tab === "lookahead" ? <LookaheadView ts={vts} cut={vCut} open={setVDrill} />
+            : tab === "activity" ? <ActivityView ts={vts} cut={vCut} open={setVDrill} />
+            : tab === "ev" ? <EarnedValueView ts={vts} cut={vCut} open={setVDrill} />
+            : tab === "milestone" ? <MilestoneView ts={vts} open={setVDrill} />
+            : <ContractorView ts={vts} cut={vCut} open={setVDrill} />}
+          {vlPi >= 0 && (
+            <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8", marginTop: 4 }}>
+              <h3 style={H3}>How these numbers are worked out</h3>
+              <div style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.65 }}>
+                Source: VisiLean Table View export ({fN(vlAll.length)} activities, baseline AOP), as on {VL.META[VL.PROJECTS[vlPi]].asOn}.
+                <b> % complete</b> is weighted by planned duration; <b>earned value</b> = baseline cost × progress; <b>baseline / BCWS to date</b> spread each activity's cost over its baseline / planned dates by working days (Mon–Sat).
+                <b> Delay (AOP)</b> = planned end − baseline end; <b>delay (actual)</b> = finished: actual end − planned end, running: as-on − planned end, not started: as-on − planned start.
+                <b> Category</b>: C&P = procurement and tenders, Design = drawings, Execution = site work. <b>Type of work</b> follows the trade (Civil / Finishing / MEP / Others), matching the VisiLean Earned Value report.
+                Monthly earned value is spread over each activity's actual dates because the export has no month-by-month progress history; cumulative totals are exact.
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
       <div style={{ padding: "14px 20px 24px", flex: 1 }}>
         {/* KPI cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
@@ -598,7 +719,7 @@ export default function ProjectTrackerPage() {
                 const mx = Math.max(...months.map(([, e]) => e.plan.length), 1);
                 return months.map(([k, e]) => {
                   const lbl = new Date(k + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" });
-                  const isPast = k <= "2026-09";
+                  const isPast = k < curYm;
                   return (
                     <div key={k} onClick={() => open(`Planned to finish in ${lbl}`, e.plan)}
                       onMouseEnter={ev => showTip(ev, `<b>${lbl}</b><br/>${fN(e.plan.length)} planned to finish · ${fN(e.done.length)} completed${isPast && e.plan.length > e.done.length ? ` · <span style="color:#e57373">${fN(e.plan.length - e.done.length)} open</span>` : ""}<br/>click → list`)} onMouseLeave={hideTip}
@@ -625,7 +746,9 @@ export default function ProjectTrackerPage() {
         </div>
       </div>
 
+      )}
       <TrkDrawer sel={drill} onClose={() => setDrill(null)} />
+      <VlDrawer sel={vDrill} cut={vCut} onClose={() => setVDrill(null)} />
     </div>
   );
 }
