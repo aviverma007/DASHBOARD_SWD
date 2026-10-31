@@ -28,29 +28,34 @@ import openpyxl
 EPOCH = datetime.datetime(2022, 1, 1)
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "trackerVL.json")
 REASONS = ["Workfront", "Material", "Equipment", "Manpower", "External Conditions", "Design"]
-STATUS_CANON = {"Completed": "Complete", "Unassigned": "Not Committed", "Force Ready": "Forced Ready"}
+STATUS_CANON = {"Completed": "Complete", "Unassigned": "Not Committed", "Force Ready": "Forced Ready", "Rejected": "Rejected at quality check"}
 TYPES = ["Civil", "Finishing", "MEP", "Others"]
 CATS = ["C&P", "Design", "Execution"]
 
-CIVIL = {"civil & structural works", "rcc works", "terrace all works", "dwall", "ews", "piling work & excavation",
-         "ips flooring - all bedrooms", "structure works", "blockwork / brickwork", "waterproofing - toilet / kitchen",
-         "ms railing - staircase", "ms railing - utility balcony", "mass excavation", "piling", "excavation",
-         "raft concreting works", "shuttering", "reinforcement", "concreting", "setting out", "layout works", "masonry works"}
-OTHERS = {"external development", "landscaping", ""}
-MEP_RE = re.compile(r"\bMEP\b|HVAC|Electric|Plumbing|Firefight|Lift|Guide Rail|Slow speed|Conduit|Light fix|FHC|"
-                    r"Piping|Landing valve|Ventilation|Drainage|Sump|Cabling|\bDB\b|PHE|Whitegoods|\bLV\b|Panels|Drain Channel", re.I)
-FINISHING_OVERRIDE = {"finishing & mep works", "lift shafts ho"}   # Power BI files these under Finishing
+# Exact Sky Arc mapping (reproduces the Power BI Earned Value split: 635.14 / 364.25 / 307.28 / 20.55 Cr)
+KNOWN_TYPE = { "": "Others", "blockwork / brickwork": "Civil", "cabling & db fixing": "MEP", "car park marking": "Finishing", "ceiling finishes": "Finishing", "ceiling finishes - pop": "Finishing", "cement plaster/white wash": "Finishing", "civil & structural works": "Civil", "common area finishes": "Finishing", "common area mep fixtures": "MEP", "common area mep works incl. lv": "MEP", "db dressing": "MEP", "dismantling of tower cranes": "Finishing", "doors installation": "Finishing", "drain channel - grating": "MEP", "drainage & sewerage piping": "MEP", "drawing requirement": "Finishing", "dwall": "Civil", "electrical - light fixtures": "MEP", "electrical - lv fixtures (cctv, fapa)": "MEP", "electrical - mv / lv wiring": "MEP", "electrical - panels": "MEP", "electrical - switch sockets & other fittings": "MEP", "electrical - wiring & db dressing": "MEP", "electrical shafts ho": "MEP", "ews": "Civil", "external development": "Others", "external façade - external putty": "Finishing", "external façade - paint 1st coat": "Finishing", "external façade - paint final coat": "Finishing", "fhc shafts ho": "MEP", "finishing & mep works": "Finishing", "firefighting - piping": "MEP", "firefighting - piping & sprinklers": "MEP", "floor finishes": "Finishing", "flooring & dado - toilet & kitchen": "Finishing", "flooring - living & dining, balcony": "Finishing", "glass railing - balconies": "Finishing", "grid & false ceiling": "Finishing", "guide rail": "MEP", "handing over": "Finishing", "hvac - copper & drainage piping, ducting": "MEP", "hvac - indoor & outdoor unit, testing": "MEP", "int. doors - frame fixing": "Finishing", "int. doors - shutter fixing & hardwares": "Finishing", "ips flooring - all bedrooms": "Civil", "landing valve & hose reel": "MEP", "landscaping": "Others", "lift car installation": "MEP", "lift shafts ho": "Finishing", "lift testing & commissioning": "MEP", "light fixtures": "MEP", "main door installation": "Finishing", "mass excavation": "Civil", "mep": "MEP", "modular kitchen": "Finishing", "ms railing - staircase": "Civil", "ms railing - utility balcony": "Civil", "oc application": "Finishing", "oc receipt": "Finishing", "paint - final coat": "Finishing", "paint - putty & 1st coat paint": "Finishing", "phe shafts ho": "MEP", "piling work & excavation": "Civil", "piping": "MEP", "piping with testing & commissioning": "MEP", "plaster": "Finishing", "plumbing - cp fittings & chinaware, testing": "MEP", "plumbing - piping": "MEP", "podium waterproofing": "Finishing", "rcc works": "Civil", "safety screen": "Finishing", "shower partition": "Finishing", "slow speed with complete wiring": "MEP", "snagging & desnagging work": "Finishing", "structure works": "Civil", "sump incl. covers": "MEP", "sump pump": "MEP", "tender event": "Finishing", "terrace all works": "Civil", "upvc door/windows & glazing": "Finishing", "ventilation - ducting": "MEP", "ventilation - fans": "MEP", "wall conduiting & box fixing": "MEP", "wall finishes": "Finishing", "wall finishes - gypsum plaster": "Finishing", "waterproofing - toilet / kitchen": "Civil", "whitegoods": "MEP", "windows installation": "Finishing", "wooden flooring": "Finishing" }
+CIVIL_RE = re.compile(r"slab|shear ?wall|column|formwork|shuttering|reinforc|casting|concret|raft|\brcc\b|structur|excavat|pil(e|ing)|d ?wall|"
+                      r"diaphragm|masonry|blockwork|brick|layout|setting out|anchor|retaining|footing|foundation|substructure|stair|lintel|beam", re.I)
+MEP_RE = re.compile(r"\bMEP\b|HVAC|Electric|Plumb|Fire ?fight|Lift|Elevator|Guide Rail|Slow speed|Conduit|Light fix|FHC|Piping|"
+                    r"Landing valve|Ventilation|Drainage|Sewer|Sump|Cabling|\bDB\b|PHE|Whitegoods|\bLV\b|Panels?\b|Drain Channel|"
+                    r"STP|WTP|DG\b|Transformer|BMS|CCTV|Fire alarm|Pump", re.I)
+OTHER_RE = re.compile(r"external development|landscap|approval|handing over|handover|\bOC\b|drawing|tender|award|PR raise|"
+                      r"snag|horticulture|road|boundary wall", re.I)
 
 
 def type_of(trade):
-    t = trade.strip().lower()
-    if t in CIVIL:
-        return 0
-    if t in OTHERS:
+    t = trade.strip()
+    if t.lower() in KNOWN_TYPE:
+        return TYPES.index(KNOWN_TYPE[t.lower()])
+    if not t:
         return 3
-    if t in FINISHING_OVERRIDE:
-        return 1
-    return 2 if MEP_RE.search(trade) else 1
+    if MEP_RE.search(t):
+        return 2
+    if CIVIL_RE.search(t):
+        return 0
+    if OTHER_RE.search(t):
+        return 3
+    return 1
 
 
 def day(v):
@@ -67,7 +72,7 @@ def num(v):
     s = str(v if v is not None else "").replace(",", "").strip()
     if not s or s.upper() == "EMPTY":
         return 0.0
-    s = re.sub(r"^[A-Z]{3}\s*", "", s)          # "USD 0.00"
+    s = re.sub(r"^[^\d\-.]+", "", s)           # "USD 0.00", "₹ 0.00"
     try:
         return float(s)
     except ValueError:
@@ -79,15 +84,26 @@ def txt(v):
     return "" if s in ("None", "EMPTY") else re.sub(r"\s+", " ", s)
 
 
+FLOOR_RE = re.compile(r"floor|basement|stilt|terrace|raft|foundation|lmr|mumty|podium|^l\d|^b\d|^level\b|^ground|^gf$|upper ground", re.I)
+TOWER_RE = re.compile(r"^(T\d+|Tower\s+[A-Z0-9]+(\s*\(P\d\))?|Tower\s+[A-Z]\(P\d\))$", re.I)
+_TOWER_CANON = {}
+
+
 def split_loc(loc):
-    parts = [p.strip() for p in re.split(r"\s*-\s*", loc) if p.strip()]
+    """Tower = the T1 / Tower A part when present (Edition: "Phase 2 - TA - T3 - 2nd Floor"),
+    else the first part. Floor = the first floor-like part after it ("Tower J - 20th Floor - Pour 2")."""
+    safe = re.sub(r"\(\s*-\s*(\d)", r"(minus\1", loc)          # keep "(-4) Basement" in one piece
+    parts = [p.strip().replace("(minus", "(-") for p in re.split(r"\s*-\s*", safe) if p.strip()]
     if not parts:
         return "Others", ""
-    tower = parts[0]
+    ti = next((i for i, p in enumerate(parts) if TOWER_RE.match(p)), 0)
+    tower = parts[ti]
     if tower.upper() in ("DR", "DRAWING", "DRAWINGS"):
         tower = "Drawings"
-    floor = parts[-1] if len(parts) > 1 else ""
-    if tower == "Procurement" or tower == "Drawings":
+    tower = _TOWER_CANON.setdefault(tower.lower().replace(" ", ""), tower)   # "D Wall" / "D wall"
+    rest = parts[ti + 1:]
+    floor = next((p for p in rest if FLOOR_RE.search(p)), rest[-1] if rest else "")
+    if tower in ("Procurement", "Drawings", "Tender", "Approvals"):
         floor = ""
     return tower, floor
 
@@ -98,15 +114,20 @@ def floor_rank(lbl):
         return 999
     if "raft" in l or "foundation" in l:
         return -9
-    m = re.search(r"\(-(\d)\)\s*basement", l) or re.fullmatch(r"b(\d)", l) or re.search(r"basement\s*(\d)", l)
+    m = re.search(r"\(-(\d)\)\s*basement", l) or re.match(r"b(\d)\b", l) or re.search(r"basement\s*(\d)", l)
     if m:
         return -int(m.group(1))
+    if l in ("ub", "upper basement", "basement"):
+        return -1
+    if l in ("lb", "lower basement"):
+        return -2
     if "stilt" in l or "ground" in l or l in ("gf", "podium"):
         return 0
     m = re.match(r"l0*(\d+)\s*to\s*l0*(\d+)", l)
     if m:
         return int(m.group(1))
-    m = re.search(r"(\d+)(?:st|nd|rd|th)\s*floor", l) or re.fullmatch(r"l0*(\d+)", l)
+    m = (re.search(r"(\d+)(?:st|nd|rd|th)\s*floor", l) or re.fullmatch(r"l0*(\d+)", l)
+         or re.match(r"level\s*(\d+)", l) or re.fullmatch(r"(\d+)", l))
     if m:
         return int(m.group(1))
     if "terrace" in l:
@@ -120,7 +141,7 @@ def category(tower, trade):
     t = (tower + " " + trade).lower()
     if "procurement" in t or "tender" in t:
         return 0
-    if tower == "Drawings" or "drawing" in t:
+    if tower in ("Drawings", "Approvals") or "drawing" in t:
         return 1
     return 2
 
@@ -161,7 +182,13 @@ def main(as_on, pairs):
         it = ws.iter_rows(values_only=True)
         hdr = next(it)
         idx = {h: i for i, h in enumerate(hdr)}
-        need = ["Task ID", "Task Name", "Status", "Cost", "Progress", "Baseline Start Date", "Baseline End Date",
+        # baseline cost: "Cost" on most projects; One DXP and Nature's Court keep it in a field named "BCWS"
+        cost_col = "Cost" if "Cost" in idx else "BCWS" if "BCWS" in idx else None
+        if cost_col is None:
+            raise SystemExit(f"{path}: no Cost or BCWS column")
+        # contractor: the Contractor field when the project has it, else the Organisation
+        con_col = "Contractor" if "Contractor" in idx else "Organisation"
+        need = ["Task ID", "Task Name", "Status", "Progress", "Baseline Start Date", "Baseline End Date",
                 "Planned Start Date", "Planned End Date", "Actual Start Date", "Actual End Date", "Location", "Trade"]
         miss = [c for c in need if c not in idx]
         if miss:
@@ -180,7 +207,7 @@ def main(as_on, pairs):
             for b, c in enumerate(REASONS):
                 if str(g(r, c) or "").strip().upper() == "CHECKED":
                     reasons |= 1 << b
-            c_ = num(g(r, "Cost"))
+            c_ = num(g(r, cost_col))
             T.append([
                 pi, int(num(g(r, "Task ID"))), txt(g(r, "Task Name")), ix("STATUS", st),
                 day(g(r, "Baseline Start Date")), day(g(r, "Baseline End Date")),
@@ -188,7 +215,7 @@ def main(as_on, pairs):
                 day(g(r, "Actual Start Date")), day(g(r, "Actual End Date")),
                 int(num(g(r, "Planned Duration"))), round(num(g(r, "Progress")), 2), round(c_),
                 ix("LOCS", loc), ix("TOWERS", tower), ix("FLOORS", floor), floor_rank(floor),
-                ix("TRADES", trade), ix("OWNERS", txt(g(r, "Owner"))), ix("CONTRACTORS", txt(g(r, "Contractor"))),
+                ix("TRADES", trade), ix("OWNERS", txt(g(r, "Owner"))), ix("CONTRACTORS", txt(g(r, con_col))),
                 ix("ORGS", txt(g(r, "Organisation"))),
                 1 if txt(g(r, "Critical Task")).lower() == "yes" else 0,
                 1 if txt(g(r, "Milestone Tracker")).lower() == "yes" else 0,
@@ -196,8 +223,9 @@ def main(as_on, pairs):
             ])
             n += 1
             cost += c_
-        metas[pname] = {"asOn": as_on, "source": os.path.basename(path).split("-", 1)[-1], "tasks": n, "cost": round(cost)}
-        print(f"{pname}: {n} tasks, baseline cost ₹{cost / 1e7:,.2f} Cr")
+        metas[pname] = {"asOn": as_on, "source": os.path.basename(path).split("-", 1)[-1], "tasks": n, "cost": round(cost),
+                        "costCol": cost_col, "contractorCol": con_col}
+        print(f"{pname}: {n} tasks, baseline cost ₹{cost / 1e7:,.2f} Cr (from {cost_col}), contractor from {con_col}")
 
     out = {"META": metas, "epoch": "2022-01-01", "REASONS": REASONS, "TYPES": TYPES, "CATS": CATS, **D, "T": T,
            "fields": "proj,taskId,name,status,bs,be,ps,pe,as,ae,plannedDur,progress,cost,loc,tower,floor,floorRank,"

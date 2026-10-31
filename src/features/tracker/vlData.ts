@@ -14,7 +14,7 @@
 import raw from "../../data/trackerVL.json";
 
 interface VLFile {
-  META: Record<string, { asOn: string; source: string; tasks: number; cost: number }>;
+  META: Record<string, { asOn: string; source: string; tasks: number; cost: number; costCol?: string; contractorCol?: string }>;
   REASONS: string[]; TYPES: string[]; CATS: string[];
   PROJECTS: string[]; STATUS: string[]; LOCS: string[]; TOWERS: string[]; FLOORS: string[];
   TRADES: string[]; OWNERS: string[]; CONTRACTORS: string[]; ORGS: string[];
@@ -78,7 +78,7 @@ export const TASKS: VTask[] = VL.T.map(r => {
   const prog = g(11), ae = g(9), as = g(8), pe = g(7), ps = g(6), be = g(5);
   const s = status.toLowerCase();
   const phase: Phase = s.includes("stop") ? "stopped"
-    : (s === "complete" || s.includes("quality") || s.includes("milestone completed") || ae >= 0 || prog >= 100) ? "done"
+    : (s === "complete" || s === "approved" || s === "quality checked" || s.includes("milestone completed") || ae >= 0 || prog >= 100) ? "done"
     : (s === "started" || as >= 0 || prog > 0) ? "started" : "notStarted";
   const delayActual = phase === "done" ? (ae >= 0 && pe >= 0 ? ae - pe : 0)
     : phase === "started" || phase === "stopped" ? (pe >= 0 ? today - pe : 0)

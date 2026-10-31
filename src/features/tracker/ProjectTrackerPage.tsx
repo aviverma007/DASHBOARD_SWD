@@ -457,7 +457,7 @@ export default function ProjectTrackerPage() {
             : tab === "activity" ? <ActivityView ts={vts} cut={vCut} open={setVDrill} />
             : tab === "ev" ? <EarnedValueView ts={vts} cut={vCut} open={setVDrill} />
             : tab === "milestone" ? <MilestoneView ts={vts} open={setVDrill} />
-            : <ContractorView ts={vts} cut={vCut} open={setVDrill} />}
+            : <ContractorView ts={vts} cut={vCut} open={setVDrill} who={VL.META[VL.PROJECTS[vlPi]].contractorCol === "Organisation" ? "Organisation" : "Contractor"} />}
           {vlPi >= 0 && (
             <div style={{ ...CARD, background: "#fdfaf3", borderColor: "#efe4c8", marginTop: 4 }}>
               <h3 style={H3}>How these numbers are worked out</h3>

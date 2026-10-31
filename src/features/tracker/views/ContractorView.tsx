@@ -5,7 +5,8 @@ import { type VTask, fCr, fN, fPct, sum, groupBy, contractorScore, scoreBand, SC
 import { C, CARD, H3, CAP, TH, TD, R, GlassRow, hoverRow, type VDrill } from "../vlUi";
 
 /** VisiLean "Contractor Performance Review": score = 40% cost achieved + 60% physical progress. */
-export function ContractorView({ ts, cut, open }: { ts: VTask[]; cut: number; open: (d: VDrill) => void }) {
+export function ContractorView({ ts, cut, open, who = "Contractor" }: { ts: VTask[]; cut: number; open: (d: VDrill) => void; who?: "Contractor" | "Organisation" }) {
+  const whoL = who.toLowerCase();
   const withC = useMemo(() => ts.filter(t => t.contractor), [ts]);
   const rows = useMemo(() => [...groupBy(withC, t => t.contractor).entries()].map(([k, x]) => {
     const tr = [...groupBy(x, t => t.trade).entries()].sort((a, b) => sum(b[1], t => t.cost) - sum(a[1], t => t.cost))[0]?.[0] ?? "—";
@@ -16,11 +17,11 @@ export function ContractorView({ ts, cut, open }: { ts: VTask[]; cut: number; op
   const trendTasks = sel ? withC.filter(t => t.contractor === sel) : withC;
   const trend = useMemo(() => sCurve(trendTasks, cut).filter(p => p.ev !== null && (p.bcws > 0 || (p.ev ?? 0) > 0)), [trendTasks, cut]);
 
-  if (!withC.length) return <div style={{ ...CARD, color: "var(--mut)" }}>No activities carry a <b>Contractor</b> in VisiLean for the current filters.</div>;
+  if (!withC.length) return <div style={{ ...CARD, color: "var(--mut)" }}>No activities carry a <b>{who}</b> in VisiLean for the current filters.</div>;
   return (
     <>
       <GlassRow items={[
-        { k: "Contractors", v: fN(rows.length), s: `${fN(withC.length)} activities assigned`, c: ["#1c3f6e", "#0f2547"], go: () => open({ title: "All contractor activities", tasks: withC }) },
+        { k: `${who}s`, v: fN(rows.length), s: `${fN(withC.length)} activities assigned`, c: ["#1c3f6e", "#0f2547"], go: () => open({ title: `All ${whoL} activities`, tasks: withC }) },
         { k: "Overall performance", v: fPct(tot.score, 2), s: scoreBand(tot.score)[1], c: [scoreBand(tot.score)[2], "#3a3a3a"] },
         { k: "Baseline cost", v: fCr(tot.cost), s: "awarded scope in the schedule", c: ["#1a7f9c", "#0e5468"] },
         { k: "Earned (actual) cost", v: fCr(tot.ev), s: `${fPct(tot.achieved, 2)} achieved`, c: ["#1e9a6c", "#0f6647"] },
@@ -30,8 +31,8 @@ export function ContractorView({ ts, cut, open }: { ts: VTask[]; cut: number; op
       <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 1fr) minmax(0, 2.4fr)", gap: 14 }} className="trk-2col">
         <Zoomable title="Performance by contractor" collapsible>
           <div style={{ ...CARD, height: "100%", marginBottom: 0 }}>
-            <h3 style={H3}>Contractor Performance %</h3>
-            <div style={CAP}>click → show that contractor's monthly trend · double-click → activities</div>
+            <h3 style={H3}>{who} Performance %</h3>
+            <div style={CAP}>click → show that {whoL}'s monthly trend · double-click → activities</div>
             {rows.map(r => {
               const [, lbl, col] = scoreBand(r.score);
               return (
@@ -57,11 +58,12 @@ export function ContractorView({ ts, cut, open }: { ts: VTask[]; cut: number; op
         <div>
           <Zoomable title="Contractor table" collapsible>
             <div style={CARD}>
-              <h3 style={H3}>Contractor Performance Review</h3>
+              <h3 style={H3}>{who} Performance Review</h3>
+              {who === "Organisation" && <div style={{ fontSize: 11.5, color: "#8a5a00", background: "#fdf3ea", border: "1px solid #eedcae", borderRadius: 8, padding: "6px 10px", margin: "6px 0 8px" }}>This project's VisiLean export has no Contractor field, so activities are grouped by <b>Organisation</b> (the responsible team) instead.</div>}
               <div style={CAP}>performance = 40% cost achieved + 60% physical progress · click a row → activities</div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
-                  <thead><tr>{["Contractor", "Main scope", "Performance", "Activities", "Work executed", "Physical progress", "Baseline cost", "Actual (earned) cost", "% achieved"].map((h, i) => <th key={h} style={{ ...TH, ...(i >= 2 ? R : {}) }}>{h}</th>)}</tr></thead>
+                  <thead><tr>{[who, "Main scope", "Performance", "Activities", "Work executed", "Physical progress", "Baseline cost", "Actual (earned) cost", "% achieved"].map((h, i) => <th key={h} style={{ ...TH, ...(i >= 2 ? R : {}) }}>{h}</th>)}</tr></thead>
                   <tbody>
                     {rows.map(r => (
                       <tr key={r.k} onClick={() => open({ title: r.k, tasks: r.ts })} style={{ cursor: "pointer" }} {...hoverRow}>
@@ -99,7 +101,7 @@ export function ContractorView({ ts, cut, open }: { ts: VTask[]; cut: number; op
           <Zoomable title="Monthly trend" collapsible>
             <div style={CARD}>
               <h3 style={H3}>Monthly Performance Trend{sel ? ` — ${sel}` : ""}</h3>
-              <div style={CAP}>earned value in the month ÷ planned value (BCWS) in the month, coloured by the legend · {sel ? "click the contractor again to show all" : "click a contractor on the left to filter"}</div>
+              <div style={CAP}>earned value in the month ÷ planned value (BCWS) in the month, coloured by the legend · {sel ? `click the ${whoL} again to show all` : `click a ${whoL} on the left to filter`}</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 220, overflowX: "auto", padding: "18px 2px 0" }}>
                 {trend.map(p => {
                   const v = p.bcws > 0 ? Math.min(((p.ev ?? 0) / p.bcws) * 100, 150) : 100;
