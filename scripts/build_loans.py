@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Build src/data/loanData.json from the ZSD Loan report export.
-Usage: python3 scripts/build_loans.py <loan_report.xlsx>
+Usage: python3 scripts/build_loans.py <loan_report.xlsx> ["<DD Mon YYYY>"]
+
+From the 30-Oct-2026 export the report no longer carries "Loan Disbursed
+Amount" / "Disburse%"; disbursed = sanctioned - balance (this held for all
+573 loans in the 28-Sep export that had all three), % = disbursed / sanctioned.
 """
 import sys, os, json, datetime
 import openpyxl
@@ -26,7 +30,7 @@ PROJ_CANON = {
     "SMARTWORLD LE COURTYARD": "SMARTWORLD LE COURTYARD",
 }
 
-def main(path):
+def main(path, as_on):
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = wb.worksheets[0]
     it = ws.iter_rows(values_only=True)
@@ -39,6 +43,13 @@ def main(path):
         v = str(v or "").strip()
         if v not in lst: lst.append(v)
         return lst.index(v)
+
+    def disbursed(r):
+        if "Loan Disbursed Amount" in idx:
+            return [round(num(g(r, "Loan Disbursed Amount")), 2), round(num(g(r, "Disburse%")), 1)]
+        s_, b_ = num(g(r, "Loan Sanctioned Amount")), num(g(r, "Balance Amount"))
+        d_ = max(s_ - b_, 0.0) if s_ > 0 else 0.0
+        return [round(d_, 2), round(d_ / s_ * 100, 1) if s_ > 0 else 0.0]
 
     L = []
     for r in it:
@@ -64,7 +75,7 @@ def main(path):
             ix(plans, g(r, "Payment Plan")),
             str(g(r, "Loan File No.") or ""), day(g(r, "Loan File Date")),
             round(num(g(r, "Loan Sanctioned Amount")), 2), day(g(r, "Loan Sanctioned Date")),
-            round(num(g(r, "Loan Disbursed Amount")), 2), round(num(g(r, "Disburse%")), 1),
+            *disbursed(r),
             round(num(g(r, "Balance Amount")), 2),
             day(g(r, "PTM Date")), day(g(r, "TPT Date")), day(g(r, "BBA Registration Date")),
             ix(emps, g(r, "Employee Name")), ix(execs, g(r, "Executive Name") if ex else ""),
@@ -72,7 +83,7 @@ def main(path):
             round(num(g(r, "Total Due Incl Tax")), 2),
         ])
     out = {
-        "meta": {"asOn": "28 Sep 2026", "epoch": "2022-01-01",
+        "meta": {"asOn": as_on, "epoch": "2022-01-01",
                  "fields": "proj,so,bookDay,regId,name,unit,tower,floor,unitType,cost,bank,plan,fileNo,fileDay,sanctAmt,sanctDay,disbAmt,disbPct,balance,ptmDay,tptDay,bbaDay,emp,exec,remark,due"},
         "PROJECTS": projects, "BANKS": banks, "EMPS": emps, "EXECS": execs, "PLANS": plans, "L": L,
     }
@@ -82,4 +93,4 @@ def main(path):
     print("projects:", projects)
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else datetime.date.today().strftime("%d %b %Y"))
