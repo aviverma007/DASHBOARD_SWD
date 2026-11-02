@@ -3,6 +3,7 @@ import { FootfallSection } from "../../components/leads/FootfallSection";
 import { CpVisitsSection } from "../../components/leads/CpVisitsSection";
 import { DigitalSection } from "../../components/leads/DigitalSection";
 import { useLiveDigitalKey } from "../../components/leads/digitalShared";
+import { useLiveFootfallKey } from "../../utils/footfallLogic";
 import "../../components/inventory/smartworldInventory.css";
 import { BannerPills } from "../../components/layout/PageBanner";
 
@@ -10,6 +11,12 @@ import { BannerPills } from "../../components/layout/PageBanner";
 function DigitalLive({ banner }: { banner: React.ComponentProps<typeof DigitalSection>["banner"] }) {
   const liveKey = useLiveDigitalKey("http://192.168.66.28:5002");
   return <DigitalSection key={liveKey} banner={banner} />;
+}
+
+/** Live Salesforce site visits (CustomerVisit), merged with the export history before the sync start. */
+function FootfallLive(props: React.ComponentProps<typeof FootfallSection>) {
+  const liveKey = useLiveFootfallKey("http://192.168.66.28:5002");
+  return <FootfallSection key={liveKey} {...props} />;
 }
 
 type Tab = "footfall" | "cpvisits" | "digital";
@@ -38,7 +45,7 @@ export function LeadConversionPage({ mode = "footfall" }: { mode?: "footfall" | 
           live inside it); the page supplies the title and tabs. */}
       <div className="tv-zoom-desktop">
       <div className="wrap">
-        {tab === "footfall" && <FootfallSection banner={banner} />}
+        {tab === "footfall" && <FootfallLive banner={banner} />}
         {tab === "cpvisits" && <CpVisitsSection banner={banner} />}
         {tab === "digital" && <DigitalLive banner={banner} />}
       </div>

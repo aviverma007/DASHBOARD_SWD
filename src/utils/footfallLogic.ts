@@ -3,6 +3,7 @@
  * Mirrors the reference suite's customer-footfall page: dimensional
  * counting with click-to-filter, monthly trend, weekday pattern —
  * plus a conversion funnel built from Opportunity Stage. */
+import { useEffect, useState } from "react";
 import raw from "../data/footfallVisits.json";
 
 export interface FfRecord {
@@ -23,14 +24,66 @@ interface FfDataset {
   G: string[]; P: string[]; CPN: string[]; LOC: string[];
   AGE: string[]; STG: string[]; CAT: string[]; SRC: string[];
   epoch: string; R: (number | string)[][];
-  meta: { rows: number; source: string; asOn: string };
+  meta: { rows: number; source: string; asOn: string; live?: boolean; from?: string; ver?: string; snapshotRows?: number; liveRows?: number };
 }
 
-export const FF = raw as unknown as FfDataset;
-
-export const FF_RECORDS: FfRecord[] = FF.R.map(r => ({
+const toRecords = (d: FfDataset): FfRecord[] => d.R.map(r => ({
   g: r[0] as number, p: r[1] as number, src: r[2] as number, cp: r[3] as number, stg: r[4] as number, loc: r[5] as number, age: r[6] as number, cat: r[7] as number, day: r[8] as number, opp: (r[9] as string) ?? "",
 }));
+/** live bindings: swapped for the merged live set once the API answers (see loadLiveFootfall) */
+export let FF = raw as unknown as FfDataset;
+export let FF_RECORDS: FfRecord[] = toRecords(FF);
+
+/* ---- live Salesforce CustomerVisit feed (VendorGlobe API /sfdc/footfall/dataset) ----
+ * The live sync starts from meta.from (1 Apr 2026), so visits before that date come from
+ * the bundled export and everything on/after it from Salesforce — no visit is counted twice. */
+const LISTS = ["G", "P", "SRC", "CPN", "STG", "LOC", "AGE", "CAT"] as const;
+function mergeLive(snap: FfDataset, live: FfDataset): FfDataset {
+  const fromDay = Math.round((Date.parse(`${live.meta.from ?? "2026-04-01"}T00:00:00Z`) - Date.UTC(2022, 0, 1)) / 86400000);
+  const out = { ...snap, meta: { ...live.meta } } as FfDataset;
+  const idx: Record<string, Map<string, number>> = {};
+  LISTS.forEach(k => { out[k] = [...snap[k]]; idx[k] = new Map(out[k].map((v, i) => [v, i])); });
+  const at = (k: typeof LISTS[number], v: string | undefined) => {
+    if (!v) return -1;
+    let i = idx[k].get(v);
+    if (i === undefined) { i = out[k].length; out[k].push(v); idx[k].set(v, i); }
+    return i;
+  };
+  const keep = snap.R.filter(r => (r[8] as number) < fromDay);   // history before the sync start (undated rows kept)
+  const fresh = live.R.filter(r => (r[8] as number) >= fromDay).map(r => [
+    ...LISTS.map((k, j) => at(k, live[k][r[j] as number])), r[8], r[9] ?? "",
+  ]);
+  out.R = [...keep, ...fresh];
+  out.meta.rows = out.R.length; out.meta.snapshotRows = keep.length; out.meta.liveRows = fresh.length;
+  return out;
+}
+/** Fetch the live visits; returns a change key, or null when unreachable/empty (snapshot stays). */
+export async function loadLiveFootfall(apiBase: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${apiBase}/sfdc/footfall/dataset`);
+    const j = await r.json();
+    if (!j.ok || !Array.isArray(j.R) || j.R.length === 0) return null;
+    FF = mergeLive(raw as unknown as FfDataset, j as FfDataset);
+    FF_RECORDS = toRecords(FF);
+    return `${FF.meta.ver ?? FF.R.length}`;
+  } catch {
+    return null;
+  }
+}
+/** Re-checks every `everyMs` and when the tab becomes visible; the key changes only when the data did. */
+export function useLiveFootfallKey(apiBase: string, everyMs = 5 * 60 * 1000): string {
+  const [key, setKey] = useState("snapshot");
+  useEffect(() => {
+    let alive = true;
+    const pull = () => { loadLiveFootfall(apiBase).then(k => { if (alive && k) setKey(c => (c === k ? c : k)); }); };
+    pull();
+    const t = window.setInterval(pull, everyMs);
+    const vis = () => { if (document.visibilityState === "visible") pull(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { alive = false; window.clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [apiBase, everyMs]);
+  return key;
+}
 
 const EPOCH_MS = new Date(FF.epoch + "T00:00:00").getTime();
 export function dayToDate(day: number): Date {

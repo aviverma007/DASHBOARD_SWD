@@ -3,28 +3,30 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AreaChart, BarChart, Card, CardHead, Chip, Chips, Empty, FilterBar, FullViewLink, Funnel, Hero, HBars, Legend, Seg, type FilterValues } from "../ui";
 import { fN, pct } from "../fmt";
 import {
-  FF, FF_RECORDS, ffApply, ffFunnel, ffInsights, ffMonthly, ffWeekday, periodPresets,
+  FF, FF_RECORDS, ffApply, ffFunnel, ffInsights, ffMonthly, ffWeekday, periodPresets, useLiveFootfallKey,
   type FfDim, type FfFilter, type FfRecord,
 } from "../../utils/footfallLogic";
 
 const opts = (names: string[]) => names.map((l, i) => ({ k: String(i), l })).filter(o => o.l);
-const FILTER_DIMS: { key: FfDim; label: string; names: string[]; all: string }[] = [
-  { key: "p", label: "Project", names: FF.P, all: "All projects" },
-  { key: "src", label: "Source", names: FF.SRC, all: "All sources" },
-  { key: "g", label: "Gallery", names: FF.G, all: "All galleries" },
-  { key: "loc", label: "Location", names: FF.LOC, all: "All locations" },
-  { key: "age", label: "Age band", names: FF.AGE, all: "All ages" },
-  { key: "stg", label: "Stage", names: FF.STG, all: "All stages" },
-  { key: "cat", label: "Category", names: FF.CAT, all: "All categories" },
+/* name lists are read at render time: the live Salesforce set (loaded below) adds new names */
+const FILTER_DIMS: { key: FfDim; label: string; names: () => string[]; all: string }[] = [
+  { key: "p", label: "Project", names: () => FF.P, all: "All projects" },
+  { key: "src", label: "Source", names: () => FF.SRC, all: "All sources" },
+  { key: "g", label: "Gallery", names: () => FF.G, all: "All galleries" },
+  { key: "loc", label: "Location", names: () => FF.LOC, all: "All locations" },
+  { key: "age", label: "Age band", names: () => FF.AGE, all: "All ages" },
+  { key: "stg", label: "Stage", names: () => FF.STG, all: "All stages" },
+  { key: "cat", label: "Category", names: () => FF.CAT, all: "All categories" },
 ];
 
 type By = "p" | "src" | "loc" | "age";
-const BY: { k: By; l: string; names: string[] }[] = [
-  { k: "p", l: "Project", names: FF.P }, { k: "src", l: "Source", names: FF.SRC },
-  { k: "loc", l: "Area", names: FF.LOC }, { k: "age", l: "Age", names: FF.AGE },
+const BY: { k: By; l: string; names: () => string[] }[] = [
+  { k: "p", l: "Project", names: () => FF.P }, { k: "src", l: "Source", names: () => FF.SRC },
+  { k: "loc", l: "Area", names: () => FF.LOC }, { k: "age", l: "Age", names: () => FF.AGE },
 ];
 
 export default function Footfall() {
+  const liveKey = useLiveFootfallKey("http://192.168.66.28:5002");
   const nav = useNavigate();
   const { pathname } = useLocation();
   const presets = useMemo(() => periodPresets(), []);
@@ -32,13 +34,13 @@ export default function Footfall() {
   const [fv, setFv] = useState<FilterValues>({});
   const [by, setBy] = useState<By>("p");
 
-  const fields = useMemo(() => FILTER_DIMS.map(d => ({ key: d.key, label: d.label, options: opts(d.names), allLabel: d.all })), []);
+  const fields = useMemo(() => FILTER_DIMS.map(d => ({ key: d.key, label: d.label, options: opts(d.names()), allLabel: d.all })), [liveKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const per = presets.find(p => p.key === perKey) ?? presets[0];
   const rows: FfRecord[] = useMemo(() => {
     const filters: FfFilter[] = FILTER_DIMS.filter(d => fv[d.key]).map(d => ({ dim: d.key, val: Number(fv[d.key]), label: fv[d.key] }));
     const dimRows = ffApply(FF_RECORDS, filters);
     return per.key === "all" ? dimRows : dimRows.filter(r => r.day >= per.from && r.day <= per.to);
-  }, [fv, per]);
+  }, [fv, per, liveKey]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = rows.length;
   const fun = useMemo(() => ffFunnel(rows), [rows]);
@@ -49,7 +51,7 @@ export default function Footfall() {
     const b = BY.find(x => x.k === by)!;
     const m = new Map<number, number>();
     rows.forEach(r => { const k = r[by]; if (k >= 0) m.set(k, (m.get(k) ?? 0) + 1); });
-    return [...m.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: b.names[k], value: v }));
+    return [...m.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: b.names()[k], value: v }));
   }, [rows, by]);
   const withDay = rows.filter(r => r.day >= 0).length;
 
