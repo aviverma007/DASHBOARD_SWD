@@ -7,7 +7,7 @@ import { dayToDate, dayToYm, ymLabel, DOW, fNum } from "../../utils/footfallLogi
 export interface DigDataset {
   SUB: string[]; PRJ: string[]; STA: string[]; AGN: string[]; OWN: string[]; STG: string[];
   epoch: string; R: (number | string)[][];
-  meta: { rows: number; source: string; asOn: string; note: string; removedTest?: number; removedSamples?: string[]; merged?: number; promoted?: number };
+  meta: { rows: number; source: string; asOn: string; note: string; removedTest?: number; removedTestContact?: number; removedSamples?: string[]; merged?: number; promoted?: number };
 }
 
 /* ---- data hygiene, applied to the bundled snapshot AND every live load ----

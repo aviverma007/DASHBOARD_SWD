@@ -350,6 +350,7 @@ export function DigitalSection({ banner }: { banner: { title: ReactNode; sub?: R
             <b> Funnel</b> steps are nested populations: Site&nbsp;visit+ = stage at Site Visit / In Progress / Inventory / Booked; Booked = stage exactly "Booked".
             <b> Names</b>: spelling variants are merged (Axio / axio / AXIO; M3M-Alchemist / M3M Alchemist){DG.meta.merged ? ` — ${fNum(DG.meta.merged)} variants merged` : ""}.
             <b> Test entries</b> (test, test7, abcd, chatbot …) are excluded{DG.meta.removedTest ? ` — ${fNum(DG.meta.removedTest)} removed` : ""}.
+            {DG.meta.removedTestContact ? <> Enquiries whose <b>contact person name contains "test"</b> are left out, as in the Salesforce report — {fNum(DG.meta.removedTestContact)} removed.</> : null}
             Blank cells are excluded from that card but never from totals.
           </div>
         )}
