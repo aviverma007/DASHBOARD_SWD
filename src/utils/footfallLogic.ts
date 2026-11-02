@@ -24,7 +24,7 @@ interface FfDataset {
   G: string[]; P: string[]; CPN: string[]; LOC: string[];
   AGE: string[]; STG: string[]; CAT: string[]; SRC: string[];
   epoch: string; R: (number | string)[][];
-  meta: { rows: number; source: string; asOn: string; live?: boolean; from?: string; ver?: string; snapshotRows?: number; liveRows?: number };
+  meta: { rows: number; source: string; asOn: string; live?: boolean; from?: string; ver?: string; snapshotRows?: number; liveRows?: number; syncedIst?: string };
 }
 
 const toRecords = (d: FfDataset): FfRecord[] => d.R.map(r => ({
@@ -55,8 +55,20 @@ function mergeLive(snap: FfDataset, live: FfDataset): FfDataset {
   ]);
   out.R = [...keep, ...fresh];
   out.meta.rows = out.R.length; out.meta.snapshotRows = keep.length; out.meta.liveRows = fresh.length;
+  // "live · synced 2026-11-02 09:21 UTC" → "live · synced 02 Nov 2026, 2:51 pm IST"
+  const m = (live.meta.asOn ?? "").match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+  if (m) {
+    const ist = new Date(`${m[1]}T${m[2]}:00Z`).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+    out.meta.asOn = `live · synced ${ist} IST`;
+    out.meta.syncedIst = ist.replace(",", "");
+  }
   return out;
 }
+/** Banner line, same as Digital Leads: "Updated 02 Nov 2026 2:51 pm IST", or the snapshot date when the API is unreachable. */
+export function footfallUpdatedText(): string {
+  return FF.meta.live && FF.meta.syncedIst ? `Updated ${FF.meta.syncedIst} IST` : `Snapshot as on ${FF.meta.asOn} · live service unreachable`;
+}
+
 /** Fetch the live visits; returns a change key, or null when unreachable/empty (snapshot stays). */
 export async function loadLiveFootfall(apiBase: string): Promise<string | null> {
   try {

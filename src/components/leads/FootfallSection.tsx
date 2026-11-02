@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import {
-  FF, ffScope, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
+  FF, ffScope, footfallUpdatedText, ffCount, ffMonthly, ffWeekday, fNum, dayToDate, isoToDay,
   periodPresets, type PeriodPreset,
   type FfFilter, type FfDim, type FfRecord,
 } from "../../utils/footfallLogic";
@@ -112,7 +112,7 @@ export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: 
         onClose={() => setDrill(null)}
       />
       {/* Global filter bar — in the navy banner like every other page */}
-      <PageBanner bleed title={banner.title} sub={banner.sub} right={banner.right} center={banner.center}>
+      <PageBanner bleed title={banner.title} sub={<>{banner.sub} · <strong style={{ color: "#8be3b8" }}>{footfallUpdatedText()}</strong></>} right={banner.right} center={banner.center}>
         <div style={{ position: "relative" }}>
           <div style={BANNER_LBL}>Projects / campaigns</div>
           <button onClick={() => setProjOpen(v => !v)}
