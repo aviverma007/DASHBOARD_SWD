@@ -54,7 +54,7 @@ export function EarnedValueView({ ts, cut, open }: { ts: VTask[]; cut: number; o
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", paddingRight: 64 }}>
             <div>
               <h3 style={H3}>S-Curve (Earned Value)</h3>
-              <div style={CAP}>monthly bars + cumulative lines · baseline & BCWS spread by working days (Mon–Sat) · earned value spread over each task's actual dates · click a month → its activities</div>
+              <div style={CAP}>monthly bars + cumulative lines (₹ Cr) · bar labels = earned up to this month, BCWS after · baseline & BCWS spread by working days (Mon–Sat) · earned value spread over each task's actual dates · click a month → its activities</div>
             </div>
             <div style={{ display: "flex", gap: 12, fontSize: 11, fontWeight: 700, color: "var(--mut)", flexWrap: "wrap" }}>
               <span><span style={{ color: "#c9c3b4" }}>■</span> Baseline</span><span><span style={{ color: "#8fb8c4" }}>■</span> BCWS</span><span><span style={{ color: C.TEAL }}>■</span> Earned</span>
@@ -133,7 +133,7 @@ function SCurveChart({ data, cutYm, onMonth }: { data: EVPoint[]; cutYm: string;
     const ro = new ResizeObserver(es => setW(es[0].contentRect.width));
     ro.observe(ref.current); return () => ro.disconnect();
   }, []);
-  const W = Math.max(w, 420), H = 330, ML = 52, MR = 56, MT = 14, MB = 40;
+  const W = Math.max(w, 420), H = 380, ML = 52, MR = 56, MT = 40, MB = 40;
   const pw = W - ML - MR, ph = H - MT - MB, n = Math.max(data.length, 1), band = pw / n;
   const bw = Math.max(1.5, Math.min(7, band * 0.26));
   const hiBar = Math.max(...data.map(p => Math.max(p.bl, p.bcws, p.ev ?? 0)), 1);
@@ -144,6 +144,12 @@ function SCurveChart({ data, cutYm, onMonth }: { data: EVPoint[]; cutYm: string;
     .map(([i, v], j) => `${j ? "L" : "M"}${x(i).toFixed(1)},${yc(v as number).toFixed(1)}`).join(" ");
   const step = Math.max(1, Math.ceil(n / Math.max(6, Math.floor(pw / 46))));
   const cutI = data.findIndex(p => p.ym === cutYm);
+  /* value labels: each month's top bar (earned up to the as-on month, BCWS after it); cumulative
+     lines every `step` months plus at the as-on month and the end — rotated when bars are narrow */
+  const rot = band < 30;
+  const lbl = (v: number) => (v / 1e7 >= 100 ? (v / 1e7).toFixed(0) : (v / 1e7).toFixed(v / 1e7 >= 10 ? 1 : 2));
+  const cumIdx = new Set<number>([n - 1, ...(cutI >= 0 ? [cutI] : [])]);
+  data.forEach((_, i) => { if (i % (step * 2) === 0) cumIdx.add(i); });
   return (
     <div ref={ref} style={{ width: "100%", overflow: "hidden" }}>
       {w > 0 && (
@@ -169,10 +175,35 @@ function SCurveChart({ data, cutYm, onMonth }: { data: EVPoint[]; cutYm: string;
               {(i % step === 0 || i === n - 1) && <text x={x(i)} y={H - 22} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 700, fill: "var(--mut)" }}>{ymLbl(p.ym)}</text>}
             </g>
           ))}
+          {/* monthly value labels */}
+          {data.map((p, i) => {
+            const past = cutI >= 0 && i <= cutI && p.ev !== null;
+            const v = past ? (p.ev as number) : p.bcws;
+            if (v < 5e5) return null;
+            const top = Math.min(yb(Math.max(p.bl, p.bcws, past ? (p.ev as number) : 0)), MT + ph) - 4;
+            return rot
+              ? <text key={`l${p.ym}`} x={x(i) + 3} y={top} transform={`rotate(-90 ${x(i) + 3} ${top})`} pointerEvents="none"
+                  style={{ fontSize: 8.5, fontWeight: 800, fill: past ? C.TEAL : "#6d8f99" }}>{lbl(v)}</text>
+              : <text key={`l${p.ym}`} x={x(i)} y={top} textAnchor="middle" pointerEvents="none"
+                  style={{ fontSize: 9, fontWeight: 800, fill: past ? C.TEAL : "#6d8f99" }}>{lbl(v)}</text>;
+          })}
           <path d={line(p => p.cBl)} fill="none" stroke="#e0457b" strokeWidth={1.8} />
           <path d={line(p => p.cBcws)} fill="none" stroke="#7fcfc0" strokeWidth={1.8} />
           <path d={line(p => p.cEv)} fill="none" stroke={C.TEAL} strokeWidth={2.4} />
           {cutI >= 0 && data[cutI].cEv !== null && <circle cx={x(cutI)} cy={yc(data[cutI].cEv!)} r={4} fill="#fff" stroke={C.TEAL} strokeWidth={2} />}
+          {/* cumulative labels: BCWS (mint) on future/marked months, earned (teal) up to as-on */}
+          {data.map((p, i) => cumIdx.has(i) && (
+            <g key={`c${p.ym}`} pointerEvents="none">
+              {(cutI < 0 || i >= cutI) && p.cBcws > 0 && <>
+                <circle cx={x(i)} cy={yc(p.cBcws)} r={2.6} fill="#7fcfc0" />
+                <text x={x(i)} y={yc(p.cBcws) - 7} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 800, fill: "#3f8f80", paintOrder: "stroke", stroke: "#fff", strokeWidth: 3 }}>{lbl(p.cBcws)}</text>
+              </>}
+              {p.cEv !== null && p.cEv > 0 && i <= cutI && <>
+                <circle cx={x(i)} cy={yc(p.cEv)} r={2.6} fill={C.TEAL} />
+                <text x={x(i)} y={yc(p.cEv) + 14 > MT + ph - 4 ? yc(p.cEv) - 7 : yc(p.cEv) + 14} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 800, fill: C.TEAL, paintOrder: "stroke", stroke: "#fff", strokeWidth: 3 }}>{lbl(p.cEv)}</text>
+              </>}
+            </g>
+          ))}
         </svg>
       )}
     </div>
