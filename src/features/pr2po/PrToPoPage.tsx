@@ -1502,8 +1502,18 @@ export default function PrToPoPage() {
     openList(`PRs created in ${label}`, js);
   };
 
-  const meta = raw?.meta as { sync?: { SAP_PR?: { last_sync_age_s?: number } } } | undefined;
-  const syncAge = meta?.sync?.SAP_PR?.last_sync_age_s;
+  type SyncMeta = {
+    SAP_PR?: { last_sync_age_s?: number | null; newest_pr_date?: string | null; newest_pr_age_days?: number | null };
+    loop?: { running?: boolean; last_ok_age_s?: number | null; last_error?: string | null; last_error_age_s?: number | null };
+  };
+  const sync = (raw?.meta as { sync?: SyncMeta } | undefined)?.sync;
+  const ago = (s: number) => s < 3600 ? `${Math.max(1, Math.round(s / 60))} min ago` : s < 172800 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`;
+  /* "synced" = the SAP mirror loop's last successful cycle (API heartbeat); older APIs only report
+     the newest changed row, which is labelled as such */
+  const loop = sync?.loop, okAge = loop?.last_ok_age_s ?? null, errAge = loop?.last_error_age_s ?? null;
+  const failing = !!loop?.last_error && (okAge === null || (errAge !== null && errAge < okAge));
+  const changeAge = sync?.SAP_PR?.last_sync_age_s ?? null;
+  const newestAge = sync?.SAP_PR?.newest_pr_age_days ?? null;
   const pageSize = 25;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageRows = [...rows].sort((a, b) => (b.pendingSince ?? 0) - (a.pendingSince ?? 0)).slice((page - 1) * pageSize, page * pageSize);
@@ -1544,7 +1554,9 @@ export default function PrToPoPage() {
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef" }}>
       <PageBanner bleed title="PR → PO Journey"
         sub={<>SAP PR → QMS approvals → NFA vendor selection → SAP PO · live
-          {syncAge !== undefined && syncAge !== null ? <> · synced {Math.max(1, Math.round(Number(syncAge) / 60))} min ago</> : null}
+          {okAge !== null ? <> · synced {ago(okAge)}</> : loop ? null : changeAge !== null ? <> · last SAP change {ago(changeAge)}</> : null}
+          {failing ? <> · <strong style={{ color: "#ff9b8f" }} title={loop?.last_error ?? ""}>SAP sync failing{okAge === null ? " — no successful sync since restart" : ""}</strong></> : null}
+          {!failing && newestAge !== null && newestAge > 3 ? <> · <strong style={{ color: "#ffd27a" }}>newest SAP PR {sync?.SAP_PR?.newest_pr_date} ({newestAge} days old)</strong></> : null}
           {raw ? <> · {fN(journeys.length)} journeys in window</> : null}</>}>
         <div>
           <div style={BANNER_LBL}>From (PR created)</div>
