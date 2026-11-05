@@ -294,6 +294,9 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
   const Main = ({ k, c }: { k: string; c: [string, string] }) => {
     const p = P[k], x = A[k], cash = x.rows.filter(r => r.kind === KIND.CASH);
     const byProj = sumBy(cash, r => r.proj);
+    /* till-date card: also show the figure after taking out money not yet allotted (suspense + awaiting allotment) */
+    const isAll = k === "all";
+    const naProj = (n: string) => (H.suspense.find(z => z.proj === n)?.net ?? 0) + H.awaiting.filter(z => z.proj === n).reduce((t, z) => t + z.net, 0);
     return (
       <div className="g3d" style={{ ...GLASS(c[0], c[1]), display: "flex", flexDirection: "column", minHeight: 250 }}>
         <div onClick={() => openP(p)} style={{ padding: "14px 16px 10px", cursor: "pointer" }}
@@ -308,13 +311,26 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
           </div>
           {(x.a.tds > 0 || x.a.bounce > 0) && <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", marginTop: 3 }}>+ TDS {fMoney(x.a.tds)}{x.a.bounce > 0 ? ` · bounced ${fMoney(x.a.bounce)}` : ""}</div>}
         </div>
+        {isAll && (
+          <div onClick={() => open("Money not yet allotted", [...H.suspense.flatMap(z => z.rows), ...H.awaiting.flatMap(z => z.rows)], "suspense + customers awaiting allotment")}
+            onMouseEnter={e => showTip(e, `<b>After removing money not yet allotted</b><br/>${fCr(x.a.cash)} − ${fCr(notAllotted)} = ${fCr(x.a.cash - notAllotted)}<br/>click → the not-allotted receipts`)} onMouseLeave={hideTip}
+            style={{ margin: "0 12px 10px", padding: "7px 10px", borderRadius: 9, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", cursor: "pointer" }}>
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Excl. not yet allotted</div>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(x.a.cash - notAllotted)}</span>
+              <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>− {fCr(notAllotted)} not allotted</span>
+            </div>
+          </div>
+        )}
         {/* scrolling project breakdown */}
         <div className="rc-scroll" style={{ flex: 1, background: "rgba(255,255,255,.10)", borderTop: "1px solid rgba(255,255,255,.18)", maxHeight: 132, overflowY: "auto", padding: "4px 10px 6px" }}>
           {byProj.length ? byProj.map(b => (
             <div key={b.k} onClick={() => openP(p, r => r.proj === b.k, b.k)} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 4px", fontSize: 11.5, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,.10)" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.12)"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.k}</span>
-              <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.7, fontWeight: 600 }}>{x.a.cash ? `${((b.v / x.a.cash) * 100).toFixed(0)}%` : ""}</span></b>
+              {isAll
+                ? <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.75, fontWeight: 600 }}>· excl. {fMoney(b.v - naProj(b.k))}</span></b>
+                : <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.7, fontWeight: 600 }}>{x.a.cash ? `${((b.v / x.a.cash) * 100).toFixed(0)}%` : ""}</span></b>}
             </div>
           )) : <div style={{ fontSize: 11.5, opacity: 0.8, padding: "8px 4px" }}>No cash receipts in this period</div>}
         </div>
