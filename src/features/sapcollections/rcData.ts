@@ -72,7 +72,7 @@ export function periods(a = ANCHOR): Record<string, Period> {
     lastmonth: { key: "lastmonth", label: "Last month", short: ymLbl(ymOf(lmStart)), from: lmStart, to: lmEnd, prev: { from: llmStart, to: lmStart - 1, label: `vs ${ymLbl(ymOf(llmStart))}` } },
     last30: { key: "last30", label: "Last 30 days", short: `${fDayS(a - 29)} – ${fDayS(a)}`, from: a - 29, to: a, prev: { from: a - 59, to: a - 30, label: "vs the 30 days before" } },
     fy: { key: "fy", label: `FY ${String(fyY).slice(2)}-${String(fyY + 1).slice(2)} to date`, short: `since 1 Apr ${fyY}`, from: fyStart, to: a, prev: { from: dayOf(fyY - 1, 4, 1), to: a - 365, label: "vs same point last FY" } },
-    all: { key: "all", label: "Collection till date", short: "all receipts in the data", from: -1e6, to: 1e6 },
+    all: { key: "all", label: "Collection till date", short: "gross cash in · incl. EOI & cancelled units, before refunds", from: -1e6, to: 1e6 },
   };
 }
 

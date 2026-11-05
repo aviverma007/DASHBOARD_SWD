@@ -132,6 +132,54 @@ function RcDrawer({ d, onClose }: { d: Drill | null; onClose: () => void }) {
   );
 }
 
+/** One card, many views: a sliding toggle bar (pills with a moving highlight) or a range slider,
+ *  arrows / keyboard to step, click the body → drill. */
+interface Slide { k: string; label?: string; c: string; body: React.ReactNode; go?: () => void }
+function SlideCard({ title, cap, items, bar = "pills", id }: { title: string; cap?: string; items: Slide[]; bar?: "pills" | "range"; id: string }) {
+  const [i, setI] = useState(0);
+  const n = items.length, cur = items[Math.min(i, n - 1)];
+  const step = (d: number) => setI(x => (x + d + n) % n);
+  if (!cur) return null;
+  const arrow: React.CSSProperties = { width: 28, height: 28, borderRadius: 8, border: "1px solid #e2dccd", background: "#fff", cursor: "pointer", fontSize: 15, lineHeight: "24px", color: "var(--ink)" };
+  return (
+    <div style={{ ...CARD, borderLeft: `5px solid ${cur.c}`, transition: "border-color .25s" }} tabIndex={0}
+      onKeyDown={e => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={H3}>{title}</h3>
+          {cap ? <div style={{ ...CAP, marginBottom: 0 }}>{cap}</div> : null}
+        </div>
+        <span style={{ fontSize: 11, color: "var(--mut)", whiteSpace: "nowrap" }}>{Math.min(i, n - 1) + 1} / {n}</span>
+        <button style={arrow} onClick={() => step(-1)} aria-label="previous">‹</button>
+        <button style={arrow} onClick={() => step(1)} aria-label="next">›</button>
+      </div>
+      {bar === "pills" ? (
+        <div className="rc-strip" style={{ display: "flex", gap: 2, overflowX: "auto", background: "#f3efe5", borderRadius: 999, padding: 3, marginBottom: 10 }}>
+          {items.map((it, j) => (
+            <button key={it.k} onClick={() => setI(j)}
+              style={{ position: "relative", flex: "0 0 auto", border: "none", background: "transparent", cursor: "pointer", padding: "6px 12px", borderRadius: 999,
+                fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", color: j === i ? "#fff" : "#6b6352" }}>
+              {j === i ? <motion.span layoutId={`slide-${id}`} transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                style={{ position: "absolute", inset: 0, borderRadius: 999, background: it.c, zIndex: 0 }} /> : null}
+              <span style={{ position: "relative", zIndex: 1 }}>{it.label ?? it.k}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <input type="range" min={0} max={n - 1} step={1} value={Math.min(i, n - 1)} onChange={e => setI(+e.target.value)}
+          style={{ width: "100%", accentColor: cur.c, marginBottom: 10, cursor: "pointer" }} />
+      )}
+      <AnimatePresence mode="wait">
+        <motion.div key={cur.k} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: .18 }}
+          onClick={cur.go} style={{ cursor: cur.go ? "pointer" : "default", minHeight: 62 }}
+          onMouseEnter={e => { if (cur.go) showTip(e, "click → the receipts behind it"); }} onMouseLeave={hideTip}>
+          {cur.body}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function MiniBars({ items, color, onPick, fmt = fMoney }: { items: { k: string; v: number }[]; color: string; onPick?: (k: string) => void; fmt?: (v: number) => string }) {
   const mx = Math.max(...items.map(i => Math.abs(i.v)), 1);
   return (
@@ -368,7 +416,6 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
     return out;
   }, [A, P, scope, runRate, lm, wdDone, wdAll, fy, H]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cov = RC.meta.coverageFrom;
   const toneCol = { good: GREEN, bad: RED, warn: AMBER } as const;
 
   return (
@@ -376,12 +423,6 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
       <style>{`.rc-scroll::-webkit-scrollbar{width:5px}.rc-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.35);border-radius:3px}
         .rc-strip::-webkit-scrollbar{height:7px}.rc-strip::-webkit-scrollbar-thumb{background:#d8d2c4;border-radius:4px}
         @media (max-width: 1100px){ .rc-2col{grid-template-columns:1fr !important} }`}</style>
-
-      <div style={{ fontSize: 11.5, color: "#5a4a1a", background: "#fbf3df", border: "1px solid #eedcae", borderRadius: 10, padding: "8px 12px", marginBottom: 12, lineHeight: 1.55 }}>
-        <b>Cash collected</b> = cleared receipts (online, cheque, DD) from SAP's receipt register, as on <b>{RC.meta.asOn}</b>. TDS, bounced, refunds and journal vouchers are shown separately — journal vouchers only move money between customer codes.
-        {" "}Covers {Object.entries(cov).sort((a, b) => a[1].localeCompare(b[1])).map(([p, d]) => `${p} (from ${fDayS(Math.round((Date.parse(d) - Date.UTC(2022, 0, 1)) / 864e5))} '${d.slice(2, 4)})`).join(", ")}.
-        {" "}<b>Sky Arc and One DXP are not in yet</b> — they arrive with their ZREC prints or the live SAP feed.
-      </div>
 
       {/* main cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginBottom: 12 }}>
@@ -391,17 +432,15 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
         <Main k="all" c={["#1c3f6e", "#0f2547"]} />
       </div>
 
-      {/* scrolling strip of more cards */}
-      <div className="rc-strip" style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, marginBottom: 14, scrollSnapType: "x mandatory" }}>
-        {strip.map(s => (
-          <div key={s.k} onClick={s.go} style={{ ...CARD, marginBottom: 0, flex: "0 0 230px", borderLeft: `5px solid ${s.c}`, padding: "10px 13px", cursor: "pointer", scrollSnapAlign: "start" }}
-            onMouseEnter={e => showTip(e, `<b>${s.k}</b><br/>${s.v} · ${s.s}<br/>click → receipts`)} onMouseLeave={hideTip}>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)" }}>{s.k}</div>
-            <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: "var(--ink)", marginTop: 4, whiteSpace: "nowrap" }}>{s.v}</div>
-            <div style={{ fontSize: 10.5, color: "#8a8474", marginTop: 3, lineHeight: 1.35 }}>{s.s}</div>
-          </div>
-        ))}
-      </div>
+      {/* more figures: one card, sliding toggle */}
+      <SlideCard id="figs" title="More Figures" cap="slide through · click the figure → receipts" items={strip.map(x => ({
+        k: x.k, c: x.c, go: x.go,
+        body: <>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)" }}>{x.k}</div>
+          <div style={{ fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>{x.v}</div>
+          <div style={{ fontSize: 12, color: "#8a8474", marginTop: 2 }}>{x.s}</div>
+        </>,
+      }))} />
 
       {/* money received but not yet allotted */}
       <Zoomable title="Not yet allotted" collapsible>
@@ -455,22 +494,15 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
         </div>
       </Zoomable>
 
-      {/* management Q&A */}
-      <Zoomable title="Management questions" collapsible>
-        <div style={CARD}>
-          <h3 style={H3}>What Management Asks — Answered</h3>
-          <div style={CAP}>worked out from the receipts as on {RC.meta.asOn} · click an answer → the receipts behind it</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: 10 }}>
-            {qa.map(x => (
-              <div key={x.q} onClick={x.go} style={{ border: "1px solid #eae6da", borderLeft: `4px solid ${x.tone ? toneCol[x.tone] : TEAL}`, borderRadius: 10, padding: "9px 12px", cursor: x.go ? "pointer" : "default", background: "#fdfcf9" }}
-                onMouseEnter={e => { if (x.go) (e.currentTarget as HTMLElement).style.background = "#faf6ea"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#fdfcf9"; }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#8a7f6a", letterSpacing: ".3px" }}>{x.q}</div>
-                <div style={{ fontSize: 12.5, color: "var(--ink)", marginTop: 3, lineHeight: 1.5 }}>{x.a}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Zoomable>
+      {/* management Q&A: one card, slide through the questions */}
+      <SlideCard id="qa" bar="range" title="What Management Asks — Answered" cap={`as on ${RC.meta.asOn} · slide or use ‹ › · click the answer → receipts`}
+        items={qa.map(x => ({
+          k: x.q, c: x.tone ? toneCol[x.tone] : TEAL, go: x.go,
+          body: <>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#8a7f6a" }}>{x.q}</div>
+            <div style={{ fontSize: 15, color: "var(--ink)", marginTop: 5, lineHeight: 1.55 }}>{x.a}</div>
+          </>,
+        }))} />
 
       {/* trends */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: 14, marginBottom: 14 }} className="rc-2col">
