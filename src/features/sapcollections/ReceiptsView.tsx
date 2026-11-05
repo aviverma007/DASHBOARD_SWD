@@ -134,54 +134,6 @@ function RcDrawer({ d, onClose }: { d: Drill | null; onClose: () => void }) {
   );
 }
 
-/** One card, many views: a sliding toggle bar (pills with a moving highlight) or a range slider,
- *  arrows / keyboard to step, click the body → drill. */
-interface Slide { k: string; label?: string; c: string; body: React.ReactNode; go?: () => void }
-function SlideCard({ title, cap, items, bar = "pills", id }: { title: string; cap?: string; items: Slide[]; bar?: "pills" | "range"; id: string }) {
-  const [i, setI] = useState(0);
-  const n = items.length, cur = items[Math.min(i, n - 1)];
-  const step = (d: number) => setI(x => (x + d + n) % n);
-  if (!cur) return null;
-  const arrow: React.CSSProperties = { width: 28, height: 28, borderRadius: 8, border: "1px solid #e2dccd", background: "#fff", cursor: "pointer", fontSize: 15, lineHeight: "24px", color: "var(--ink)" };
-  return (
-    <div style={{ ...CARD, borderLeft: `5px solid ${cur.c}`, transition: "border-color .25s" }} tabIndex={0}
-      onKeyDown={e => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={H3}>{title}</h3>
-          {cap ? <div style={{ ...CAP, marginBottom: 0 }}>{cap}</div> : null}
-        </div>
-        <span style={{ fontSize: 11, color: "var(--mut)", whiteSpace: "nowrap" }}>{Math.min(i, n - 1) + 1} / {n}</span>
-        <button style={arrow} onClick={() => step(-1)} aria-label="previous">‹</button>
-        <button style={arrow} onClick={() => step(1)} aria-label="next">›</button>
-      </div>
-      {bar === "pills" ? (
-        <div className="rc-strip" style={{ display: "flex", gap: 2, overflowX: "auto", background: "#f3efe5", borderRadius: 999, padding: 3, marginBottom: 10 }}>
-          {items.map((it, j) => (
-            <button key={it.k} onClick={() => setI(j)}
-              style={{ position: "relative", flex: "0 0 auto", border: "none", background: "transparent", cursor: "pointer", padding: "6px 12px", borderRadius: 999,
-                fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", color: j === i ? "#fff" : "#6b6352" }}>
-              {j === i ? <motion.span layoutId={`slide-${id}`} transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                style={{ position: "absolute", inset: 0, borderRadius: 999, background: it.c, zIndex: 0 }} /> : null}
-              <span style={{ position: "relative", zIndex: 1 }}>{it.label ?? it.k}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <input type="range" min={0} max={n - 1} step={1} value={Math.min(i, n - 1)} onChange={e => setI(+e.target.value)}
-          style={{ width: "100%", accentColor: cur.c, marginBottom: 10, cursor: "pointer" }} />
-      )}
-      <AnimatePresence mode="wait">
-        <motion.div key={cur.k} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: .18 }}
-          onClick={cur.go} style={{ cursor: cur.go ? "pointer" : "default", minHeight: 62 }}
-          onMouseEnter={e => { if (cur.go) showTip(e, "click → the receipts behind it"); }} onMouseLeave={hideTip}>
-          {cur.body}
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  );
-}
-
 function MiniBars({ items, color, onPick, fmt = fMoney }: { items: { k: string; v: number }[]; color: string; onPick?: (k: string) => void; fmt?: (v: number) => string }) {
   const mx = Math.max(...items.map(i => Math.abs(i.v)), 1);
   return (
@@ -461,15 +413,27 @@ export function ReceiptsView({ projF, q, range }: { projF: string[]; q: string; 
         <Main k={rng ? "range" : "all"} c={["#1c3f6e", "#0f2547"]} />
       </div>
 
-      {/* more figures: one card, sliding toggle */}
-      <SlideCard id="figs" title="More Figures" cap="slide through · click the figure → receipts" items={strip.map(x => ({
-        k: x.k, c: x.c, go: x.go,
-        body: <>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.1px", textTransform: "uppercase", color: "var(--mut)" }}>{x.k}</div>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>{x.v}</div>
-          <div style={{ fontSize: 12, color: "#8a8474", marginTop: 2 }}>{x.s}</div>
-        </>,
-      }))} />
+      {/* more figures: one table — headings across, value and detail under each */}
+      <div style={CARD}>
+        <h3 style={H3}>More Figures</h3>
+        <div style={CAP}>click a figure → the receipts behind it</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead><tr>{strip.map(x => (
+              <th key={x.k} style={{ ...TH, position: "static", borderTop: `3px solid ${x.c}`, padding: "8px 10px", letterSpacing: ".5px", whiteSpace: "normal", minWidth: 110, verticalAlign: "bottom" }}>{x.k}</th>
+            ))}</tr></thead>
+            <tbody>
+              <tr>{strip.map(x => (
+                <td key={x.k} onClick={x.go} style={{ ...TD, cursor: "pointer", fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "var(--ink)", borderBottom: "none", paddingTop: 10 }}
+                  onMouseEnter={e => showTip(e, `<b>${x.k}</b><br/>${x.v} · ${x.s}<br/>click → receipts`)} onMouseLeave={hideTip}>{x.v}</td>
+              ))}</tr>
+              <tr>{strip.map(x => (
+                <td key={x.k} style={{ ...TD, whiteSpace: "normal", fontSize: 10.5, color: "#8a8474", lineHeight: 1.35, verticalAlign: "top", paddingTop: 0 }}>{x.s}</td>
+              ))}</tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* money received but not yet allotted */}
       <Zoomable title="Not yet allotted" collapsible>
