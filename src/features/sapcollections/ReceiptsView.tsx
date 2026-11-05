@@ -327,14 +327,16 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
               <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Booked customers · = Booking-wise</div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(t.pdrn)}</span>
-                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>gap {fCr(x.a.cash - t.pdrn)}</span>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}><b>{fCr(x.a.cash - t.pdrn)}</b> in suspense</span>
               </div>
               {(() => {
                 const refunds = x.a.refund, plus = t.net - t.gross + refunds;   // TDS + transfers
-                const parts: [string, number][] = [["refunds", -refunds], ["TDS & transfers", plus], ["not allotted", -(t.suspense + t.awaiting)],
-                  ["cancelled", -t.cancelled], ["unmatched", -t.unmatched], ["timing", t.pdrn - t.booked]];
+                // each part's share of the suspense (gross − Booking-wise): positive adds to it, negative reduces it
+                const parts: [string, number][] = [["refunds", refunds], ["not allotted", t.suspense + t.awaiting], ["cancelled", t.cancelled],
+                  ["unmatched", t.unmatched], ["timing", t.booked - t.pdrn], ["less TDS & transfers", -plus]];
                 return (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: 10, color: "rgba(255,255,255,.82)" }}>
+                    <span style={{ opacity: .75 }}>suspense =</span>
                     {parts.filter(([, v]) => Math.abs(v) >= 5e4).map(([l, v]) => <span key={l}>{l} <b>{v < 0 ? "−" : "+"}{(Math.abs(v) / 1e7).toFixed(2)}</b></span>)}
                   </div>
                 );
@@ -495,6 +497,8 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
             {[
               { k: "In suspense (unidentified)", v: H.suspenseTotal, s: "still on the EOI collection pool accounts — customer not yet identified", c: ["#c27c0e", "#8a5600"] as [string, string], rows: H.suspense.flatMap(x => x.rows) },
               { k: "Identified, awaiting allotment", v: H.awaitingTotal, s: `${fN(H.awaiting.length)} customers · EOI / advance not yet allotted a unit`, c: ["#6b4fa0", "#3f2a73"] as [string, string], rows: H.awaiting.flatMap(x => x.rows) },
+              { k: "Total in suspense", v: RT_.gross - RT_.pdrn, s: `gross cash ${fCr(RT_.gross)} − Booking-wise ${fCr(RT_.pdrn)} · refunds, transfers, cancelled & timing included`, c: ["#8e2f23", "#5e1a12"] as [string, string],
+                rows: RECON.flatMap(e => [...e.rows.suspense, ...e.rows.awaiting, ...e.rows.cancelled, ...e.rows.unmatched, ...e.rows.adj.filter(r => r.kind === KIND.REFUND)]) },
               { k: "Total not yet allotted", v: notAllotted, s: `${fCr(holdRows.reduce((s, r) => s + r.over90, 0))} of it waiting over 90 days`, c: ["#1c3f6e", "#0f2547"] as [string, string], rows: [...H.suspense.flatMap(x => x.rows), ...H.awaiting.flatMap(x => x.rows)] },
             ].map(x => (
               <div key={x.k} className="g3d" onClick={() => open(x.k, x.rows)} style={{ ...GLASS(x.c[0], x.c[1]), padding: "12px 14px", cursor: "pointer" }}
