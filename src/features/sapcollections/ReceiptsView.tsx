@@ -4,10 +4,11 @@ import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import {
   RC, RECEIPTS, KIND, ANCHOR, periods, inP, agg, sumBy, workDays, fCr, fMoney, fN, fDay, fDayS, ymOf, ymLbl, dow, dayOf, pctChg,
-  POOL_NAME, holdings, pdrnReceived, PDRN_AS_ON, type Rc, type Period, type Agg,
+  POOL_NAME, holdings, pdrnReceived, PDRN_AS_ON, reconcile, type Rc, type Period, type Agg,
 } from "./rcData";
 
 /* ---------------- house styles ---------------- */
+const crN = (v: number) => `${v < 0 ? "−" : ""}${(Math.abs(v) / 1e7).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const NAVY = "#1c3f6e", TEAL = "#0E7490", GREEN = "#1BAF7A", RED = "#c0392b", GOLD = "#B8893C", AMBER = "#EDA100", PURPLE = "#6b4fa0";
 const CAT = ["#0E7490", "#7b5cb8", "#1BAF7A", "#EDA100", "#e34948", "#2a78d6", "#8a94a6", "#c27c0e"];
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 12, boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)", padding: "14px 16px", marginBottom: 14 };
@@ -297,7 +298,6 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
     const byProj = sumBy(cash, r => r.proj);
     /* till-date card: also show the figure after taking out money not yet allotted (suspense + awaiting allotment) */
     const isAll = k === "all";
-    const naProj = (n: string) => (H.suspense.find(z => z.proj === n)?.net ?? 0) + H.awaiting.filter(z => z.proj === n).reduce((t, z) => t + z.net, 0);
     return (
       <div className="g3d" style={{ ...GLASS(c[0], c[1]), display: "flex", flexDirection: "column", minHeight: 250 }}>
         <div onClick={() => openP(p)} style={{ padding: "14px 16px 10px", cursor: "pointer" }}
@@ -314,22 +314,20 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
         </div>
         {isAll && (() => {
           /* booked customers' collection = the Booking-wise tab's "Received" (same PDRN data); projects without a
-             PDRN fall back to ZREC cash minus money not yet allotted */
-          const projs = byProj.map(b => b.k);
-          const booked = projs.reduce((t, n) => t + (pdrnReceived(n) ?? (byProj.find(b => b.k === n)!.v - naProj(n))), 0);
-          const noPdrn = projs.filter(n => pdrnReceived(n) === null);
-          const other = x.a.cash - notAllotted - booked;
+             PDRN use ZREC's booked bucket. Bridge from gross cash uses the reconciliation buckets. */
+          const t = RT_, noPdrn = RECON.filter(e => e.pdrn === null).map(e => e.proj);
           return (
-            <div onClick={() => open("Money not yet allotted", [...H.suspense.flatMap(z => z.rows), ...H.awaiting.flatMap(z => z.rows)], "suspense + customers awaiting allotment")}
-              onMouseEnter={e => showTip(e, `<b>Booked customers' collection</b> = Booking-wise tab "Received" (PDRN ${PDRN_AS_ON})<br/>`
-                + `Gross cash ${fCr(x.a.cash)}<br/>− not yet allotted ${fCr(notAllotted)}<br/>− refunds, cancelled units, transfers, timing ${fCr(other)}<br/>= ${fCr(booked)}`
+            <div onClick={() => setReconOpen(true)}
+              onMouseEnter={e => showTip(e, `<b>Booked customers' collection</b> = Booking-wise "Received" (PDRN ${PDRN_AS_ON})<br/>`
+                + `Gross cash ${fCr(t.gross)}<br/>± TDS, transfers, refunds ${fCr(t.net - t.gross)}<br/>− suspense ${fCr(t.suspense)} · awaiting allotment (net) ${fCr(t.awaiting)}`
+                + `<br/>− cancelled units ${fCr(t.cancelled)}${t.unmatched ? ` · not matched to a booking ${fCr(t.unmatched)}` : ""}<br/>= ZREC booked ${fCr(t.booked)} · Booking-wise ${fCr(t.pdrn)} (gap ${fCr(t.booked - t.pdrn)})`
                 + (x.a.notPdrn > 0 ? `<br/><br/>Kept out of gross: ${fCr(x.a.notPdrn)} launch cheques the PDRN does not count` : "")
-                + (noPdrn.length ? `<br/>No PDRN for ${noPdrn.join(", ")} — ZREC used` : ""))} onMouseLeave={hideTip}
+                + (noPdrn.length ? `<br/>No PDRN for ${noPdrn.join(", ")} — ZREC used` : "") + "<br/>click → project-wise reconciliation")} onMouseLeave={hideTip}
               style={{ margin: "0 12px 10px", padding: "7px 10px", borderRadius: 9, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", cursor: "pointer" }}>
               <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Booked customers · = Booking-wise</div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(booked)}</span>
-                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>− {fCr(notAllotted)} not allotted</span>
+                <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(t.pdrn)}</span>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>{fCr(notAllotted)} not yet allotted</span>
               </div>
             </div>
           );
@@ -341,7 +339,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.12)"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.k}</span>
               {isAll
-                ? <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.75, fontWeight: 600 }}>· booked {fMoney(pdrnReceived(b.k) ?? b.v - naProj(b.k))}</span></b>
+                ? <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.75, fontWeight: 600 }}>· booked {fMoney(pdrnReceived(b.k) ?? (RECON.find(e => e.proj === b.k)?.b.booked ?? 0))}</span></b>
                 : <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.7, fontWeight: 600 }}>{x.a.cash ? `${((b.v / x.a.cash) * 100).toFixed(0)}%` : ""}</span></b>}
             </div>
           )) : <div style={{ fontSize: 11.5, opacity: 0.8, padding: "8px 4px" }}>No cash receipts in this period</div>}
@@ -364,10 +362,18 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
       const sp = H.suspense.find(x => x.proj === n), aw = H.awaiting.filter(x => x.proj === n);
       const ages = aw.map(x => ANCHOR - x.first).filter(a => a >= 0 && a < 1e6);
       return { n, susp: sp?.net ?? 0, suspRows: sp?.rows ?? [], aw: aw.reduce((s, x) => s + x.net, 0), awN: aw.length, awRows: aw.flatMap(x => x.rows),
-        avgAge: ages.length ? ages.reduce((s, a) => s + a, 0) / ages.length : 0, maxAge: ages.length ? Math.max(...ages) : 0, over90: aw.filter(x => ANCHOR - x.first > 90).reduce((s, x) => s + x.net, 0) };
+        avgAge: ages.length ? ages.reduce((s, a) => s + a, 0) / ages.length : 0, maxAge: ages.length ? Math.max(...ages) : 0, over90: aw.filter(x => x.first < 1e8 && ANCHOR - x.first > 90).reduce((s, x) => s + x.net, 0) };
     }).sort((a, b) => b.susp + b.aw - (a.susp + a.aw));
   }, [H]);
   const notAllotted = H.suspenseTotal + H.awaitingTotal;
+  const RECON = useMemo(() => reconcile(scope), [scope]);
+  const reconRef = React.useRef<HTMLDivElement>(null);
+  const setReconOpen = (_: boolean) => reconRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const RT_ = useMemo(() => RECON.reduce((t, e) => ({
+    gross: t.gross + e.gross, net: t.net + e.net, suspense: t.suspense + e.b.suspense, awaiting: t.awaiting + e.b.awaiting,
+    cancelled: t.cancelled + e.b.cancelled, booked: t.booked + e.b.booked, unmatched: t.unmatched + e.b.unmatched,
+    pdrn: t.pdrn + (e.pdrn ?? e.b.booked),
+  }), { gross: 0, net: 0, suspense: 0, awaiting: 0, cancelled: 0, booked: 0, unmatched: 0, pdrn: 0 }), [RECON]);
   const strip: { k: string; v: string; s: string; c: string; go: () => void }[] = [
     { k: "This week", v: fCr(A.week.a.cash), s: `${P.week.short} · ${fN(A.week.a.n)} receipts`, c: TEAL, go: () => openP(P.week) },
     { k: "This month to date", v: fCr(mtd.a.cash), s: `${fN(mtd.a.n)} receipts · ${wdDone} working days`, c: NAVY, go: () => openP(P.mtd) },
@@ -512,12 +518,56 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
                 {H.awaiting.slice(0, 25).map(c => (
                   <div key={c.code + c.proj} onClick={() => open(`${c.name} · all receipts`, c.rows, `${c.unit || c.code} · ${c.proj} · waiting ${ANCHOR - c.first} days`)}
                     style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 4px", borderBottom: "1px solid #f0ede5", fontSize: 12, cursor: "pointer" }} {...hoverRow}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{c.name}</b> <span style={{ color: "var(--mut)" }}>· {c.proj} · {ANCHOR - c.first} d</span></span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{c.name}</b> <span style={{ color: "var(--mut)" }}>· {c.proj}{c.first < 1e8 ? ` · ${ANCHOR - c.first} d` : " · moved in by transfer"}</span></span>
                     <b style={{ whiteSpace: "nowrap" }}>{fMoney(c.net)}</b>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </Zoomable>
+
+      {/* Collections ↔ Booking-wise reconciliation */}
+      <Zoomable title="Collections vs Booking-wise" collapsible>
+        <div style={CARD} ref={reconRef}>
+          <h3 style={H3}>Collections ↔ Booking-wise, Project by Project</h3>
+          <div style={CAP}>₹ Cr · how each project's gross cash becomes the Booking-wise "Received" · every customer counted once · click any figure → receipts</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead><tr>{["Project", "Gross cash", "± TDS / JV / refunds", "= Net held", "− Suspense", "− Awaiting allot.", "− Cancelled", "− Unmatched", "= Booked", "Booking-wise", "Gap"].map((h, i) => <th key={h} style={{ ...TH, ...(i ? RT : {}), padding: "8px 7px", letterSpacing: ".4px" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {RECON.map(e => {
+                  const c = (v: number, rows: Rc[], t: string, strong?: boolean) => (
+                    <td style={{ ...TD, ...RT, padding: "6px 7px", cursor: rows.length ? "pointer" : "default", fontWeight: strong ? 800 : 500, color: v < -5e4 ? RED : undefined }} onClick={() => rows.length && open(`${e.proj} · ${t}`, rows)}>{Math.abs(v) < 5e4 ? "—" : crN(v)}</td>);
+                  const gap = e.pdrn === null ? null : e.b.booked - e.pdrn;
+                  return (
+                    <tr key={e.proj}>
+                      <td style={{ ...TD, fontWeight: 700 }}>{e.proj}</td>
+                      {c(e.gross, e.rows.gross, "gross cash")}
+                      {c(e.net - e.gross, e.rows.adj, "TDS, transfers, refunds")}
+                      {c(e.net, [...e.rows.gross, ...e.rows.adj], "net held", true)}
+                      {c(e.b.suspense, e.rows.suspense, "suspense")}
+                      {c(e.b.awaiting, e.rows.awaiting, "awaiting allotment")}
+                      {c(e.b.cancelled, e.rows.cancelled, "cancelled units")}
+                      {c(e.b.unmatched, e.rows.unmatched, "not matched to an active booking")}
+                      {c(e.b.booked, e.rows.booked, "booked customers", true)}
+                      <td style={{ ...TD, ...RT, fontWeight: 800, color: GREEN }}>{e.pdrn === null ? <span style={{ color: "var(--mut)", fontWeight: 500 }}>no PDRN</span> : crN(e.pdrn)}</td>
+                      <td style={{ ...TD, ...RT, fontWeight: 700, color: gap === null ? "var(--mut)" : Math.abs(gap) < 1e7 ? GREEN : RED }}>{gap === null ? "—" : crN(gap)}</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{ background: NAVY }}>
+                  {["Total", RT_.gross, RT_.net - RT_.gross, RT_.net, RT_.suspense, RT_.awaiting, RT_.cancelled, RT_.unmatched, RT_.booked, RT_.pdrn, RT_.booked - RT_.pdrn].map((v, i) => (
+                    <td key={i} style={{ ...TD, ...(i ? RT : {}), padding: "6px 7px", color: "#fff", fontWeight: 800, borderBottom: "none" }}>{typeof v === "string" ? v : crN(v)}</td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 8 }}>
+            Gap = timing between the ZREC print and the PDRN export, plus transfers in flight · Booking-wise as on {PDRN_AS_ON}, receipts as on {RC.meta.asOn}
+            {RECON.some(e => e.pdrn === null) ? ` · ${RECON.filter(e => e.pdrn === null).map(e => e.proj).join(", ")}: no PDRN — booked taken from ZREC` : ""}
           </div>
         </div>
       </Zoomable>

@@ -143,11 +143,49 @@ const PDRN_OF: Record<string, string> = {
   "Nature's Court": "Smartworld Nature\u2019s Court l", "Le Courtyard": "Smartworld Le Courtyard",
   "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc",
 };
-const PDRN_REC = (() => {
-  const m = new Map<string, number>();
-  for (const r of PD.R) if (r[13] === 0) { const p = PD.P[r[0] as number]; m.set(p, (m.get(p) ?? 0) + (r[24] as number) - (r[25] as number)); }
-  return m;
-})();
+const unitKey = (u: string) => String(u ?? "").replace(/\s+/g, "").toUpperCase();
+const PDRN_REC = new Map<string, number>(), PDRN_UNITS = new Map<string, Set<string>>();
+for (const r of PD.R) if (r[13] === 0) {
+  const p = PD.P[r[0] as number];
+  PDRN_REC.set(p, (PDRN_REC.get(p) ?? 0) + (r[24] as number) - (r[25] as number));
+  if (!PDRN_UNITS.has(p)) PDRN_UNITS.set(p, new Set());
+  PDRN_UNITS.get(p)!.add(unitKey(String(r[9])));
+}
 export const PDRN_AS_ON = PD.meta.asOn;
 /** null when the project has no PDRN (e.g. Code 67, Residential Noida) */
 export const pdrnReceived = (proj: string): number | null => { const n = PDRN_OF[proj]; return n && PDRN_REC.has(n) ? PDRN_REC.get(n)! : null; };
+
+/** Collections ↔ Booking-wise reconciliation, per project. Every customer code lands in exactly one bucket
+ *  (net = cash + TDS + journal vouchers − refunds; bounced, uncleared and not-counted-in-PDRN excluded):
+ *  suspense (EOI pool) → awaiting allotment → cancelled → booked (unit is an active PDRN booking) → unmatched.
+ *  booked − Booking-wise "Received" = what is left: timing between the two exports, transfers in flight. */
+export type Bucket = "suspense" | "awaiting" | "cancelled" | "booked" | "unmatched";
+export interface Recon {
+  proj: string; gross: number; net: number; pdrn: number | null;
+  b: Record<Bucket, number>; rows: Record<Bucket | "gross" | "adj", Rc[]>;
+}
+const LAST_STATUS = (() => {
+  const m = new Map<string, { d: number; s: string }>();
+  for (const r of RECEIPTS) { const k = `${r.code}|${r.proj}`, e = m.get(k); if (!e || r.day >= e.d) m.set(k, { d: r.day, s: r.cstatus }); }
+  return m;
+})();
+export function reconcile(rows: Rc[]): Recon[] {
+  const out = new Map<string, Recon>();
+  for (const r of rows) {
+    let e = out.get(r.proj);
+    if (!e) {
+      e = { proj: r.proj, gross: 0, net: 0, pdrn: pdrnReceived(r.proj), b: { suspense: 0, awaiting: 0, cancelled: 0, booked: 0, unmatched: 0 },
+        rows: { suspense: [], awaiting: [], cancelled: [], booked: [], unmatched: [], gross: [], adj: [] } };
+      out.set(r.proj, e);
+    }
+    if (r.kind === KIND.CASH) { e.gross += r.amt; e.rows.gross.push(r); }
+    if (!(r.kind === KIND.CASH || r.kind === KIND.TDS || r.kind === KIND.JV || r.kind === KIND.REFUND)) continue;
+    if (r.kind !== KIND.CASH) e.rows.adj.push(r);
+    e.net += r.amt;
+    const st = LAST_STATUS.get(`${r.code}|${r.proj}`)?.s ?? r.cstatus, pn = PDRN_OF[r.proj];
+    const k: Bucket = r.name === POOL_NAME ? "suspense" : st === "ALLOTMENT PENDING" ? "awaiting" : st === "CANCEL" ? "cancelled"
+      : pn && PDRN_UNITS.get(pn)?.has(unitKey(r.unit)) ? "booked" : "unmatched";
+    e.b[k] += r.amt; e.rows[k].push(r);
+  }
+  return [...out.values()].sort((a, b) => b.gross - a.gross);
+}
