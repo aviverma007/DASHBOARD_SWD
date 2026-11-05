@@ -1503,8 +1503,9 @@ export default function PrToPoPage() {
   };
 
   type SyncMeta = {
-    SAP_PR?: { last_sync_age_s?: number | null; newest_pr_date?: string | null; newest_pr_age_days?: number | null };
-    loop?: { running?: boolean; last_ok_age_s?: number | null; last_error?: string | null; last_error_age_s?: number | null };
+    source?: string; pr_live?: boolean;
+    SAP_PR?: { last_sync_age_s?: number | null; newest_pr_date?: string | null; newest_pr_age_days?: number | null; newest_pr_from?: string | null };
+    loop?: { name?: string; running?: boolean; last_ok_age_s?: number | null; last_error?: string | null; last_error_age_s?: number | null };
   };
   const sync = (raw?.meta as { sync?: SyncMeta } | undefined)?.sync;
   const ago = (s: number) => s < 3600 ? `${Math.max(1, Math.round(s / 60))} min ago` : s < 172800 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`;
@@ -1514,6 +1515,10 @@ export default function PrToPoPage() {
   const failing = !!loop?.last_error && (okAge === null || (errAge !== null && errAge < okAge));
   const changeAge = sync?.SAP_PR?.last_sync_age_s ?? null;
   const newestAge = sync?.SAP_PR?.newest_pr_age_days ?? null;
+  /* live SAP source: OData since the SAP BI database (.33) was retired; PR lines only arrive once the
+     PR entity set is connected — until then PRs come from the old mirror and stop at its last date */
+  const viaOdata = sync?.source === "sap_odata";
+  const prNotLive = viaOdata && sync?.pr_live === false;
   const pageSize = 25;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageRows = [...rows].sort((a, b) => (b.pendingSince ?? 0) - (a.pendingSince ?? 0)).slice((page - 1) * pageSize, page * pageSize);
@@ -1554,9 +1559,10 @@ export default function PrToPoPage() {
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef" }}>
       <PageBanner bleed title="PR → PO Journey"
         sub={<>SAP PR → QMS approvals → NFA vendor selection → SAP PO · live
+          {viaOdata ? <> · via SAP OData</> : null}
           {okAge !== null ? <> · synced {ago(okAge)}</> : loop ? null : changeAge !== null ? <> · last SAP change {ago(changeAge)}</> : null}
           {failing ? <> · <strong style={{ color: "#ff9b8f" }} title={loop?.last_error ?? ""}>SAP sync failing{okAge === null ? " — no successful sync since restart" : ""}</strong></> : null}
-          {!failing && newestAge !== null && newestAge > 3 ? <> · <strong style={{ color: "#ffd27a" }}>newest SAP PR {sync?.SAP_PR?.newest_pr_date} ({newestAge} days old)</strong></> : null}
+          {!failing && newestAge !== null && newestAge > 3 ? <> · <strong style={{ color: "#ffd27a" }}>newest SAP PR {sync?.SAP_PR?.newest_pr_date} ({newestAge} days old{prNotLive ? " — SAP PR feed not connected yet, POs are live" : ""})</strong></> : null}
           {raw ? <> · {fN(journeys.length)} journeys in window</> : null}</>}>
         <div>
           <div style={BANNER_LBL}>From (PR created)</div>
@@ -2058,7 +2064,7 @@ export default function PrToPoPage() {
                 const linkedFound = new Set((raw.sap_pr as Rec[]).filter(r => r.Ebeln && poNos.has(String(r.Ebeln))).map(r => String(r.Banfn))).size;
                 const sapErr = (raw.meta as { sap_error?: string | null }).sap_error;
                 const items: [string, string, string][] = [
-                  ["SAP PR lines fetched", fN((raw.sap_pr as Rec[]).length), "rows from PR2PO.dbo.SAP_PR (mirror of SWDBIDB.PRD_PR)"],
+                  ["SAP PR lines fetched", fN((raw.sap_pr as Rec[]).length), "live SAP OData PR lines (ODATA_PR) + history from the retired SWDBIDB mirror (SAP_PR)"],
                   ["Distinct SAP PRs", fN(sapPrs.size), "grouped by Banfn — one journey each"],
                   ["VendorGlobe PRs fetched", fN(vgPrs.size), "rows from PRNFATatReportHistory (QMS + NFA legs)"],
                   ["Matched in BOTH systems", fN(both), "Banfn = EPR_No — these journeys carry all legs"],
