@@ -4,7 +4,7 @@ import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import {
   RC, RECEIPTS, KIND, ANCHOR, periods, inP, agg, sumBy, workDays, fCr, fMoney, fN, fDay, fDayS, ymOf, ymLbl, dow, dayOf, pctChg,
-  POOL_NAME, type Rc, type Period, type Agg,
+  POOL_NAME, holdings, type Rc, type Period, type Agg,
 } from "./rcData";
 
 /* ---------------- house styles ---------------- */
@@ -201,11 +201,34 @@ function Columns({ data, onPick, avg, height = 190 }: { data: { k: string; lbl: 
 }
 
 /* ---------------- the view ---------------- */
-const DD_KEYS = ["today", "week", "lastweek", "mtd", "lastmonth", "last30", "fy", "all"] as const;
+const DD_KEYS = ["today", "week", "lastweek", "mtd", "lastmonth", "last30", "fy", "all", "month", "custom"] as const;
+const isoOf = (d: number) => new Date(Date.UTC(2022, 0, 1) + d * 864e5).toISOString().slice(0, 10);
+const dayOfIso = (s: string) => Math.round((Date.parse(`${s}T00:00:00Z`) - Date.UTC(2022, 0, 1)) / 864e5);
+/** every month that has a receipt, newest first */
+const MONTHS_IN_DATA = [...new Set(RECEIPTS.filter(r => r.day >= 0).map(r => ymOf(r.day)))].sort().reverse();
 
 export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
-  const P = useMemo(() => periods(), []);
   const [dd, setDd] = useState<(typeof DD_KEYS)[number]>("mtd");
+  /* Month = any single month; Custom = any from–to dates. Each compares with the period just before it. */
+  const [selMonth, setSelMonth] = useState(MONTHS_IN_DATA[1] ?? MONTHS_IN_DATA[0] ?? ymOf(ANCHOR));
+  const [cFrom, setCFrom] = useState(() => isoOf(ANCHOR - 29));
+  const [cTo, setCTo] = useState(() => isoOf(ANCHOR));
+  const P = useMemo(() => {
+    const base = periods();
+    const [y, m] = selMonth.split("-").map(Number);
+    const mFrom = dayOf(y, m, 1), mTo = dayOf(y, m + 1, 1) - 1;
+    const pmFrom = dayOf(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1, 1);
+    let f = dayOfIso(cFrom), t = dayOfIso(cTo);
+    if (isNaN(f)) f = ANCHOR - 29;
+    if (isNaN(t)) t = ANCHOR;
+    if (f > t) [f, t] = [t, f];
+    const len = t - f + 1;
+    return {
+      ...base,
+      month: { key: "month", label: ymLbl(selMonth), short: `${fDayS(mFrom)} – ${fDayS(Math.min(mTo, ANCHOR))}`, from: mFrom, to: mTo, prev: { from: pmFrom, to: mFrom - 1, label: `vs ${ymLbl(ymOf(pmFrom))}` } },
+      custom: { key: "custom", label: `${fDayS(f)} – ${fDayS(t)}`, short: `${len} days`, from: f, to: t, prev: { from: f - len, to: f - 1, label: `vs the ${len} days before` } },
+    } as Record<string, Period>;
+  }, [selMonth, cFrom, cTo]);
   const [drill, setDrill] = useState<Drill | null>(null);
   const scope = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -258,6 +281,17 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
   const wdAll = workDays(P.mtd.from, monthEnd);
   const runRate = wdDone ? (mtd.a.cash / wdDone) * wdAll : 0;
   const pendingAll = scope.filter(r => r.kind === KIND.PENDING);
+  const H = useMemo(() => holdings(scope), [scope]);
+  const holdRows = useMemo(() => {
+    const names = [...new Set([...H.suspense.map(x => x.proj), ...H.awaiting.map(x => x.proj)])];
+    return names.map(n => {
+      const sp = H.suspense.find(x => x.proj === n), aw = H.awaiting.filter(x => x.proj === n);
+      const ages = aw.map(x => ANCHOR - x.first).filter(a => a >= 0 && a < 1e6);
+      return { n, susp: sp?.net ?? 0, suspRows: sp?.rows ?? [], aw: aw.reduce((s, x) => s + x.net, 0), awN: aw.length, awRows: aw.flatMap(x => x.rows),
+        avgAge: ages.length ? ages.reduce((s, a) => s + a, 0) / ages.length : 0, maxAge: ages.length ? Math.max(...ages) : 0, over90: aw.filter(x => ANCHOR - x.first > 90).reduce((s, x) => s + x.net, 0) };
+    }).sort((a, b) => b.susp + b.aw - (a.susp + a.aw));
+  }, [H]);
+  const notAllotted = H.suspenseTotal + H.awaitingTotal;
   const strip: { k: string; v: string; s: string; c: string; go: () => void }[] = [
     { k: "This week", v: fCr(A.week.a.cash), s: `${P.week.short} · ${fN(A.week.a.n)} receipts`, c: TEAL, go: () => openP(P.week) },
     { k: "This month to date", v: fCr(mtd.a.cash), s: `${fN(mtd.a.n)} receipts · ${wdDone} working days`, c: NAVY, go: () => openP(P.mtd) },
@@ -267,6 +301,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
     { k: "TDS credit (FY)", v: fCr(fy.a.tds), s: "buyers' TDS challans", c: "#2a78d6", go: () => openP(P.fy, r => r.kind === KIND.TDS, "TDS") },
     { k: "Bounced this month", v: fMoney(mtd.a.bounce), s: `${fN(mtd.a.nBounce)} instruments · ${mtd.a.cash + mtd.a.bounce ? ((mtd.a.bounce / (mtd.a.cash + mtd.a.bounce)) * 100).toFixed(1) : 0}% of value`, c: RED, go: () => openP(P.mtd, r => r.kind === KIND.BOUNCE, "bounced") },
     { k: "Refunded this month", v: fMoney(mtd.a.refund), s: "paid back to customers", c: "#7b5cb8", go: () => openP(P.mtd, r => r.kind === KIND.REFUND, "refunds") },
+    { k: "Not yet allotted", v: fCr(notAllotted), s: `${fCr(H.suspenseTotal)} unidentified · ${fCr(H.awaitingTotal)} with ${fN(H.awaiting.length)} customers`, c: "#c27c0e", go: () => open("Money not yet allotted", [...H.suspense.flatMap(x => x.rows), ...H.awaiting.flatMap(x => x.rows)], "suspense + customers awaiting allotment") },
     { k: "Awaiting clearance", v: fMoney(pendingAll.reduce((s, r) => s + r.amt, 0)), s: `${fN(pendingAll.length)} receipts entered, not cleared`, c: AMBER, go: () => open("Awaiting clearance", pendingAll) },
   ];
 
@@ -320,6 +355,9 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
     if (mm.a.cash) out.push({ q: "How dependent are we on a few customers?", tone: top10 / mm.a.cash > 0.5 ? "warn" : undefined, a: <>The top 10 payers this month gave <b>{fCr(top10)}</b> — <b>{((top10 / mm.a.cash) * 100).toFixed(0)}%</b> of the month's {fCr(mm.a.cash)}.</>, go: () => openP(P.mtd) });
     out.push({ q: "How much is stuck — bounced or not yet cleared?", tone: mm.a.bounce > 0 ? "warn" : "good",
       a: <><b>{fMoney(mm.a.bounce)}</b> bounced this month ({fN(mm.a.nBounce)} instruments) and <b>{fMoney(pendingAll.reduce((s, r) => s + r.amt, 0))}</b> entered but awaiting clearance.</>, go: () => openP(P.mtd, r => r.kind === KIND.BOUNCE, "bounced") });
+    out.push({ q: "How much money is still unidentified or not allotted?", tone: H.suspenseTotal > 1e7 ? "warn" : undefined,
+      a: <><b>{fCr(H.suspenseTotal)}</b> is still in suspense (received into the EOI collection pool, customer not yet identified) and <b>{fCr(H.awaitingTotal)}</b> sits with {fN(H.awaiting.length)} identified customers awaiting allotment — <b>{fCr(H.suspenseTotal + H.awaitingTotal)}</b> in all.</>,
+      go: () => open("Money not yet allotted", [...H.suspense.flatMap(x => x.rows), ...H.awaiting.flatMap(x => x.rows)]) });
     out.push({ q: "How much did we refund?", a: <><b>{fMoney(mm.a.refund)}</b> this month and <b>{fMoney(fy.a.refund)}</b> this financial year.</>, go: () => openP(P.fy, r => r.kind === KIND.REFUND, "refunds") });
     const modes = sumBy(mm.rows.filter(r => r.kind === KIND.CASH), r => r.mode), online = modes.find(m => m.k === "ONLINE")?.v ?? 0;
     if (mm.a.cash) out.push({ q: "How are customers paying?", a: <><b>{((online / mm.a.cash) * 100).toFixed(0)}%</b> online this month; cheques {((((modes.find(m => m.k === "CHEQUE")?.v) ?? 0) / mm.a.cash) * 100).toFixed(0)}%, the rest DD and others.</> });
@@ -328,7 +366,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
     const big = mm.rows.filter(r => r.kind === KIND.CASH).sort((a, b) => b.amt - a.amt)[0];
     if (big) out.push({ q: "What was the single biggest receipt this month?", a: <><b>{fMoney(big.amt)}</b> from {big.name}{big.unit ? ` (${big.unit})` : ""}, {big.proj}, on {fDayS(big.day)} by {big.mode.toLowerCase()}.</>, go: () => open(`${big.name} · all receipts`, scope.filter(r => r.code === big.code)) });
     return out;
-  }, [A, P, scope, runRate, lm, wdDone, wdAll, fy]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [A, P, scope, runRate, lm, wdDone, wdAll, fy, H]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const cov = RC.meta.coverageFrom;
   const toneCol = { good: GREEN, bad: RED, warn: AMBER } as const;
@@ -364,6 +402,58 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
           </div>
         ))}
       </div>
+
+      {/* money received but not yet allotted */}
+      <Zoomable title="Not yet allotted" collapsible>
+        <div style={CARD}>
+          <h3 style={H3}>Money Received, Not Yet Allotted</h3>
+          <div style={CAP}>balances as on {RC.meta.asOn} · net of journal vouchers and refunds · click any figure → the receipts behind it</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
+            {[
+              { k: "In suspense (unidentified)", v: H.suspenseTotal, s: "still on the EOI collection pool accounts — customer not yet identified", c: ["#c27c0e", "#8a5600"] as [string, string], rows: H.suspense.flatMap(x => x.rows) },
+              { k: "Identified, awaiting allotment", v: H.awaitingTotal, s: `${fN(H.awaiting.length)} customers · EOI / advance not yet allotted a unit`, c: ["#6b4fa0", "#3f2a73"] as [string, string], rows: H.awaiting.flatMap(x => x.rows) },
+              { k: "Total not yet allotted", v: notAllotted, s: `${fCr(holdRows.reduce((s, r) => s + r.over90, 0))} of it waiting over 90 days`, c: ["#1c3f6e", "#0f2547"] as [string, string], rows: [...H.suspense.flatMap(x => x.rows), ...H.awaiting.flatMap(x => x.rows)] },
+            ].map(x => (
+              <div key={x.k} className="g3d" onClick={() => open(x.k, x.rows)} style={{ ...GLASS(x.c[0], x.c[1]), padding: "12px 14px", cursor: "pointer" }}
+                onMouseEnter={e => showTip(e, `<b>${x.k}</b><br/>${fCr(x.v)}<br/>click → receipts`)} onMouseLeave={hideTip}>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "1.2px", textTransform: "uppercase", color: "rgba(255,255,255,.85)" }}>{x.k}</div>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, marginTop: 4 }}>{fCr(x.v)}</div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)", marginTop: 4 }}>{x.s}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)", gap: 14 }} className="rc-2col">
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 640 }}>
+                <thead><tr>{["Project", "In suspense", "Awaiting allotment", "Customers", "Avg wait", "Oldest", "Waiting 90d+"].map((h, i) => <th key={h} style={{ ...TH, ...(i ? RT : {}) }}>{h}</th>)}</tr></thead>
+                <tbody>{holdRows.map(r => (
+                  <tr key={r.n} {...hoverRow}>
+                    <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{r.n}</td>
+                    <td style={{ ...TD, ...RT, color: r.susp ? "#8a5600" : "var(--mut)", fontWeight: 700, cursor: r.susp ? "pointer" : "default" }} onClick={() => r.susp && open(`${r.n} · in suspense`, r.suspRows)}>{r.susp ? fMoney(r.susp) : "—"}</td>
+                    <td style={{ ...TD, ...RT, fontWeight: 800, cursor: "pointer" }} onClick={() => open(`${r.n} · awaiting allotment`, r.awRows)}>{r.aw ? fMoney(r.aw) : "—"}</td>
+                    <td style={{ ...TD, ...RT }}>{fN(r.awN)}</td>
+                    <td style={{ ...TD, ...RT }}>{r.awN ? `${Math.round(r.avgAge)} d` : "—"}</td>
+                    <td style={{ ...TD, ...RT, color: r.maxAge > 180 ? RED : "var(--mut)" }}>{r.awN ? `${r.maxAge} d` : "—"}</td>
+                    <td style={{ ...TD, ...RT, color: r.over90 ? RED : "var(--mut)", fontWeight: r.over90 ? 700 : 500 }}>{r.over90 ? fMoney(r.over90) : "—"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div>
+              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".8px", textTransform: "uppercase", color: "var(--mut)", marginBottom: 4 }}>Largest waiting customers</div>
+              <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                {H.awaiting.slice(0, 25).map(c => (
+                  <div key={c.code + c.proj} onClick={() => open(`${c.name} · all receipts`, c.rows, `${c.unit || c.code} · ${c.proj} · waiting ${ANCHOR - c.first} days`)}
+                    style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 4px", borderBottom: "1px solid #f0ede5", fontSize: 12, cursor: "pointer" }} {...hoverRow}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{c.name}</b> <span style={{ color: "var(--mut)" }}>· {c.proj} · {ANCHOR - c.first} d</span></span>
+                    <b style={{ whiteSpace: "nowrap" }}>{fMoney(c.net)}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Zoomable>
 
       {/* management Q&A */}
       <Zoomable title="Management questions" collapsible>
@@ -404,12 +494,32 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
       {/* deep dive */}
       <div style={{ ...CARD, padding: "10px 14px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--mut)", marginRight: 4 }}>Deep dive for</span>
-        {DD_KEYS.map(k => (
+        {DD_KEYS.filter(k => k !== "month" && k !== "custom").map(k => (
           <button key={k} onClick={() => setDd(k)} style={{ height: 30, padding: "0 13px", borderRadius: 999, border: `1px solid ${dd === k ? GOLD : "#e0dacb"}`, background: dd === k ? "#fdf6e8" : "#fff", color: dd === k ? "#96691c" : "var(--mut)", fontWeight: dd === k ? 800 : 600, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}>
             {P[k].label.replace("Collection till date", "Till date").replace(/Latest day · .*/, "Latest day")}
           </button>
         ))}
-        <span style={{ fontSize: 11.5, color: "var(--mut)", marginLeft: "auto" }}>{dp.short} · <b style={{ color: "var(--ink)" }}>{fCr(dx.a.cash)}</b> cash</span>
+        <span style={{ width: 1, height: 24, background: "#e0dacb", margin: "0 4px" }} />
+        {/* pick any month */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, height: 30, padding: "0 4px 0 12px", borderRadius: 999, border: `1px solid ${dd === "month" ? GOLD : "#e0dacb"}`, background: dd === "month" ? "#fdf6e8" : "#fff", cursor: "pointer" }}
+          onClick={() => setDd("month")}>
+          <span style={{ fontSize: 11.5, fontWeight: dd === "month" ? 800 : 600, color: dd === "month" ? "#96691c" : "var(--mut)" }}>Month</span>
+          <select aria-label="Month" value={selMonth} onChange={e => { setSelMonth(e.target.value); setDd("month"); }}
+            style={{ height: 24, minWidth: 84, border: "1px solid #e0dacb", borderRadius: 6, background: "#fff", fontSize: 11.5, fontWeight: 800, color: "#14213d", fontFamily: "inherit", cursor: "pointer", outline: "none", colorScheme: "light", padding: "0 4px" }}>
+            {MONTHS_IN_DATA.map(k => <option key={k} value={k}>{ymLbl(k)}</option>)}
+          </select>
+        </label>
+        {/* pick any dates */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, height: 30, padding: "0 10px 0 12px", borderRadius: 999, border: `1px solid ${dd === "custom" ? GOLD : "#e0dacb"}`, background: dd === "custom" ? "#fdf6e8" : "#fff", cursor: "pointer" }}
+          onClick={() => setDd("custom")}>
+          <span style={{ fontSize: 11.5, fontWeight: dd === "custom" ? 800 : 600, color: dd === "custom" ? "#96691c" : "var(--mut)" }}>Custom</span>
+          <input type="date" aria-label="From date" value={cFrom} onChange={e => { setCFrom(e.target.value); setDd("custom"); }}
+            style={{ height: 24, border: "1px solid #e0dacb", borderRadius: 6, fontSize: 11.5, fontFamily: "inherit", padding: "0 4px", colorScheme: "light" }} />
+          <span style={{ color: "var(--mut)" }}>–</span>
+          <input type="date" aria-label="To date" value={cTo} onChange={e => { setCTo(e.target.value); setDd("custom"); }}
+            style={{ height: 24, border: "1px solid #e0dacb", borderRadius: 6, fontSize: 11.5, fontFamily: "inherit", padding: "0 4px", colorScheme: "light" }} />
+        </label>
+        <span style={{ fontSize: 11.5, color: "var(--mut)", marginLeft: "auto" }}>{dp.label} · {dp.short} · <b style={{ color: "var(--ink)" }}>{fCr(dx.a.cash)}</b> cash{dx.pa && dp.prev ? <> · <Delta cur={dx.a.cash} prev={dx.pa.cash} label={dp.prev.label} /></> : null}</span>
       </div>
 
       <Zoomable title="Project-wise" collapsible>

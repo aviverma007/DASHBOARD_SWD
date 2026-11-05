@@ -34,6 +34,8 @@ export const POOL_NAME = "EOI collection pool";
   const n = new Map<string, number>();
   RECEIPTS.forEach(r => { if (r.name === "—" && !r.unit) n.set(r.code, (n.get(r.code) ?? 0) + 1); });
   RECEIPTS.forEach(r => { if ((n.get(r.code) ?? 0) >= 50) r.name = POOL_NAME; });
+  // SAP records the customer's name only at allotment: show the customer code until then
+  RECEIPTS.forEach(r => { if (r.name === "—") r.name = `Customer ${r.code}`; });
 })();
 
 /* ---------------- dates ---------------- */
@@ -103,3 +105,29 @@ export const fCr = (v: number, dp = 2) => `₹${(v / 1e7).toLocaleString("en-IN"
 export const fMoney = (v: number) => { const a = Math.abs(v); return a >= 1e7 ? fCr(v) : a >= 1e5 ? `₹${(v / 1e5).toFixed(2)} L` : `₹${Math.round(v).toLocaleString("en-IN")}`; };
 export const fN = (n: number) => Math.round(n).toLocaleString("en-IN");
 export const pctChg = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? Infinity : 0);
+
+/** Money received but not yet allotted to a unit:
+ *  - suspense   = net balance still on the EOI collection pool accounts (received, customer not yet identified)
+ *  - awaiting   = net balance of named customers whose latest status is ALLOTMENT PENDING
+ *  Net = cleared cash + TDS + journal vouchers (signed) + refunds (negative); bounced / uncleared excluded. */
+export interface Holder { code: string; name: string; unit: string; proj: string; net: number; first: number; last: number; pool: boolean; rows: Rc[] }
+export function holdings(rows: Rc[]) {
+  const m = new Map<string, Holder & { status: string; statusDay: number }>();
+  for (const r of rows) {
+    if (r.kind === KIND.BOUNCE || r.kind === KIND.PENDING) continue;
+    const k = `${r.code}|${r.proj}`;
+    let e = m.get(k);
+    if (!e) { e = { code: r.code, name: r.name, unit: r.unit, proj: r.proj, net: 0, first: 1e9, last: -1, pool: r.name === POOL_NAME, rows: [], status: r.cstatus, statusDay: -1 }; m.set(k, e); }
+    e.net += r.amt; e.rows.push(r);
+    if (r.kind === KIND.CASH) { e.first = Math.min(e.first, r.day); e.last = Math.max(e.last, r.day); }
+    if (r.day >= e.statusDay) { e.statusDay = r.day; e.status = r.cstatus; }
+  }
+  const all = [...m.values()];
+  // pool accounts can run slightly negative per code (moved out before the cash cleared): net them per project
+  const poolByProj = new Map<string, Holder[]>();
+  all.filter(e => e.pool).forEach(e => { poolByProj.set(e.proj, [...(poolByProj.get(e.proj) ?? []), e]); });
+  const suspense = [...poolByProj.entries()].map(([proj, es]) => ({ proj, net: Math.max(0, es.reduce((s, e) => s + e.net, 0)), rows: es.flatMap(e => e.rows), last: Math.max(...es.map(e => e.last)) }))
+    .filter(x => x.net >= 1000).sort((a, b) => b.net - a.net);
+  const awaiting = all.filter(e => !e.pool && e.status === "ALLOTMENT PENDING" && e.net >= 1000).sort((a, b) => b.net - a.net);
+  return { suspense, awaiting, suspenseTotal: suspense.reduce((s, x) => s + x.net, 0), awaitingTotal: awaiting.reduce((s, x) => s + x.net, 0) };
+}
