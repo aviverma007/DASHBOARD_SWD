@@ -3,6 +3,7 @@
  * Collection = cleared RECEIPTs (online / cheque / DD); TDS challans, bounces, receipts awaiting
  * clearance, refunds and journal vouchers are kept apart — JVs only move money between customer codes. */
 import raw from "../../data/collections.json";
+import pdrnRaw from "../../data/cpAnalytics.json";
 
 interface RcFile {
   meta: { asOn: string; asOnDay: number; coverageFrom: Record<string, string>; duplicatesDropped: number };
@@ -11,7 +12,7 @@ interface RcFile {
 }
 export const RC = raw as unknown as RcFile;
 
-export const KIND = { CASH: 0, TDS: 1, BOUNCE: 2, PENDING: 3, REFUND: 4, JV: 5 } as const;
+export const KIND = { CASH: 0, TDS: 1, BOUNCE: 2, PENDING: 3, REFUND: 4, JV: 5, NOT_PDRN: 6 } as const;
 export interface Rc {
   day: number; clr: number; amt: number; proj: string; kind: number; mode: string; bank: string; channel: string;
   charge: string; cstatus: string; code: string; name: string; unit: string; doc: string;
@@ -78,9 +79,9 @@ export function periods(a = ANCHOR): Record<string, Period> {
 
 /* ---------------- aggregation ---------------- */
 export const inP = (r: Rc, p: { from: number; to: number }) => r.day >= p.from && r.day <= p.to;
-export interface Agg { cash: number; tds: number; n: number; bounce: number; nBounce: number; pending: number; refund: number; jv: number; payers: number }
+export interface Agg { cash: number; tds: number; n: number; bounce: number; nBounce: number; pending: number; refund: number; jv: number; notPdrn: number; payers: number }
 export function agg(rs: Rc[]): Agg {
-  const a: Agg = { cash: 0, tds: 0, n: 0, bounce: 0, nBounce: 0, pending: 0, refund: 0, jv: 0, payers: 0 };
+  const a: Agg = { cash: 0, tds: 0, n: 0, bounce: 0, nBounce: 0, pending: 0, refund: 0, jv: 0, notPdrn: 0, payers: 0 };
   const who = new Set<string>();
   for (const r of rs) {
     if (r.kind === KIND.CASH) { a.cash += r.amt; a.n++; who.add(r.code); }
@@ -88,6 +89,7 @@ export function agg(rs: Rc[]): Agg {
     else if (r.kind === KIND.BOUNCE) { a.bounce += r.amt; a.nBounce++; }
     else if (r.kind === KIND.PENDING) a.pending += r.amt;
     else if (r.kind === KIND.REFUND) a.refund += Math.abs(r.amt);
+    else if (r.kind === KIND.NOT_PDRN) a.notPdrn += r.amt;
     else a.jv += r.amt;
   }
   a.payers = who.size;
@@ -114,7 +116,7 @@ export interface Holder { code: string; name: string; unit: string; proj: string
 export function holdings(rows: Rc[]) {
   const m = new Map<string, Holder & { status: string; statusDay: number }>();
   for (const r of rows) {
-    if (r.kind === KIND.BOUNCE || r.kind === KIND.PENDING) continue;
+    if (r.kind === KIND.BOUNCE || r.kind === KIND.PENDING || r.kind === KIND.NOT_PDRN) continue;
     const k = `${r.code}|${r.proj}`;
     let e = m.get(k);
     if (!e) { e = { code: r.code, name: r.name, unit: r.unit, proj: r.proj, net: 0, first: 1e9, last: -1, pool: r.name === POOL_NAME, rows: [], status: r.cstatus, statusDay: -1 }; m.set(k, e); }
@@ -131,3 +133,21 @@ export function holdings(rows: Rc[]) {
   const awaiting = all.filter(e => !e.pool && e.status === "ALLOTMENT PENDING" && e.net >= 1000).sort((a, b) => b.net - a.net);
   return { suspense, awaiting, suspenseTotal: suspense.reduce((s, x) => s + x.net, 0), awaitingTotal: awaiting.reduce((s, x) => s + x.net, 0) };
 }
+
+/* ---------------- link to the Booking-wise tab (same PDRN data) ---------------- */
+/** Booked customers' collection exactly as the Booking-wise tab computes it:
+ *  active bookings, Net Received Including Tax − Pending for Clearance. */
+const PD = pdrnRaw as unknown as { P: string[]; R: (number | string)[][]; meta: { asOn: string } };
+const PDRN_OF: Record<string, string> = {
+  "The Edition": "SMARTWORLD THE EDITION", "Trump Residences": "Trump Residences Gurgaon",
+  "Nature's Court": "Smartworld Nature\u2019s Court l", "Le Courtyard": "Smartworld Le Courtyard",
+  "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc",
+};
+const PDRN_REC = (() => {
+  const m = new Map<string, number>();
+  for (const r of PD.R) if (r[13] === 0) { const p = PD.P[r[0] as number]; m.set(p, (m.get(p) ?? 0) + (r[24] as number) - (r[25] as number)); }
+  return m;
+})();
+export const PDRN_AS_ON = PD.meta.asOn;
+/** null when the project has no PDRN (e.g. Code 67, Residential Noida) */
+export const pdrnReceived = (proj: string): number | null => { const n = PDRN_OF[proj]; return n && PDRN_REC.has(n) ? PDRN_REC.get(n)! : null; };

@@ -16,17 +16,65 @@ Project: one per customer — full profit centers decide it, truncated/blank cen
 the customer's project, else the company default (same rules as build_eoi.py).
 Rows repeated across files (201301 is a subset of the 2010 print) are kept once.
 
+Link to the PDRN (src/data/cpAnalytics.json, the Booking-wise tab's data):
+  per active booked unit, ZREC net (cash + TDS + JV − refunds) is compared with the PDRN's
+  Net Received Including Tax. Where ZREC is higher by exactly a set of launch cheques
+  (instrument "EDN-xxxx N/A …", Nov 2023) the PDRN never counted, those receipts become
+  kind 6 "Not counted in PDRN" — kept and listed, never added to collection.
+  Export ZREC and PDRN on the same day so timing does not create gaps.
+
 R = [day, clearDay, amount, proj, kind, mode, bank, channel, charge, custStatus, cust, doc]
-  kind: 0 cash · 1 tds · 2 bounce · 3 pending · 4 refund · 5 jv
+  kind: 0 cash · 1 tds · 2 bounce · 3 pending · 4 refund · 5 jv · 6 not counted in PDRN
 C = [code, name, unit, company]
 """
-import sys, os, re, json, datetime
+import sys, os, re, json, datetime, itertools
 from collections import defaultdict
 import openpyxl
 
 EPOCH = datetime.datetime(2022, 1, 1)
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "collections.json")
-KINDS = ["Cash", "TDS", "Bounced", "Pending clearance", "Refund", "Journal voucher"]
+KINDS = ["Cash", "TDS", "Bounced", "Pending clearance", "Refund", "Journal voucher", "Not counted in PDRN"]
+PDRN_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "cpAnalytics.json")
+# collection project -> PDRN project name
+PDRN_PROJECT = {"The Edition": "SMARTWORLD THE EDITION", "Trump Residences": "Trump Residences Gurgaon",
+                "Nature's Court": "Smartworld Nature\u2019s Court l", "Le Courtyard": "Smartworld Le Courtyard",
+                "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc"}
+unit_key = lambda u: re.sub(r"\s+", "", str(u or "")).upper()
+
+
+def flag_not_in_pdrn(R, C, projects, launch):
+    """Mark launch cheques the PDRN does not count (see module doc). Returns {project: [n, amount]}."""
+    if not os.path.exists(PDRN_JSON):
+        return {}
+    pd = json.load(open(PDRN_JSON, encoding="utf-8"))
+    pdrn = {}
+    for r in pd["R"]:
+        if r[13] == 0:
+            pdrn[(pd["P"][r[0]], unit_key(r[9]))] = pdrn.get((pd["P"][r[0]], unit_key(r[9])), 0) + r[24]
+    by_unit = defaultdict(list)
+    for i, x in enumerate(R):
+        u = unit_key(C[x[10]][2])
+        if u:
+            by_unit[(projects[x[3]], u)].append(i)
+    out = defaultdict(lambda: [0, 0.0])
+    for (proj, u), idxs in by_unit.items():
+        key = (PDRN_PROJECT.get(proj), u)
+        if key not in pdrn:
+            continue
+        gap = sum(R[i][2] for i in idxs if R[i][4] in (0, 1, 4, 5)) - pdrn[key]
+        cand = [i for i in idxs if i in launch and R[i][4] == 0]
+        if gap <= 1000 or not cand:
+            continue
+        hit = None
+        for n in range(1, min(4, len(cand)) + 1):
+            hit = next((c for c in itertools.combinations(cand, n) if abs(sum(R[i][2] for i in c) - gap) < 2), None)
+            if hit:
+                break
+        for i in hit or ():
+            R[i][4] = 6
+            out[proj][0] += 1
+            out[proj][1] += R[i][2]
+    return {p: [n, round(a, 2)] for p, (n, a) in out.items()}
 PC_PROJECT = [("107202", "Trump Residences"), ("107101", "Sky Arc"), ("201301", "Code 67"),
               ("207101", "Nature's Court"), ("207301", "Nature's Court"),
               ("307301", "Suites"), ("307201", "Le Courtyard"), ("307101", "Residential Noida")]
@@ -95,7 +143,7 @@ def main(paths):
                 owned[(co, code)][proj] += 1
             rows.append((co, code, proj, r, idx))
 
-    seen, R, C, cidx, unplaced, dupes = set(), [], [], {}, defaultdict(int), 0
+    seen, R, C, cidx, unplaced, dupes, launch = set(), [], [], {}, defaultdict(int), 0, set()
     for co, code, proj, r, idx in rows:
         o = owned.get((co, code))
         if o:
@@ -127,10 +175,13 @@ def main(paths):
             c[1] = str(g("Latest Customer Name")).strip()
         if g("Unit Address"):
             c[2] = str(g("Unit Address")).strip()
+        if " N/A" in str(g("Instrument No.") or ""):
+            launch.add(len(R))
         R.append([d, day(g("Clearing/Bounce Date")), amt, ix("PROJECTS", proj), kind, ix("MODES", mode),
                   ix("BANKS", "TDS" if kind == 1 else bank_name(g("Bank Name"))), ix("CHANNELS", channel),
                   ix("CHARGES", g("Charge Type") or "Unspecified"), ix("CSTATUS", g("Customer Status")), cidx[ck], doc])
 
+    not_in_pdrn = flag_not_in_pdrn(R, C, lists["PROJECTS"], launch)
     R.sort(key=lambda x: (x[0], x[2]))
     last = max((x[0] for x in R if x[0] >= 0 and x[4] in (0, 1)), default=-1)
     as_on = (EPOCH + datetime.timedelta(days=last)).strftime("%d %b %Y") if last >= 0 else ""
@@ -141,7 +192,7 @@ def main(paths):
             first[p] = min(first.get(p, x[0]), x[0])
     out = {"meta": {"asOn": as_on, "asOnDay": last, "epoch": "2022-01-01", "files": len(paths), "duplicatesDropped": dupes,
                     "coverageFrom": {p: (EPOCH + datetime.timedelta(days=d)).strftime("%Y-%m-%d") for p, d in first.items()},
-                    "source": "SAP ZREC receipt prints",
+                    "source": "SAP ZREC receipt prints", "notInPdrn": not_in_pdrn,
                     "fields": "R=[day,clearDay,amount,proj,kind(0 cash,1 tds,2 bounced,3 pending,4 refund,5 jv),mode,bank,channel,charge,custStatus,cust,doc] C=[code,name,unit,company]"},
            "KINDS": KINDS, **lists, "C": C, "R": R}
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
@@ -151,6 +202,8 @@ def main(paths):
     for pi, p in enumerate(lists["PROJECTS"]):
         cash = sum(x[2] for x in R if x[3] == pi and x[4] == 0)
         tds = sum(x[2] for x in R if x[3] == pi and x[4] == 1)
+        if p in not_in_pdrn:
+            print(f"  {p:20} not counted in PDRN: {not_in_pdrn[p][0]} launch cheques ₹{not_in_pdrn[p][1] / 1e7:.2f} Cr")
         print(f"  {p:20} cash ₹{cash / 1e7:8.2f} Cr  tds ₹{tds / 1e7:6.2f} Cr  from {out['meta']['coverageFrom'].get(p)}")
 
 

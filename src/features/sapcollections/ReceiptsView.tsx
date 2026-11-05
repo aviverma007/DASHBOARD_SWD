@@ -4,7 +4,7 @@ import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import {
   RC, RECEIPTS, KIND, ANCHOR, periods, inP, agg, sumBy, workDays, fCr, fMoney, fN, fDay, fDayS, ymOf, ymLbl, dow, dayOf, pctChg,
-  POOL_NAME, holdings, type Rc, type Period, type Agg,
+  POOL_NAME, holdings, pdrnReceived, PDRN_AS_ON, type Rc, type Period, type Agg,
 } from "./rcData";
 
 /* ---------------- house styles ---------------- */
@@ -87,6 +87,7 @@ function RcDrawer({ d, onClose }: { d: Drill | null; onClose: () => void }) {
                 <Tile l="Bounced" v={fMoney(a.bounce)} c={RED} s={`${fN(a.nBounce)} instruments`} k={KIND.BOUNCE} />
                 <Tile l="Awaiting clearance" v={fMoney(a.pending)} c={AMBER} k={KIND.PENDING} />
                 <Tile l="Refunded" v={fMoney(a.refund)} c={PURPLE} k={KIND.REFUND} />
+                {a.notPdrn > 0 && <Tile l="Not counted in PDRN" v={fMoney(a.notPdrn)} c="#7a7366" s="launch cheques, Nov 2023" k={KIND.NOT_PDRN} />}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={CARD}><h3 style={H3}>By project</h3><div style={CAP}>cash collected</div><MiniBars items={sumBy(cash, r => r.proj).slice(0, 8)} color={TEAL} /></div>
@@ -311,17 +312,28 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
           </div>
           {(x.a.tds > 0 || x.a.bounce > 0) && <div style={{ fontSize: 10, color: "rgba(255,255,255,.75)", marginTop: 3 }}>+ TDS {fMoney(x.a.tds)}{x.a.bounce > 0 ? ` · bounced ${fMoney(x.a.bounce)}` : ""}</div>}
         </div>
-        {isAll && (
-          <div onClick={() => open("Money not yet allotted", [...H.suspense.flatMap(z => z.rows), ...H.awaiting.flatMap(z => z.rows)], "suspense + customers awaiting allotment")}
-            onMouseEnter={e => showTip(e, `<b>After removing money not yet allotted</b><br/>${fCr(x.a.cash)} − ${fCr(notAllotted)} = ${fCr(x.a.cash - notAllotted)}<br/>click → the not-allotted receipts`)} onMouseLeave={hideTip}
-            style={{ margin: "0 12px 10px", padding: "7px 10px", borderRadius: 9, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", cursor: "pointer" }}>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Excl. not yet allotted</div>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(x.a.cash - notAllotted)}</span>
-              <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>− {fCr(notAllotted)} not allotted</span>
+        {isAll && (() => {
+          /* booked customers' collection = the Booking-wise tab's "Received" (same PDRN data); projects without a
+             PDRN fall back to ZREC cash minus money not yet allotted */
+          const projs = byProj.map(b => b.k);
+          const booked = projs.reduce((t, n) => t + (pdrnReceived(n) ?? (byProj.find(b => b.k === n)!.v - naProj(n))), 0);
+          const noPdrn = projs.filter(n => pdrnReceived(n) === null);
+          const other = x.a.cash - notAllotted - booked;
+          return (
+            <div onClick={() => open("Money not yet allotted", [...H.suspense.flatMap(z => z.rows), ...H.awaiting.flatMap(z => z.rows)], "suspense + customers awaiting allotment")}
+              onMouseEnter={e => showTip(e, `<b>Booked customers' collection</b> = Booking-wise tab "Received" (PDRN ${PDRN_AS_ON})<br/>`
+                + `Gross cash ${fCr(x.a.cash)}<br/>− not yet allotted ${fCr(notAllotted)}<br/>− refunds, cancelled units, transfers, timing ${fCr(other)}<br/>= ${fCr(booked)}`
+                + (x.a.notPdrn > 0 ? `<br/><br/>Kept out of gross: ${fCr(x.a.notPdrn)} launch cheques the PDRN does not count` : "")
+                + (noPdrn.length ? `<br/>No PDRN for ${noPdrn.join(", ")} — ZREC used` : ""))} onMouseLeave={hideTip}
+              style={{ margin: "0 12px 10px", padding: "7px 10px", borderRadius: 9, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", cursor: "pointer" }}>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Booked customers · = Booking-wise</div>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(booked)}</span>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>− {fCr(notAllotted)} not allotted</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         {/* scrolling project breakdown */}
         <div className="rc-scroll" style={{ flex: 1, background: "rgba(255,255,255,.10)", borderTop: "1px solid rgba(255,255,255,.18)", maxHeight: 132, overflowY: "auto", padding: "4px 10px 6px" }}>
           {byProj.length ? byProj.map(b => (
@@ -329,7 +341,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.12)"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.k}</span>
               {isAll
-                ? <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.75, fontWeight: 600 }}>· excl. {fMoney(b.v - naProj(b.k))}</span></b>
+                ? <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.75, fontWeight: 600 }}>· booked {fMoney(pdrnReceived(b.k) ?? b.v - naProj(b.k))}</span></b>
                 : <b style={{ whiteSpace: "nowrap" }}>{fMoney(b.v)} <span style={{ opacity: 0.7, fontWeight: 600 }}>{x.a.cash ? `${((b.v / x.a.cash) * 100).toFixed(0)}%` : ""}</span></b>}
             </div>
           )) : <div style={{ fontSize: 11.5, opacity: 0.8, padding: "8px 4px" }}>No cash receipts in this period</div>}
