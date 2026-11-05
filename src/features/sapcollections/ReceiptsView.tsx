@@ -495,7 +495,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
           <div style={CAP}>balances as on {RC.meta.asOn} · net of journal vouchers and refunds · click any figure → the receipts behind it</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
             {[
-              { k: "In suspense (unidentified)", v: H.suspenseTotal, s: "still on the EOI collection pool accounts — customer not yet identified", c: ["#c27c0e", "#8a5600"] as [string, string], rows: H.suspense.flatMap(x => x.rows) },
+              { k: "Unidentified (EOI pool)", v: H.suspenseTotal, s: "still on the EOI collection pool accounts — customer not yet identified", c: ["#c27c0e", "#8a5600"] as [string, string], rows: H.suspense.flatMap(x => x.rows) },
               { k: "Identified, awaiting allotment", v: H.awaitingTotal, s: `${fN(H.awaiting.length)} customers · EOI / advance not yet allotted a unit`, c: ["#6b4fa0", "#3f2a73"] as [string, string], rows: H.awaiting.flatMap(x => x.rows) },
               { k: "Total in suspense", v: RT_.gross - RT_.pdrn, s: `gross cash ${fCr(RT_.gross)} − Booking-wise ${fCr(RT_.pdrn)} · refunds, transfers, cancelled & timing included`, c: ["#8e2f23", "#5e1a12"] as [string, string],
                 rows: RECON.flatMap(e => [...e.rows.suspense, ...e.rows.awaiting, ...e.rows.cancelled, ...e.rows.unmatched, ...e.rows.adj.filter(r => r.kind === KIND.REFUND)]) },
