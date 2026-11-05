@@ -327,8 +327,18 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
               <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,.8)" }}>Booked customers · = Booking-wise</div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700 }}>{fCr(t.pdrn)}</span>
-                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>{fCr(notAllotted)} not yet allotted</span>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.8)" }}>gap {fCr(x.a.cash - t.pdrn)}</span>
               </div>
+              {(() => {
+                const refunds = x.a.refund, plus = t.net - t.gross + refunds;   // TDS + transfers
+                const parts: [string, number][] = [["refunds", -refunds], ["TDS & transfers", plus], ["not allotted", -(t.suspense + t.awaiting)],
+                  ["cancelled", -t.cancelled], ["unmatched", -t.unmatched], ["timing", t.pdrn - t.booked]];
+                return (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 4, fontSize: 10, color: "rgba(255,255,255,.82)" }}>
+                    {parts.filter(([, v]) => Math.abs(v) >= 5e4).map(([l, v]) => <span key={l}>{l} <b>{v < 0 ? "−" : "+"}{(Math.abs(v) / 1e7).toFixed(2)}</b></span>)}
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
