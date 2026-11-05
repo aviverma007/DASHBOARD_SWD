@@ -321,6 +321,7 @@ export function SapCollectionsPage() {
   const [view, setView] = useState<"receipts" | "bookings">("receipts");
   const [rcProj, setRcProj] = useState<string[]>([]);
   const [rcQ, setRcQ] = useState("");
+  const [rcFrom, setRcFrom] = useState(""), [rcTo, setRcTo] = useState("");
   const [projF, setProjF] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [drill, setDrill] = useState<{ title: string; rows: Bk[] } | null>(null);
@@ -364,9 +365,17 @@ export function SapCollectionsPage() {
           <div style={BANNER_LBL}>Search</div>
           <input value={rcQ} onChange={e => setRcQ(e.target.value)} placeholder="Customer / unit / receipt no…" style={{ ...BANNER_CTL, width: 220 }} />
         </div>
-        {(rcProj.length > 0 || rcQ) && (
+        <div>
+          <div style={BANNER_LBL}>From</div>
+          <input type="date" value={rcFrom} onChange={e => setRcFrom(e.target.value)} style={{ ...BANNER_CTL, width: 150 }} />
+        </div>
+        <div>
+          <div style={BANNER_LBL}>To</div>
+          <input type="date" value={rcTo} onChange={e => setRcTo(e.target.value)} style={{ ...BANNER_CTL, width: 150 }} />
+        </div>
+        {(rcProj.length > 0 || rcQ || rcFrom || rcTo) && (
           <div style={{ alignSelf: "flex-end" }}>
-            <button onClick={() => { setRcProj([]); setRcQ(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
+            <button onClick={() => { setRcProj([]); setRcQ(""); setRcFrom(""); setRcTo(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
           </div>
         )}
         </> : <>
@@ -383,7 +392,7 @@ export function SapCollectionsPage() {
         </>}
       </PageBanner>
 
-      {view === "receipts" ? <ReceiptsView projF={rcProj} q={rcQ} /> : <>
+      {view === "receipts" ? <ReceiptsView projF={rcProj} q={rcQ} range={{ from: rcFrom, to: rcTo }} /> : <>
 
       {/* KPI strip */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>

@@ -257,7 +257,15 @@ const dayOfIso = (s: string) => Math.round((Date.parse(`${s}T00:00:00Z`) - Date.
 /** every month that has a receipt, newest first */
 const MONTHS_IN_DATA = [...new Set(RECEIPTS.filter(r => r.day >= 0).map(r => ymOf(r.day)))].sort().reverse();
 
-export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
+export function ReceiptsView({ projF, q, range }: { projF: string[]; q: string; range?: { from: string; to: string } }) {
+  /* banner date filter: a valid from–to turns the 4th card into "Selected period" and the deep dive to Custom */
+  const rng = useMemo(() => {
+    if (!range?.from || !range?.to) return null;
+    let f = dayOfIso(range.from), t = dayOfIso(range.to);
+    if (isNaN(f) || isNaN(t)) return null;
+    if (f > t) [f, t] = [t, f];
+    return { f, t };
+  }, [range?.from, range?.to]);
   const [dd, setDd] = useState<(typeof DD_KEYS)[number]>("mtd");
   /* Month = any single month; Custom = any from–to dates. Each compares with the period just before it. */
   const [selMonth, setSelMonth] = useState(MONTHS_IN_DATA[1] ?? MONTHS_IN_DATA[0] ?? ymOf(ANCHOR));
@@ -277,8 +285,14 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
       ...base,
       month: { key: "month", label: ymLbl(selMonth), short: `${fDayS(mFrom)} – ${fDayS(Math.min(mTo, ANCHOR))}`, from: mFrom, to: mTo, prev: { from: pmFrom, to: mFrom - 1, label: `vs ${ymLbl(ymOf(pmFrom))}` } },
       custom: { key: "custom", label: `${fDayS(f)} – ${fDayS(t)}`, short: `${len} days`, from: f, to: t, prev: { from: f - len, to: f - 1, label: `vs the ${len} days before` } },
+      ...(rng ? { range: { key: "range", label: "Selected period", short: `${fDay(rng.f)} – ${fDay(rng.t)} · ${rng.t - rng.f + 1} days`, from: rng.f, to: rng.t,
+        prev: { from: rng.f - (rng.t - rng.f + 1), to: rng.f - 1, label: `vs the ${rng.t - rng.f + 1} days before` } } } : {}),
     } as Record<string, Period>;
-  }, [selMonth, cFrom, cTo]);
+  }, [selMonth, cFrom, cTo, rng]);
+  useEffect(() => {
+    if (!rng) return;
+    setCFrom(isoOf(rng.f)); setCTo(isoOf(rng.t)); setDd("custom");
+  }, [rng]);
   const [drill, setDrill] = useState<Drill | null>(null);
   const scope = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -431,38 +445,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
   }, [scope]);
 
   /* -------- management questions -------- */
-  const qa = useMemo(() => {
-    const out: { q: string; a: React.ReactNode; go?: () => void; tone?: "good" | "bad" | "warn" }[] = [];
-    const t = A.today, w = A.lastweek, mm = A.mtd;
-    out.push({ q: `How much came in on ${P.today.label.replace("Latest day · ", "")}?`, a: <><b>{fCr(t.a.cash)}</b> from {fN(t.a.n)} receipts ({fN(t.a.payers)} customers){t.pa ? <>, against <b>{fCr(t.pa.cash)}</b> on {P.today.prev!.label.replace("vs ", "")}</> : null}.</>, go: () => openP(P.today) });
-    const mtdPrev = mm.pa?.cash ?? 0, ch = pctChg(mm.a.cash, mtdPrev);
-    out.push({ q: "Are we ahead of or behind last month?", tone: ch >= 0 ? "good" : "bad",
-      a: <>This month so far <b>{fCr(mm.a.cash)}</b> vs <b>{fCr(mtdPrev)}</b> by the same day last month — <b style={{ color: ch >= 0 ? GREEN : RED }}>{isFinite(ch) ? `${ch >= 0 ? "ahead" : "behind"} by ${Math.abs(ch).toFixed(0)}%` : "ahead"}</b>.</>, go: () => openP(P.mtd) });
-    out.push({ q: "Where will the month close at this pace?", tone: runRate >= lm.a.cash ? "good" : "warn",
-      a: <>About <b>{fCr(runRate)}</b> ({fMoney(wdDone ? mm.a.cash / wdDone : 0)} per working day × {wdAll} working days), against <b>{fCr(lm.a.cash)}</b> collected last month.</>, go: () => openP(P.mtd) });
-    out.push({ q: "How did last week go?", a: <><b>{fCr(w.a.cash)}</b> from {fN(w.a.n)} receipts ({P.lastweek.short}){w.pa ? <> — {pctChg(w.a.cash, w.pa.cash) >= 0 ? "up" : "down"} {Math.abs(pctChg(w.a.cash, w.pa.cash)).toFixed(0)}% on the week before ({fCr(w.pa.cash)})</> : null}.</>, go: () => openP(P.lastweek) });
-    const byP = sumBy(mm.rows.filter(r => r.kind === KIND.CASH), r => r.proj);
-    if (byP.length) out.push({ q: "Which project brought the most money this month?", a: <><b>{byP[0].k}</b> — {fCr(byP[0].v)} ({mm.a.cash ? ((byP[0].v / mm.a.cash) * 100).toFixed(0) : 0}% of the month){byP[1] ? <>, then {byP[1].k} ({fCr(byP[1].v)})</> : null}.</>, go: () => openP(P.mtd, r => r.proj === byP[0].k, byP[0].k) });
-    const quiet = [...new Set(scope.map(r => r.proj))].filter(n => !scope.some(r => r.proj === n && r.kind === KIND.CASH && r.day > ANCHOR - 7));
-    out.push({ q: "Any project with no collection in the last 7 days?", tone: quiet.length ? "warn" : "good", a: quiet.length ? <><b>{quiet.join(", ")}</b> — nothing cleared since {fDayS(ANCHOR - 6)}.</> : <>No — every project collected in the last 7 days.</> });
-    const top10 = sumBy(mm.rows.filter(r => r.kind === KIND.CASH && r.name !== POOL_NAME), r => r.code).slice(0, 10).reduce((s, x) => s + x.v, 0);
-    if (mm.a.cash) out.push({ q: "How dependent are we on a few customers?", tone: top10 / mm.a.cash > 0.5 ? "warn" : undefined, a: <>The top 10 payers this month gave <b>{fCr(top10)}</b> — <b>{((top10 / mm.a.cash) * 100).toFixed(0)}%</b> of the month's {fCr(mm.a.cash)}.</>, go: () => openP(P.mtd) });
-    out.push({ q: "How much is stuck — bounced or not yet cleared?", tone: mm.a.bounce > 0 ? "warn" : "good",
-      a: <><b>{fMoney(mm.a.bounce)}</b> bounced this month ({fN(mm.a.nBounce)} instruments) and <b>{fMoney(pendingAll.reduce((s, r) => s + r.amt, 0))}</b> entered but awaiting clearance.</>, go: () => openP(P.mtd, r => r.kind === KIND.BOUNCE, "bounced") });
-    out.push({ q: "How much money is still unidentified or not allotted?", tone: H.suspenseTotal > 1e7 ? "warn" : undefined,
-      a: <><b>{fCr(H.suspenseTotal)}</b> is still in suspense (received into the EOI collection pool, customer not yet identified) and <b>{fCr(H.awaitingTotal)}</b> sits with {fN(H.awaiting.length)} identified customers awaiting allotment — <b>{fCr(H.suspenseTotal + H.awaitingTotal)}</b> in all.</>,
-      go: () => open("Money not yet allotted", [...H.suspense.flatMap(x => x.rows), ...H.awaiting.flatMap(x => x.rows)]) });
-    out.push({ q: "How much did we refund?", a: <><b>{fMoney(mm.a.refund)}</b> this month and <b>{fMoney(fy.a.refund)}</b> this financial year.</>, go: () => openP(P.fy, r => r.kind === KIND.REFUND, "refunds") });
-    const modes = sumBy(mm.rows.filter(r => r.kind === KIND.CASH), r => r.mode), online = modes.find(m => m.k === "ONLINE")?.v ?? 0;
-    if (mm.a.cash) out.push({ q: "How are customers paying?", a: <><b>{((online / mm.a.cash) * 100).toFixed(0)}%</b> online this month; cheques {((((modes.find(m => m.k === "CHEQUE")?.v) ?? 0) / mm.a.cash) * 100).toFixed(0)}%, the rest DD and others.</> });
-    const eoi = mm.rows.filter(r => r.kind === KIND.CASH && r.cstatus === "ALLOTMENT PENDING").reduce((s, r) => s + r.amt, 0);
-    if (mm.a.cash) out.push({ q: "How much is EOI / advance money vs booked customers' instalments?", a: <><b>{fCr(eoi)}</b> ({((eoi / mm.a.cash) * 100).toFixed(0)}%) came from customers still awaiting allotment; <b>{fCr(mm.a.cash - eoi)}</b> from allotted / booked customers.</>, go: () => openP(P.mtd, r => r.cstatus === "ALLOTMENT PENDING", "awaiting allotment") });
-    const big = mm.rows.filter(r => r.kind === KIND.CASH).sort((a, b) => b.amt - a.amt)[0];
-    if (big) out.push({ q: "What was the single biggest receipt this month?", a: <><b>{fMoney(big.amt)}</b> from {big.name}{big.unit ? ` (${big.unit})` : ""}, {big.proj}, on {fDayS(big.day)} by {big.mode.toLowerCase()}.</>, go: () => open(`${big.name} · all receipts`, scope.filter(r => r.code === big.code)) });
-    return out;
-  }, [A, P, scope, runRate, lm, wdDone, wdAll, fy, H]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toneCol = { good: GREEN, bad: RED, warn: AMBER } as const;
 
   return (
     <>
@@ -475,7 +458,7 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
         <Main k="today" c={["#1a7f9c", "#0e5468"]} />
         <Main k="lastweek" c={["#1e9a6c", "#0f6647"]} />
         <Main k="lastmonth" c={["#6b4fa0", "#3f2a73"]} />
-        <Main k="all" c={["#1c3f6e", "#0f2547"]} />
+        <Main k={rng ? "range" : "all"} c={["#1c3f6e", "#0f2547"]} />
       </div>
 
       {/* more figures: one card, sliding toggle */}
@@ -585,16 +568,6 @@ export function ReceiptsView({ projF, q }: { projF: string[]; q: string }) {
           </div>
         </div>
       </Zoomable>
-
-      {/* management Q&A: one card, slide through the questions */}
-      <SlideCard id="qa" bar="range" title="What Management Asks — Answered" cap={`as on ${RC.meta.asOn} · slide or use ‹ › · click the answer → receipts`}
-        items={qa.map(x => ({
-          k: x.q, c: x.tone ? toneCol[x.tone] : TEAL, go: x.go,
-          body: <>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#8a7f6a" }}>{x.q}</div>
-            <div style={{ fontSize: 15, color: "var(--ink)", marginTop: 5, lineHeight: 1.55 }}>{x.a}</div>
-          </>,
-        }))} />
 
       {/* trends */}
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: 14, marginBottom: 14 }} className="rc-2col">
