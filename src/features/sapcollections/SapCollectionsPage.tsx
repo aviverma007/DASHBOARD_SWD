@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PageBanner, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { ReceiptsView } from "./ReceiptsView";
+import { PROJECTS_RC, RC } from "./rcData";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
 import raw from "../../data/cpAnalytics.json";
@@ -277,7 +279,7 @@ function Drawer({ title, rows, onClose }: { title: string; rows: Bk[]; onClose: 
 }
 
 /* ---------------- multi project selector ---------------- */
-function MultiProj({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
+function MultiProj({ selected, onChange, options = PROJECTS }: { selected: string[]; onChange: (v: string[]) => void; options?: string[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -287,7 +289,7 @@ function MultiProj({ selected, onChange }: { selected: string[]; onChange: (v: s
   }, []);
   const toggle = (n: string) => {
     const next = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n];
-    onChange(next.length === PROJECTS.length ? [] : next);
+    onChange(next.length === options.length ? [] : next);
   };
   const label = selected.length === 0 ? "All projects" : selected.length === 1 ? selected[0] : `${selected.length} projects`;
   return (
@@ -302,7 +304,7 @@ function MultiProj({ selected, onChange }: { selected: string[]; onChange: (v: s
             <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All projects
           </label>
-          {PROJECTS.map(n => (
+          {options.map(n => (
             <label key={n} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
               <input type="checkbox" checked={selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {n}
@@ -316,6 +318,9 @@ function MultiProj({ selected, onChange }: { selected: string[]; onChange: (v: s
 
 /* ---------------- page ---------------- */
 export function SapCollectionsPage() {
+  const [view, setView] = useState<"receipts" | "bookings">("receipts");
+  const [rcProj, setRcProj] = useState<string[]>([]);
+  const [rcQ, setRcQ] = useState("");
   const [projF, setProjF] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [drill, setDrill] = useState<{ title: string; rows: Bk[] } | null>(null);
@@ -348,8 +353,23 @@ export function SapCollectionsPage() {
     <div className="sw-inv" style={{ padding: "18px 22px" }}>
       <PageBanner
         title="SAP Collections"
-        sub={<>{fN(ROWS.length)} active bookings · PDRN export · data as on {CD.meta.asOn} · Received = net received (incl. tax) − pending clearance</>}
+        center={<BannerPills size="lg" items={[["receipts", "Collections"], ["bookings", "Booking-wise"]] as const} value={view} onChange={setView} />}
+        sub={view === "receipts"
+          ? <>dated receipts from SAP's receipt register (ZREC) · cash = cleared receipts · data as on {RC.meta.asOn}</>
+          : <>{fN(ROWS.length)} active bookings · PDRN export · data as on {CD.meta.asOn} · Received = net received (incl. tax) − pending clearance</>}
       >
+        {view === "receipts" ? <>
+        <MultiProj selected={rcProj} onChange={setRcProj} options={PROJECTS_RC} />
+        <div>
+          <div style={BANNER_LBL}>Search</div>
+          <input value={rcQ} onChange={e => setRcQ(e.target.value)} placeholder="Customer / unit / receipt no…" style={{ ...BANNER_CTL, width: 220 }} />
+        </div>
+        {(rcProj.length > 0 || rcQ) && (
+          <div style={{ alignSelf: "flex-end" }}>
+            <button onClick={() => { setRcProj([]); setRcQ(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
+          </div>
+        )}
+        </> : <>
         <MultiProj selected={projF} onChange={setProjF} />
         <div>
           <div style={BANNER_LBL}>Search</div>
@@ -360,7 +380,10 @@ export function SapCollectionsPage() {
             <button onClick={() => { setProjF([]); setQ(""); }} style={{ ...BANNER_CTL, cursor: "pointer" }}>⟲ Reset</button>
           </div>
         )}
+        </>}
       </PageBanner>
+
+      {view === "receipts" ? <ReceiptsView projF={rcProj} q={rcQ} /> : <>
 
       {/* KPI strip */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
@@ -450,6 +473,7 @@ export function SapCollectionsPage() {
       </div>
 
       {drill && <Drawer title={drill.title} rows={drill.rows} onClose={() => setDrill(null)} />}
+      </>}
     </div>
   );
 }
