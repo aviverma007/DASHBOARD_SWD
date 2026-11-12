@@ -124,6 +124,12 @@ def main(src, as_on):
         },
     }
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
+    # the "data as on" label shown on Overview, Home, Target, Channel Partners, TV, mobile
+    info = os.path.join(os.path.dirname(OUT), "..", "config", "dataInfo.ts")
+    if os.path.exists(info):
+        t = open(info, encoding="utf-8").read()
+        t = re.sub(r'export const DATA_AS_ON = ".*?";', f'export const DATA_AS_ON = "{as_on}";', t)
+        open(info, "w", encoding="utf-8").write(t)
     n_act = sum(1 for r in R if r[13] == 0)
     n_reb = sum(1 for r in R if r[14] == 1)
     print(f"{len(R)} rows ({n_act} active / {len(R)-n_act} cancelled / {n_reb} rebooked), "
