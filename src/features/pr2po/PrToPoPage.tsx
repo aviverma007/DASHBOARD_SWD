@@ -1106,10 +1106,12 @@ const SC_STEPS: { k: string; l: string; c: string; test: (j: Journey) => boolean
 const createdOf = (j: Journey) => j.m.sap_created ?? j.m.qms_created;
 const pct1 = (a: number, b: number) => (b ? ((a / b) * 100).toFixed(1) : "0.0") + "%";
 
-function Scorecard({ rows, flow, from, to, openList, onMonth }: {
+function Scorecard({ rows, flow, from, to, openList, onMonth, afterMonthly }: {
   rows: Journey[]; flow: "sap" | "qms"; from: string; to: string;
   openList: (title: string, js: Journey[], sub?: string) => void;
   onMonth: (mk: string, label: string) => void;
+  /** rendered right under the Monthly PR to PO Progress chart */
+  afterMonthly?: React.ReactNode;
 }) {
   const [stageMode, setStageMode] = useState<"count" | "value">("count");
   const [viewBy, setViewBy] = useState<"project" | "dept">("project");
@@ -1225,6 +1227,7 @@ function Scorecard({ rows, flow, from, to, openList, onMonth }: {
 
       {/* 3 · charts */}
       <div style={{ marginBottom: 14 }}><MonthlyChart data={monthly} onPick={onMonth} /></div>
+      {afterMonthly}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14, marginBottom: 14 }}>
         <div style={{ ...CARD, marginBottom: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1637,8 +1640,8 @@ export default function PrToPoPage() {
           })()}
 
           <Scorecard rows={rows} flow={flow} from={applied.from} to={applied.to}
-            openList={(t, js, sub) => openList(t, js, sub, t.startsWith("Average") || t.startsWith("PO Rel") ? tatNotes : undefined)} onMonth={monthPick} />
-
+            openList={(t, js, sub) => openList(t, js, sub, t.startsWith("Average") || t.startsWith("PO Rel") ? tatNotes : undefined)} onMonth={monthPick}
+            afterMonthly={<>
           {/* Management snapshot — plain-language cards */}
           <Zoomable title="Management snapshot" collapsible>
             <div style={CARD}>
@@ -1729,6 +1732,7 @@ export default function PrToPoPage() {
               })()}
             </div>
           </Zoomable>
+            </>} />
 
           {/* Journey summary — full bifurcation of where every PR stands */}
           <Zoomable title="Journey summary" collapsible>
