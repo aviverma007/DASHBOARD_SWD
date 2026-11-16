@@ -1203,28 +1203,6 @@ function Scorecard({ rows, flow, from, to, openList, onMonth, afterMonthly }: {
         ))}
       </div>
 
-      {/* 2 · journey strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10, marginBottom: 14 }}>
-        {steps.map((s, i) => (
-          <div key={s.k} onClick={() => openList(`Reached: ${s.l}`, s.js)} className="g3d"
-            style={{ ...CARD, marginBottom: 0, cursor: "pointer", padding: "11px 13px", borderTop: `4px solid ${s.c}` }}
-            onMouseEnter={e => showTip(e, `<b>${s.l}</b><br/>${fN(s.n)} PRs · ${pct1(s.n, tot)} of total<br/>${fMoney(s.val)}<br/>click → list`)} onMouseLeave={hideTip}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 22, height: 22, borderRadius: "50%", background: s.c, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--ink)" }}>{s.l}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 6 }}>
-              <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: "var(--ink)" }}>{fN(s.n)}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: s.c }}>{pct1(s.n, tot)}</span>
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--mut)" }}>{fMoney(s.val)}</div>
-            <div style={{ height: 6, background: "#f0ede5", borderRadius: 3, overflow: "hidden", marginTop: 6 }}>
-              <div style={{ height: "100%", width: `${tot ? (s.n / tot) * 100 : 0}%`, background: s.c, borderRadius: 3 }} />
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* 3 · charts */}
       <div style={{ marginBottom: 14 }}><MonthlyChart data={monthly} onPick={onMonth} /></div>
       {afterMonthly}
