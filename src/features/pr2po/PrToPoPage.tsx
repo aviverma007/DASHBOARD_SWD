@@ -754,6 +754,9 @@ function JourneyDrawer({ j, onClose }: { j: Journey | null; onClose: () => void 
                 <tbody>
                   {[
                     ["QMS PR status", j.vg.PRH_Status_Desc], ["PR pending with", j.vg.PR_Pending_With],
+                    ["QMS assignee", j.vg.assignee_name], ["CP (buyer)", j.vg.cp_name],
+                    ["Recommender", j.vg.recomender_name], ["Final approver", j.vg.final_approver_name],
+                    ["Return note", j.vg.Assignee_Team_Msg || j.vg.CP_Team_Msg],
                     ["Validator 1", j.vg.Validator_One && `${j.vg.Validator_One} · ${fD(pDate(j.vg.Validator_One_Date))}`],
                     ["Validator 2", j.vg.Validator_Two && `${j.vg.Validator_Two} · ${fD(pDate(j.vg.Validator_Two_Date))}`],
                     ["CP team", j.vg.CP_Team && `${j.vg.CP_Team} · ${fD(pDate(j.vg.CP_Team_Date))}`],
@@ -2084,7 +2087,7 @@ export default function PrToPoPage() {
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
                   <thead><tr style={{ position: "sticky", top: 0, background: "#faf9f6", zIndex: 1 }}>
-                    {["PR no.", "Created", "Description", "Project / Plant", "Stage", "Pending with", "Idle", "PO no.", "Value"].map(h => (
+                    {["PR no.", "Created", "Description", "Project / Plant", "Stage", "Pending with", "QMS assignee", "Idle", "PO no.", "Value"].map(h => (
                       <th key={h} style={{ ...TH, textAlign: ["Idle", "Value"].includes(h) ? "right" : "left" }}>{h}</th>
                     ))}
                   </tr></thead>
@@ -2103,6 +2106,7 @@ export default function PrToPoPage() {
                           <td style={{ ...TD, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{j.project !== "—" ? j.project : j.plant}</td>
                           <td style={TD}><span style={{ background: `${stageCol}1c`, color: stageCol, fontWeight: 800, fontSize: 10.5, borderRadius: 999, padding: "2px 9px" }}>{stageLbl}</span></td>
                           <td style={{ ...TD, maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{j.done || j.exception ? "—" : j.pendingWith}</td>
+                          <td style={{ ...TD, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>{(j.vg?.assignee_name && j.vg.assignee_name !== "NA" ? j.vg.assignee_name : "—")}</td>
                           <td style={{ ...TD, textAlign: "right", color: idle !== null && idle > 30 ? RED : "var(--mut)", fontWeight: idle !== null && idle > 30 ? 800 : 600 }}>{idle !== null ? `${idle} d` : "—"}</td>
                           <td style={{ ...TD, color: "var(--mut)" }}>{j.po?.EBELN ?? "—"}</td>
                           <td style={{ ...TD, textAlign: "right", fontWeight: 700 }}>{j.value ? fMoney(j.value) : "—"}</td>
