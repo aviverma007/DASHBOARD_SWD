@@ -264,6 +264,8 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
     const v = vgByNo.get(banfn) ?? null;
     const first = lines[0];
     const deleted = lines.every(l => l.Loekz === "True" || l.Loekz === "1");
+    /* SAP release refused: processing status 08 on every line (live once PR_DATASet sends BANPR in Procstat) */
+    const rejected = lines.every(l => String(l.Procstat ?? "").trim() === "08");
     const ebelns = [...new Set(lines.map(l => String(l.Ebeln || "")).filter(Boolean))];
     const pos = ebelns.map(e => poByNo.get(e)).filter((p): p is R => !!p);
     // guard against the OData entity duplicating document totals onto
@@ -307,7 +309,7 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
       vendor: String(pos[0]?.NAME1 || v?.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v?.Amount_Including_Tax)) || lineVal,
       m, reached,
-      exception: deleted ? "PR Deleted in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
+      exception: deleted ? "PR Deleted in SAP" : rejected ? "PR Rejected in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
       pendingLevel: null, relStatus: String(first.Frgkz || ""),
       vg: v, po: pos[0] ?? poFallback,
