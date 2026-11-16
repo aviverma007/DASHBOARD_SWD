@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import sapPrStatus from "../../data/sapPrStatus.json";
+/** SAP end state per PR from the EBAN export (scripts/build_sap_pr_status.py): [Rejected|Closed|Deleted, changedOn] */
+const SAP_PR_END = (sapPrStatus as unknown as { R: Record<string, [string, string]> }).R;
+const ebelnsAny = (lines: Record<string, unknown>[]) => lines.some(l => String(l.Ebeln ?? "").trim() !== "");
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -265,7 +269,9 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
     const first = lines[0];
     const deleted = lines.every(l => l.Loekz === "True" || l.Loekz === "1");
     /* SAP release refused: processing status 08 on every line (live once PR_DATASet sends BANPR in Procstat) */
-    const rejected = lines.every(l => String(l.Procstat ?? "").trim() === "08");
+    const rejected = lines.every(l => ["8", "08"].includes(String(l.Procstat ?? "").trim()));
+    /* SAP's own end state from the EBAN export (rejected / closed / deleted, PRs without a PO) */
+    const sapEnd = !ebelnsAny(lines) ? SAP_PR_END[banfn]?.[0] : undefined;
     const ebelns = [...new Set(lines.map(l => String(l.Ebeln || "")).filter(Boolean))];
     const pos = ebelns.map(e => poByNo.get(e)).filter((p): p is R => !!p);
     // guard against the OData entity duplicating document totals onto
@@ -309,7 +315,7 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
       vendor: String(pos[0]?.NAME1 || v?.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v?.Amount_Including_Tax)) || lineVal,
       m, reached,
-      exception: deleted ? "PR Deleted in SAP" : rejected ? "PR Rejected in SAP" : poCancelled(pos) ? "PO Cancelled in SAP" : null,
+      exception: deleted ? "PR Deleted in SAP" : rejected ? "PR Rejected in SAP" : sapEnd ? `PR ${sapEnd} in SAP` : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
       pendingLevel: null, relStatus: String(first.Frgkz || ""),
       vg: v, po: pos[0] ?? poFallback,
