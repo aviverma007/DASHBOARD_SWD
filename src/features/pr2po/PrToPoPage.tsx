@@ -79,11 +79,20 @@ export const STAGES: Stage[] = [
 ];
 const STAGE_COLS = ["#1c3f6e", "#2a5c8f", "#0E7490", "#0f8a7a", "#B8893C", "#c99a3a", "#1BAF7A", "#0f8a5f"];
 
+/** Project / Non-project from SAP account assignment codes (PR lines' Knttp, else QMS Account_Assignment_Id) */
+const acctOf = (...codes: unknown[]): Journey["acct"] => {
+  const cs = codes.map(c => String(c ?? "").trim().toUpperCase()).filter(c => c && c !== "NA" && c !== "NULL");
+  if (!cs.length) return "—";
+  return cs.some(c => c === "P" || c === "Q") ? "Project" : "Non-project";
+};
+
 export interface Journey {
   id: string;                       // PR number (Banfn / EPR_No)
   origin: "sap" | "vg";             // where the journey starts
   desc: string;
   plant: string; project: string; dept: string; vendor: string;
+  /** SAP account assignment: P (WBS) / Q (project stock) = Project; K, A, … = Non-project */
+  acct: "Project" | "Non-project" | "—";
   value: number;                    // best-known value (PO > VG > PR lines)
   /** ms per stage key; null = not reached (or date unknown but reached) */
   m: Record<string, number | null>;
@@ -312,6 +321,7 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
       desc: String(v?.Scope || first.Txz01 || "—"),
       plant: String(first.PlantDesc || "—"), project: String(v?.Project_Name || "—"),
       dept: String(first.Eknam || first.Ekgrp || "—"),
+      acct: acctOf(...lines.map(l => l.Knttp)) !== "—" ? acctOf(...lines.map(l => l.Knttp)) : acctOf(v?.Account_Assignment_Id),
       vendor: String(pos[0]?.NAME1 || v?.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v?.Amount_Including_Tax)) || lineVal,
       m, reached,
@@ -361,7 +371,7 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
     const j: Journey = {
       id: epr, origin: "vg",
       desc: String(v.Scope || "—"), plant: "—", project: String(v.Project_Name || "—"),
-      dept: String(v.PRH_Category_Name || "—"), vendor: String(pos[0]?.NAME1 || v.Vendor_Name || "—"),
+      dept: String(v.PRH_Category_Name || "—"), acct: acctOf(v.Account_Assignment_Id), vendor: String(pos[0]?.NAME1 || v.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v.Amount_Including_Tax)) || parseFloat(String(v.PR_Budget)) || 0,
       m, reached, exception: poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false,
@@ -1345,6 +1355,7 @@ export default function PrToPoPage() {
   const [flow, setFlow] = useState<"sap" | "qms">("sap");
   const [plantF, setPlantF] = useState<string[]>([]);   // empty = all
   const [deptF, setDeptF] = useState<string[]>([]);     // empty = all
+  const [acctF, setAcctF] = useState<"all" | "Project" | "Non-project">("all");
   const [stageF, setStageF] = useState(-1);
   const [drawer, setDrawer] = useState<Journey | null>(null);
   const [list, setList] = useState<ListSel | null>(null);
@@ -1417,6 +1428,7 @@ export default function PrToPoPage() {
     if (flow === "sap" ? j.origin !== "sap" : j.origin !== "vg") return false;
     if (plantF.length && !plantF.includes(plantOf(j) ?? "—")) return false;
     if (deptF.length && !deptF.includes(j.dept)) return false;
+    if (acctF !== "all" && j.acct !== acctF) return false;
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       if (!j.id.toLowerCase().includes(s) && !j.desc.toLowerCase().includes(s) &&
@@ -1428,7 +1440,7 @@ export default function PrToPoPage() {
     if (statusF === "exc" && !j.exception) return false;
     if (stageF >= 0 && (j.done || j.exception || j.stageIdx !== stageF)) return false;
     return true;
-  }), [journeys, q, statusF, stageF, flow, plantF, deptF]);
+  }), [journeys, q, statusF, stageF, flow, plantF, deptF, acctF]);
 
   /* mutually exclusive buckets — a journey whose PO released counts as
      completed even if a QMS status also matched an exception text */
@@ -1597,12 +1609,17 @@ export default function PrToPoPage() {
         <MultiSel label="Plant / Project" options={plantOpts} value={plantF} onChange={v => { setPlantF(v); setPage(1); }} />
         <MultiSel label="Department" options={deptOpts} value={deptF} onChange={v => { setDeptF(v); setPage(1); }} />
         <div>
+          <div style={BANNER_LBL}>Type</div>
+          <BannerPills items={[["all", "All"], ["Project", `Project (${fN(flowJs.filter(j => j.acct === "Project").length)})`], ["Non-project", `Non-project (${fN(flowJs.filter(j => j.acct === "Non-project").length)})`]] as const}
+            value={acctF} onChange={k => { setAcctF(k); setPage(1); }} />
+        </div>
+        <div>
           <div style={BANNER_LBL}>Status</div>
           <BannerPills items={[["all", "All"], ["flight", "In-flight"], ["done", "Completed"], ["exc", "Exceptions"]] as const}
             value={statusF} onChange={k => { setStatusF(k); setStageF(-1); setPage(1); }} />
         </div>
         <button className="pb-btn" onClick={() => setReportView("sappr")}>📄 Reports</button>
-        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setPlantF([]); setDeptF([]); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
+        <button className="pb-btn" onClick={() => { setQ(""); setStatusF("all"); setStageF(-1); setFlow("sap"); setPlantF([]); setDeptF([]); setAcctF("all"); setFrom(defStart); setTo(defEnd); setApplied({ from: defStart, to: defEnd }); setPage(1); }}>⟲ Reset</button>
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
