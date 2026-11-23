@@ -288,6 +288,8 @@ function MultiProj({ selected, onChange, options = PROJECTS }: { selected: strin
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = (n: string) => {
+    // all ticked (= All): clicking one unticks just that one
+    if (selected.length === 0) { onChange(options.filter(x => x !== n)); return; }
     const next = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n];
     onChange(next.length === options.length ? [] : next);
   };
@@ -306,7 +308,7 @@ function MultiProj({ selected, onChange, options = PROJECTS }: { selected: strin
           </label>
           {options.map(n => (
             <label key={n} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.length === 0 || selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {n}
             </label>
           ))}

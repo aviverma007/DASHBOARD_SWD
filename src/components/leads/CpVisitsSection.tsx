@@ -26,6 +26,7 @@ function CpvMultiProj({ selected, onChange }: { selected: number[]; onChange: (v
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = (i: number) => {
+    if (selected.length === 0) { onChange(CPV.PRJ.map((_, j) => j).filter(j => j !== i)); return; }
     const next = selected.includes(i) ? selected.filter(x => x !== i) : [...selected, i];
     onChange(next.length === CPV.PRJ.length ? [] : next);
   };
@@ -44,7 +45,7 @@ function CpvMultiProj({ selected, onChange }: { selected: number[]; onChange: (v
           </label>
           {CPV.PRJ.map((pname, i) => (
             <label key={pname} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.includes(i)} onChange={() => toggle(i)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.length === 0 || selected.includes(i)} onChange={() => toggle(i)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {pname}
             </label>
           ))}

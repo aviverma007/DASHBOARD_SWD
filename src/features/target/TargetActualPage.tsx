@@ -176,6 +176,8 @@ function ProjectMultiSelect({ projects, selected, onChange }: { projects: string
   }, []);
 
   function toggle(name: string) {
+    // all ticked (= All): clicking one unticks just that one
+    if (selected.size === 0) { onChange(new Set(projects.filter(x => x !== name))); return; }
     const next = new Set(selected);
     if (next.has(name)) next.delete(name); else next.add(name);
     // selecting every project = same as All → collapse to empty
@@ -201,7 +203,7 @@ function ProjectMultiSelect({ projects, selected, onChange }: { projects: string
           </label>
           {projects.map(name => (
             <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.size === 0 || selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {name}
             </label>
           ))}

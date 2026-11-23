@@ -220,6 +220,8 @@ function EoiProjectSelect({ selected, onChange }: { selected: string[]; onChange
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = (name: string) => {
+    // all ticked (= All): clicking one unticks just that one
+    if (selected.length === 0) { onChange(D.PROJECTS.filter(x => x !== name)); return; }
     const next = selected.includes(name) ? selected.filter(x => x !== name) : [...selected, name];
     onChange(next.length === D.PROJECTS.length ? [] : next);   // all picked = All
   };
@@ -240,7 +242,7 @@ function EoiProjectSelect({ selected, onChange }: { selected: string[]; onChange
           </label>
           {D.PROJECTS.map((name, pi) => (
             <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.includes(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.length === 0 || selected.includes(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontSize: 9.5, fontWeight: 800, color: TYPE_COL[typeLbl(pi)] }}>{typeLbl(pi).toUpperCase()}</span>
             </label>

@@ -395,7 +395,11 @@ function MultiSel({ label, options, value, onChange }: { label: string; options:
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggle = (o: string) => onChange(value.includes(o) ? value.filter(x => x !== o) : [...value, o]);
+  const toggle = (o: string) => {
+    if (value.length === 0) { onChange(options.filter(x => x !== o)); return; }   // All → untick just this one
+    const next = value.includes(o) ? value.filter(x => x !== o) : [...value, o];
+    onChange(next.length === options.length ? [] : next);
+  };
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <div style={BANNER_LBL}>{label}</div>
@@ -411,7 +415,7 @@ function MultiSel({ label, options, value, onChange }: { label: string; options:
           </div>
           {options.map(o => (
             <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#14213d", cursor: "pointer", borderRadius: 6, background: value.includes(o) ? "#faf3e3" : "transparent" }}>
-              <input type="checkbox" checked={value.includes(o)} onChange={() => toggle(o)} style={{ accentColor: "#B8893C" }} />
+              <input type="checkbox" checked={value.length === 0 || value.includes(o)} onChange={() => toggle(o)} style={{ accentColor: "#B8893C" }} />
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o}</span>
             </label>
           ))}

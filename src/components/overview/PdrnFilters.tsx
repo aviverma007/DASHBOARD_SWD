@@ -28,6 +28,8 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
   }, []);
 
   function toggle(name: string) {
+    // all ticked (= All): clicking one unticks just that one
+    if (selectedProjects.size === 0) { onProjectsChange(new Set(projects.filter(x => x !== name))); return; }
     const next = new Set(selectedProjects);
     if (next.has(name)) next.delete(name); else next.add(name);
     // if all selected, revert to empty (= All)
@@ -97,7 +99,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
               }}>
                 <input
                   type="checkbox"
-                  checked={selectedProjects.has(name)}
+                  checked={selectedProjects.size === 0 || selectedProjects.has(name)}
                   onChange={() => toggle(name)}
                   style={{ accentColor: "#B8893C", width: 15, height: 15 }}
                 />

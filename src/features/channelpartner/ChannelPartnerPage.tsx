@@ -35,6 +35,8 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
   }, []);
 
   function toggle(name: string) {
+    // all ticked (= All): clicking one unticks just that one
+    if (selected.size === 0) { onChange(new Set(projects.filter(x => x !== name))); return; }
     const next = new Set(selected);
     if (next.has(name)) next.delete(name); else next.add(name);
     if (next.size === projects.length) onChange(new Set()); // all picked = All
@@ -59,7 +61,7 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
           </label>
           {projects.map(name => (
             <label key={name} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, color: "var(--ink)", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.size === 0 || selected.has(name)} onChange={() => toggle(name)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {name}
             </label>
           ))}
@@ -94,9 +96,10 @@ function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; on
   }, [query]);
 
   function toggle(idx: number) {
+    if (selected.size === 0) { onChange(new Set(CP.CP.map((_, i) => i).filter(i => i !== idx))); return; }
     const next = new Set(selected);
     if (next.has(idx)) next.delete(idx); else next.add(idx);
-    onChange(next);
+    onChange(next.size === CP.CP.length ? new Set() : next);
   }
 
   const label = selected.size === 0 ? "All CPs"
@@ -126,7 +129,7 @@ function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; on
             {options.length === 0 && <div style={{ fontSize: 12.5, color: "var(--mut)", padding: "8px 9px" }}>No partner matches "{query.trim()}".</div>}
             {options.map(o => (
               <label key={o.idx} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 9px", borderRadius: 6, fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-                <input type="checkbox" checked={selected.has(o.idx)} onChange={() => toggle(o.idx)} style={{ accentColor: "#B8893C", width: 14, height: 14, flexShrink: 0 }} />
+                <input type="checkbox" checked={selected.size === 0 || selected.has(o.idx)} onChange={() => toggle(o.idx)} style={{ accentColor: "#B8893C", width: 14, height: 14, flexShrink: 0 }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
               </label>
             ))}

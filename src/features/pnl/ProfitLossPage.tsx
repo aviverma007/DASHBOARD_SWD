@@ -53,10 +53,14 @@ function ProjectPicker({ sel, onChange }: { sel: ProjKey[]; onChange: (v: ProjKe
       {open && (
         <div style={{ position: "absolute", top: "100%", left: 0, width: 250, marginTop: 5, zIndex: 40, background: "#fff", color: "var(--ink)", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", padding: 6 }}>
           {PROJECTS.map(p => {
-            const on = sel.includes(p.key);
+            const on = sel.length === 0 || sel.includes(p.key);   // nothing picked = All = every box ticked
             return (
               <label key={p.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", fontSize: 12.5, fontWeight: on ? 700 : 500, cursor: "pointer", borderRadius: 6, background: on ? "rgba(14,116,144,.08)" : "transparent" }}>
-                <input type="checkbox" checked={on} onChange={() => onChange(on ? sel.filter(k => k !== p.key) : [...sel, p.key])} />
+                <input type="checkbox" checked={on} onChange={() => {
+                  const base = sel.length === 0 ? PROJECTS.map(x => x.key) : sel;
+                  const next = base.includes(p.key) ? base.filter(k => k !== p.key) : [...base, p.key];
+                  onChange(next.length === PROJECTS.length ? [] : next);
+                }} />
                 {p.name}<span style={{ marginLeft: "auto", fontSize: 11, color: "var(--mut)" }}>{p.city}</span>
               </label>
             );

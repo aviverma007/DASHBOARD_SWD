@@ -196,6 +196,8 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = (n: string) => {
+    // all ticked (= All): clicking one unticks just that one
+    if (selected.length === 0) { onChange(options.filter(x => x !== n)); return; }
     const next = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n];
     onChange(next.length === options.length ? [] : next);
   };
@@ -214,7 +216,7 @@ function ProjSelect({ options, selected, onChange }: { options: string[]; select
           </label>
           {options.map(n => (
             <label key={n} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderRadius: 6, fontSize: 13, cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+              <input type="checkbox" checked={selected.length === 0 || selected.includes(n)} onChange={() => toggle(n)} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
               {n}
             </label>
           ))}

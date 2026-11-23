@@ -196,8 +196,12 @@ export function BookingsPage() {
                 </label>
                 {PSHORT.map((p, i) => (
                   <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer" }}>
-                    <input type="checkbox" checked={selProjects.includes(i)}
-                      onChange={() => { setSelProjects(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]); setPage(1); }}
+                    <input type="checkbox" checked={selProjects.length === 0 || selProjects.includes(i)}
+                      onChange={() => { setSelProjects(prev => {
+                        if (prev.length === 0) return PSHORT.map((_, j) => j).filter(j => j !== i);   // All → untick just this one
+                        const next = prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i];
+                        return next.length === PSHORT.length ? [] : next;
+                      }); setPage(1); }}
                       style={{ accentColor: "#0e7490" }} />
                     {p}
                   </label>

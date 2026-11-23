@@ -25,10 +25,12 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
   }, []);
 
   function toggleProject(i: number, checked: boolean) {
+    // all ticked (= All): clicking one unticks just that one
+    if (state.proj.size === 0) { onChangeState({ ...state, proj: new Set(P.map((_, j) => j).filter(j => j !== i)) }); return; }
     const nextProj = new Set(state.proj);
     if (checked) nextProj.add(i);
     else nextProj.delete(i);
-    onChangeState({ ...state, proj: nextProj });
+    onChangeState({ ...state, proj: nextProj.size === P.length ? new Set() : nextProj });
   }
 
   function selectAllProjects() {
@@ -62,7 +64,7 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
                 <input
                   type="checkbox"
                   className="pc"
-                  checked={state.proj.has(i)}
+                  checked={state.proj.size === 0 || state.proj.has(i)}
                   onChange={(e) => toggleProject(i, e.target.checked)}
                 />
                 {n}
