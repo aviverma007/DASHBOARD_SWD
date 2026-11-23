@@ -1,3 +1,3 @@
 /** Date of the underlying data extract (INVR / PDRN upload). Update
  * this one line whenever a fresh export is loaded. */
-export const DATA_AS_ON = "12 Nov 2026";
+export const DATA_AS_ON = "23 Nov 2026";

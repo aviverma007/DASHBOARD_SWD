@@ -19,6 +19,9 @@ import json, re, collections
 
 import os
 D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data")
+# booking status: the PDRN wins over the INVR (see sync_inventory_with_pdrn.py)
+import subprocess, sys as _sys
+subprocess.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_inventory_with_pdrn.py")], check=True)
 cp = json.load(open(f"{D}/cpAnalytics.json"))
 inv = json.load(open(f"{D}/smartworldInventory.json"))
 td = json.load(open(f"{D}/targetData.json"))
