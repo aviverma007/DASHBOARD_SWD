@@ -161,7 +161,7 @@ export default function Eoi() {
       {shown.length ? (
         <List>
           {shown.map(c => (
-            <Row key={c.code} title={c.code} sub={`${pName(c.proj)} · ${typeLbl(c.proj)} · ${c.age} d`} value={inrCr(c.net, 2)} valueSub="in hand" onClick={() => setOpen(c)} />
+            <Row key={`${c.code}|${c.proj}`} title={c.code} sub={`${pName(c.proj)} · ${typeLbl(c.proj)} · ${c.age} d`} value={inrCr(c.net, 2)} valueSub="in hand" onClick={() => setOpen(c)} />
           ))}
         </List>
       ) : <Empty title="No customers" sub="Try clearing the search or filters." />}

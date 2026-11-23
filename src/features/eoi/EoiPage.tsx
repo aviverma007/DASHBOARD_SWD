@@ -186,7 +186,7 @@ function EoiDrawer({ sel, onClose }: { sel: Drill | null; onClose: () => void })
               </tr></thead>
               <tbody>
                 {cs.map(c => (
-                  <tr key={c.code} onClick={() => setCust(c)} style={{ cursor: "pointer" }}
+                  <tr key={`${c.code}|${c.projIdx}`} onClick={() => setCust(c)} style={{ cursor: "pointer" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                     <td style={{ ...TD }}>
@@ -485,7 +485,7 @@ export function EoiPage() {
                 const top = [...scoped].sort((a, b) => b.net - a.net).slice(0, 8);
                 const mx = Math.max(...top.map(c => c.net), 1);
                 return top.map(c => (
-                  <div key={c.code} className="barrow" style={{ padding: "4.5px 0", cursor: "pointer" }}
+                  <div key={`${c.code}|${c.projIdx}`} className="barrow" style={{ padding: "4.5px 0", cursor: "pointer" }}
                     onClick={() => setDrill({ title: "Pending customer", custs: [c] })}
                     onMouseEnter={e => showTip(e, `<b>${c.code}</b> · ${D.PROJECTS[c.projIdx].replace("SMARTWORLD ", "")}<br/>${fMoney(c.net)} in hand · waiting ${c.ageing} d<br/>click → receipts`)} onMouseLeave={hideTip}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
@@ -565,7 +565,7 @@ export function EoiPage() {
                 </tr></thead>
                 <tbody>
                   {oldest.map(c => (
-                    <tr key={c.code} onClick={() => setDrill({ title: "Pending customer", custs: [c] })} style={{ cursor: "pointer" }}
+                    <tr key={`${c.code}|${c.projIdx}`} onClick={() => setDrill({ title: "Pending customer", custs: [c] })} style={{ cursor: "pointer" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#faf8f2"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
                       <td style={{ ...TD, fontWeight: 800, color: "var(--ink)" }}>{c.code}</td>
