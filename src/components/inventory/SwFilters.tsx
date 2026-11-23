@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { msSetToggle, msSetAllClick, msSetIsNone, NONE_NUM } from "../../utils/multiSelect";
 import { CAT } from "../../utils/smartworldLogic";
 import type { FilterState } from "../../types/smartworldRaw";
 
@@ -24,17 +25,12 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function toggleProject(i: number, checked: boolean) {
-    // all ticked (= All): clicking one unticks just that one
-    if (state.proj.size === 0) { onChangeState({ ...state, proj: new Set(P.map((_, j) => j).filter(j => j !== i)) }); return; }
-    const nextProj = new Set(state.proj);
-    if (checked) nextProj.add(i);
-    else nextProj.delete(i);
-    onChangeState({ ...state, proj: nextProj.size === P.length ? new Set() : nextProj });
+  function toggleProject(i: number) {
+    onChangeState({ ...state, proj: msSetToggle(state.proj, i, P.map((_, j) => j), NONE_NUM) });
   }
 
   function selectAllProjects() {
-    onChangeState({ ...state, proj: new Set() });
+    onChangeState({ ...state, proj: msSetAllClick(state.proj, NONE_NUM) });
   }
 
   return (
@@ -47,7 +43,7 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
             type="button"
             onClick={() => setPanelOpen((v) => !v)}
           >
-            {state.proj.size ? `${state.proj.size} selected` : "All projects"}{" "}
+            {msSetIsNone(state.proj, NONE_NUM) ? "No projects" : state.proj.size ? `${state.proj.size} selected` : "All projects"}{" "}
             <span style={{ color: "var(--gold)" }}>▾</span>
           </button>
           <div className={`mspanel${panelOpen ? " open" : ""}`}>
@@ -65,7 +61,7 @@ export function SwFilters({ P, CFG, state, onChangeState }: SwFiltersProps) {
                   type="checkbox"
                   className="pc"
                   checked={state.proj.size === 0 || state.proj.has(i)}
-                  onChange={(e) => toggleProject(i, e.target.checked)}
+                  onChange={() => toggleProject(i)}
                 />
                 {n}
               </label>

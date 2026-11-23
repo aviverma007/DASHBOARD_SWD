@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -181,13 +182,8 @@ function ProjSelect({ selected, onChange }: { selected: string[]; onChange: (s: 
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggle = (n: string) => {
-    // all ticked (= All): clicking one unticks just that one
-    if (selected.length === 0) { onChange(D.PROJECTS.filter(x => x !== n)); return; }
-    const next = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n];
-    onChange(next.length === D.PROJECTS.length ? [] : next);
-  };
-  const label = selected.length === 0 ? "All projects" : selected.length === 1 ? selected[0].replace("SMARTWORLD ", "") : `${selected.length} projects`;
+  const toggle = (n: string) => onChange(msToggle(selected, n, D.PROJECTS, NONE_STR));
+  const label = msIsNone(selected, NONE_STR) ? "No projects" : selected.length === 0 ? "All projects" : selected.length === 1 ? selected[0].replace("SMARTWORLD ", "") : `${selected.length} projects`;
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <label style={BANNER_LBL}>Project</label>
@@ -197,7 +193,7 @@ function ProjSelect({ selected, onChange }: { selected: string[]; onChange: (s: 
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
-            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange(msAllClick(selected, NONE_STR))} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All projects
           </label>
           {D.PROJECTS.map(n => (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_NUM } from "../../utils/multiSelect";
 import { PDRN, ALL_INVR_PROJECTS, calcProjectStats, type ProjectStats } from "../../utils/pdrnLogic";
 import {
   type Bk, type Dim, BROKERS, ROWS, CANCELLED, AS_ON, CPD,
@@ -186,22 +187,18 @@ export function BookingsPage() {
             <div style={SELLBL}>Projects</div>
             <button onClick={() => setProjOpen(v => !v)}
               style={{ ...SEL, minWidth: 210, textAlign: "left", cursor: "pointer" }}>
-              {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? PSHORT[selProjects[0]] : `${selProjects.length} projects selected`} ▾
+              {msIsNone(selProjects, NONE_NUM) ? "No projects" : selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? PSHORT[selProjects[0]] : `${selProjects.length} projects selected`} ▾
             </button>
             {projOpen && (
               <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", color: "var(--ink)", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 260 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer", fontWeight: 700 }}>
-                  <input type="checkbox" checked={selProjects.length === 0} onChange={() => { setSelProjects([]); setPage(1); }} style={{ accentColor: "#0e7490" }} />
+                  <input type="checkbox" checked={selProjects.length === 0} onChange={() => { setSelProjects(prev => msAllClick(prev, NONE_NUM)); setPage(1); }} style={{ accentColor: "#0e7490" }} />
                   All projects
                 </label>
                 {PSHORT.map((p, i) => (
                   <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer" }}>
                     <input type="checkbox" checked={selProjects.length === 0 || selProjects.includes(i)}
-                      onChange={() => { setSelProjects(prev => {
-                        if (prev.length === 0) return PSHORT.map((_, j) => j).filter(j => j !== i);   // All → untick just this one
-                        const next = prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i];
-                        return next.length === PSHORT.length ? [] : next;
-                      }); setPage(1); }}
+                      onChange={() => { setSelProjects(prev => msToggle(prev, i, PSHORT.map((_, j) => j), NONE_NUM)); setPage(1); }}
                       style={{ accentColor: "#0e7490" }} />
                     {p}
                   </label>

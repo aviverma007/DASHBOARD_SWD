@@ -52,7 +52,8 @@ export function OverviewFilters() {
   }
 
   function selectAll() {
-    setProjects("ALL");
+    // "All" ticked → click untick everything; otherwise tick everything
+    setProjects(projects === "ALL" ? [] : "ALL");
   }
 
   const projectLabel =

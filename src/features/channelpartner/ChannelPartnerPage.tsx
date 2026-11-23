@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { msSetToggle, msSetAllClick, msSetIsNone, NONE_STR, NONE_NUM } from "../../utils/multiSelect";
 import { Zoomable } from "../../components/common/Zoomable";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import {
@@ -34,16 +35,9 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  function toggle(name: string) {
-    // all ticked (= All): clicking one unticks just that one
-    if (selected.size === 0) { onChange(new Set(projects.filter(x => x !== name))); return; }
-    const next = new Set(selected);
-    if (next.has(name)) next.delete(name); else next.add(name);
-    if (next.size === projects.length) onChange(new Set()); // all picked = All
-    else onChange(next);
-  }
+  function toggle(name: string) { onChange(msSetToggle(selected, name, projects, NONE_STR)); }
 
-  const label = selected.size === 0 ? "All projects"
+  const label = msSetIsNone(selected, NONE_STR) ? "No projects" : selected.size === 0 ? "All projects"
     : selected.size === 1 ? [...selected][0].replace("SMARTWORLD ", "")
     : `${selected.size} projects`;
 
@@ -56,7 +50,7 @@ function CpProjectMultiSelect({ projects, selected, onChange }: { projects: stri
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", color: "var(--ink)", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 280, maxHeight: 320, overflowY: "auto" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
-            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(msSetAllClick(selected, NONE_STR))} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All projects
           </label>
           {projects.map(name => (
@@ -95,14 +89,9 @@ function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; on
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [query]);
 
-  function toggle(idx: number) {
-    if (selected.size === 0) { onChange(new Set(CP.CP.map((_, i) => i).filter(i => i !== idx))); return; }
-    const next = new Set(selected);
-    if (next.has(idx)) next.delete(idx); else next.add(idx);
-    onChange(next.size === CP.CP.length ? new Set() : next);
-  }
+  function toggle(idx: number) { onChange(msSetToggle(selected, idx, CP.CP.map((_, i) => i), NONE_NUM)); }
 
-  const label = selected.size === 0 ? "All CPs"
+  const label = msSetIsNone(selected, NONE_NUM) ? "No CPs" : selected.size === 0 ? "All CPs"
     : selected.size === 1 ? CP.CP[[...selected][0]]
     : `${selected.size} CPs`;
 
@@ -122,7 +111,7 @@ function CpSearchMultiSelect({ selected, onChange }: { selected: Set<number>; on
             style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "8px 11px", fontSize: 13, fontFamily: "inherit", marginBottom: 6, color: "var(--ink)" }}
           />
           <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
-            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(new Set())} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            <input type="checkbox" checked={selected.size === 0} onChange={() => onChange(msSetAllClick(selected, NONE_NUM))} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All CPs
           </label>
           <div style={{ overflowY: "auto", flex: 1 }}>

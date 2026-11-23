@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { msItemOn, msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import { AnimatePresence, motion } from "framer-motion";
 import { PageBanner, BANNER_LBL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
@@ -42,7 +43,7 @@ function ProjectPicker({ sel, onChange }: { sel: ProjKey[]; onChange: (v: ProjKe
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const label = sel.length === 0 ? "All projects" : sel.length === 1 ? PROJECTS.find(p => p.key === sel[0])!.name : `${sel.length} projects`;
+  const label = msIsNone(sel, NONE_STR as ProjKey) ? "No projects" : sel.length === 0 ? "All projects" : sel.length === 1 ? PROJECTS.find(p => p.key === sel[0])!.name : `${sel.length} projects`;
   return (
     <div ref={ref} style={{ position: "relative", width: 220 }}>
       <label style={BANNER_LBL}>Project</label>
@@ -52,15 +53,15 @@ function ProjectPicker({ sel, onChange }: { sel: ProjKey[]; onChange: (v: ProjKe
       </button>
       {open && (
         <div style={{ position: "absolute", top: "100%", left: 0, width: 250, marginTop: 5, zIndex: 40, background: "#fff", color: "var(--ink)", border: "1px solid #d8d2c4", borderRadius: 8, boxShadow: "0 8px 22px rgba(20,33,61,.18)", padding: 6 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", fontSize: 12.5, fontWeight: 800, cursor: "pointer", borderRadius: 6, borderBottom: "1px solid #eee7d8", marginBottom: 3 }}>
+            <input type="checkbox" checked={sel.length === 0} onChange={() => onChange(msAllClick(sel, NONE_STR as ProjKey))} />
+            All projects
+          </label>
           {PROJECTS.map(p => {
-            const on = sel.length === 0 || sel.includes(p.key);   // nothing picked = All = every box ticked
+            const on = msItemOn(sel, p.key);
             return (
               <label key={p.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", fontSize: 12.5, fontWeight: on ? 700 : 500, cursor: "pointer", borderRadius: 6, background: on ? "rgba(14,116,144,.08)" : "transparent" }}>
-                <input type="checkbox" checked={on} onChange={() => {
-                  const base = sel.length === 0 ? PROJECTS.map(x => x.key) : sel;
-                  const next = base.includes(p.key) ? base.filter(k => k !== p.key) : [...base, p.key];
-                  onChange(next.length === PROJECTS.length ? [] : next);
-                }} />
+                <input type="checkbox" checked={on} onChange={() => onChange(msToggle(sel, p.key, PROJECTS.map(x => x.key), NONE_STR as ProjKey))} />
                 {p.name}<span style={{ marginLeft: "auto", fontSize: 11, color: "var(--mut)" }}>{p.city}</span>
               </label>
             );
@@ -438,7 +439,7 @@ export function ProfitLossPage() {
   const gMax = Math.max(...glance.filter(g => g.money).map(g => g.v), 1);
 
   const progress = rows.filter(r => !sel.length || sel.includes(r.b.key as ProjKey));
-  const subLine = <>{perLbl} · {basis} · {fN(m.units)} active bookings · {sel.length ? `${sel.length} of ${PROJECTS.length}` : PROJECTS.length} projects · cost as on {AS_ON.cost} · non-project as on {AS_ON.nonProject}</>;
+  const subLine = <>{perLbl} · {basis} · {fN(m.units)} active bookings · {msIsNone(sel, NONE_STR as ProjKey) ? `0 of ${PROJECTS.length}` : sel.length ? `${sel.length} of ${PROJECTS.length}` : PROJECTS.length} projects · cost as on {AS_ON.cost} · non-project as on {AS_ON.nonProject}</>;
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
@@ -552,7 +553,7 @@ export function ProfitLossPage() {
           {/* at a glance */}
           <Zoomable title="Project at a glance" collapsible>
             <div style={CARD}>
-              <h3 style={H3}>{sel.length === 1 ? `${PROJECTS.find(x => x.key === sel[0])!.name} at a Glance` : "Projects at a Glance"}</h3>
+              <h3 style={H3}>{sel.length === 1 && PROJECTS.some(x => x.key === sel[0]) ? `${PROJECTS.find(x => x.key === sel[0])!.name} at a Glance` : "Projects at a Glance"}</h3>
               <div style={CAP}>{perLbl} · {basis} · money columns share one scale; units and area are shown for reference</div>
               <div style={{ display: "grid", gridTemplateColumns: `repeat(${glance.length}, minmax(0, 1fr))`, gap: 10, alignItems: "end", height: 200, padding: "0 4px" }}>
                 {glance.map(g => {

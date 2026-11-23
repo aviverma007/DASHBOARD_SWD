@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_NUM } from "../../utils/multiSelect";
 import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import {
@@ -117,23 +118,19 @@ export function FootfallSection({ banner }: { banner: { title: ReactNode; sub?: 
           <div style={BANNER_LBL}>Projects / campaigns</div>
           <button onClick={() => setProjOpen(v => !v)}
             style={{ ...SEL, minWidth: 220, textAlign: "left", cursor: "pointer" }}>
-            {selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
+            {msIsNone(selProjects, NONE_NUM) ? "No projects" : selProjects.length === 0 ? "All projects" : selProjects.length === 1 ? FF.P[selProjects[0]] : `${selProjects.length} projects selected`} ▾
           </button>
           {projOpen && (
             <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 40, marginTop: 4, background: "#fff", color: "var(--ink)", border: "1.5px solid #cfd6e2", borderRadius: 10, boxShadow: "0 12px 34px rgba(20,33,61,.18)", padding: "8px 10px", maxHeight: 300, overflowY: "auto", minWidth: 280 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer", fontWeight: 700 }}>
                 <input type="checkbox" checked={selProjects.length === 0}
-                  onChange={() => setSelProjects([])} style={{ accentColor: "#0e7490" }} />
+                  onChange={() => setSelProjects(prev => msAllClick(prev, NONE_NUM))} style={{ accentColor: "#0e7490" }} />
                 All projects
               </label>
               {FF.P.map((p, i) => (
                 <label key={p} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "4px 0", cursor: "pointer" }}>
                   <input type="checkbox" checked={selProjects.length === 0 || selProjects.includes(i)}
-                    onChange={() => setSelProjects(prev => {
-                      if (prev.length === 0) return FF.P.map((_, j) => j).filter(j => j !== i);   // All → untick just this one
-                      const next = prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i];
-                      return next.length === FF.P.length ? [] : next;
-                    })}
+                    onChange={() => setSelProjects(prev => msToggle(prev, i, FF.P.map((_, j) => j), NONE_NUM))}
                     style={{ accentColor: "#0e7490" }} />
                   {p}
                 </label>

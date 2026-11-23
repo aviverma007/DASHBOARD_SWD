@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -219,13 +220,8 @@ function EoiProjectSelect({ selected, onChange }: { selected: string[]; onChange
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggle = (name: string) => {
-    // all ticked (= All): clicking one unticks just that one
-    if (selected.length === 0) { onChange(D.PROJECTS.filter(x => x !== name)); return; }
-    const next = selected.includes(name) ? selected.filter(x => x !== name) : [...selected, name];
-    onChange(next.length === D.PROJECTS.length ? [] : next);   // all picked = All
-  };
-  const label = selected.length === 0 ? "All projects"
+  const toggle = (name: string) => onChange(msToggle(selected, name, D.PROJECTS, NONE_STR));
+  const label = msIsNone(selected, NONE_STR) ? "No projects" : selected.length === 0 ? "All projects"
     : selected.length === 1 ? selected[0].replace("SMARTWORLD ", "")
     : `${selected.length} projects`;
   return (
@@ -237,7 +233,7 @@ function EoiProjectSelect({ selected, onChange }: { selected: string[]; onChange
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 300, maxHeight: 320, overflowY: "auto" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, color: "var(--ink)", cursor: "pointer", fontWeight: 600 }}>
-            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange(msAllClick(selected, NONE_STR))} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All projects
           </label>
           {D.PROJECTS.map((name, pi) => (
@@ -286,7 +282,7 @@ export function EoiPage() {
    * All → All. The user can still override the pills afterwards. */
   function handleProjects(next: string[]) {
     setProjF(next);
-    if (next.length === 0) { setTypeF("all"); return; }
+    if (next.length === 0 || msIsNone(next, NONE_STR)) { setTypeF("all"); return; }
     const eois = next.filter(p => isEoiProject(D.PROJECTS.indexOf(p))).length;
     setTypeF(eois === next.length ? "eoi" : eois === 0 ? "advance" : "all");
   }

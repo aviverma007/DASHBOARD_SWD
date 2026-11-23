@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_NUM } from "../../utils/multiSelect";
 import { PageBanner, BANNER_LBL } from "../layout/PageBanner";
 import { showTip, hideTip } from "../common/hoverTip";
 import { fNum, isoToDay, dayToDate, periodPresets, type PeriodPreset } from "../../utils/footfallLogic";
@@ -25,12 +26,8 @@ function CpvMultiProj({ selected, onChange }: { selected: number[]; onChange: (v
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggle = (i: number) => {
-    if (selected.length === 0) { onChange(CPV.PRJ.map((_, j) => j).filter(j => j !== i)); return; }
-    const next = selected.includes(i) ? selected.filter(x => x !== i) : [...selected, i];
-    onChange(next.length === CPV.PRJ.length ? [] : next);
-  };
-  const label = selected.length === 0 ? "All projects" : selected.length === 1 ? CPV.PRJ[selected[0]] : `${selected.length} projects`;
+  const toggle = (i: number) => onChange(msToggle(selected, i, CPV.PRJ.map((_, j) => j), NONE_NUM));
+  const label = msIsNone(selected, NONE_NUM) ? "No projects" : selected.length === 0 ? "All projects" : selected.length === 1 ? CPV.PRJ[selected[0]] : `${selected.length} projects`;
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <div style={BANNER_LBL}>Project</div>
@@ -40,7 +37,7 @@ function CpvMultiProj({ selected, onChange }: { selected: number[]; onChange: (v
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 60, background: "#fff", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 34px rgba(20,33,61,.2)", padding: 8, minWidth: 260, maxHeight: 340, overflowY: "auto" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 9px", borderBottom: "1px solid var(--line)", marginBottom: 5, paddingBottom: 10, fontSize: 13, cursor: "pointer", fontWeight: 600, color: "var(--ink)" }}>
-            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange(msAllClick(selected, NONE_NUM))} style={{ accentColor: "#B8893C", width: 15, height: 15 }} />
             All projects
           </label>
           {CPV.PRJ.map((pname, i) => (

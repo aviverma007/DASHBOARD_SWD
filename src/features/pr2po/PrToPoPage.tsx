@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import sapPrStatus from "../../data/sapPrStatus.json";
 /** SAP end state per PR from the EBAN export (scripts/build_sap_pr_status.py): [Rejected|Closed|Deleted, changedOn] */
 const SAP_PR_END = (sapPrStatus as unknown as { R: Record<string, [string, string]> }).R;
@@ -395,24 +396,20 @@ function MultiSel({ label, options, value, onChange }: { label: string; options:
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, []);
-  const toggle = (o: string) => {
-    if (value.length === 0) { onChange(options.filter(x => x !== o)); return; }   // All → untick just this one
-    const next = value.includes(o) ? value.filter(x => x !== o) : [...value, o];
-    onChange(next.length === options.length ? [] : next);
-  };
+  const toggle = (o: string) => onChange(msToggle(value, o, options, NONE_STR));
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <div style={BANNER_LBL}>{label}</div>
       <button onClick={() => setOpen(v => !v)}
         style={{ ...BANNER_CTL, width: 170, cursor: "pointer", textAlign: "left", color: "#14213d", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as React.CSSProperties}>
-        {value.length === 0 ? "All" : value.length === 1 ? value[0] : `${value.length} selected`} ▾
+        {msIsNone(value, NONE_STR) ? "None" : value.length === 0 ? "All" : value.length === 1 ? value[0] : `${value.length} selected`} ▾
       </button>
       {open && (
         <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 50, background: "#fff", border: "1px solid #d8d2c4", borderRadius: 10, boxShadow: "0 10px 30px rgba(20,33,61,.25)", minWidth: 240, maxHeight: 300, overflowY: "auto", padding: 6 }}>
-          <div onClick={() => onChange([])}
-            style={{ padding: "6px 10px", fontSize: 12, fontWeight: 800, color: value.length === 0 ? "#B8893C" : "#14213d", cursor: "pointer", borderRadius: 6 }}>
-            ✓ All ({options.length})
-          </div>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 10px", fontSize: 12, fontWeight: 800, color: "#14213d", cursor: "pointer", borderRadius: 6, borderBottom: "1px solid #eee7d8", marginBottom: 3 }}>
+            <input type="checkbox" checked={value.length === 0} onChange={() => onChange(msAllClick(value, NONE_STR))} style={{ accentColor: "#B8893C" }} />
+            All ({options.length})
+          </label>
           {options.map(o => (
             <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "#14213d", cursor: "pointer", borderRadius: 6, background: value.includes(o) ? "#faf3e3" : "transparent" }}>
               <input type="checkbox" checked={value.length === 0 || value.includes(o)} onChange={() => toggle(o)} style={{ accentColor: "#B8893C" }} />

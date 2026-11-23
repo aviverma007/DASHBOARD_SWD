@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { msSetToggle, msSetAllClick, msSetIsNone, NONE_STR } from "../../utils/multiSelect";
 import { DATA_AS_ON } from "../../config/dataInfo";
 import { PageBanner, BANNER_LBL, BANNER_CTL } from "../layout/PageBanner";
 
@@ -27,17 +28,9 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  function toggle(name: string) {
-    // all ticked (= All): clicking one unticks just that one
-    if (selectedProjects.size === 0) { onProjectsChange(new Set(projects.filter(x => x !== name))); return; }
-    const next = new Set(selectedProjects);
-    if (next.has(name)) next.delete(name); else next.add(name);
-    // if all selected, revert to empty (= All)
-    if (next.size === projects.length) onProjectsChange(new Set());
-    else onProjectsChange(next);
-  }
+  function toggle(name: string) { onProjectsChange(msSetToggle(selectedProjects, name, projects, NONE_STR)); }
 
-  const label = selectedProjects.size === 0
+  const label = msSetIsNone(selectedProjects, NONE_STR) ? "No projects" : selectedProjects.size === 0
     ? "All projects"
     : selectedProjects.size === 1
     ? [...selectedProjects][0].replace("Smartworld ", "").replace("SMARTWORLD ", "")
@@ -86,7 +79,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
               <input
                 type="checkbox"
                 checked={selectedProjects.size === 0}
-                onChange={() => onProjectsChange(new Set())}
+                onChange={() => onProjectsChange(msSetAllClick(selectedProjects, NONE_STR))}
                 style={{ accentColor: "#B8893C", width: 15, height: 15 }}
               />
               All projects
