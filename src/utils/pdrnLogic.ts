@@ -168,6 +168,7 @@ export const PROJECT_LOCATION: Record<string, string> = {
   "TRUMP RESIDENCES GURGAON": "Gurgaon",
   "SMARTWORLD ONE DXP PHASE-2": "Gurgaon", // Sector 113, Dwarka Expressway
   "SMARTWORLD ONE DXP STREET":  "Gurgaon",
+  "SMARTWORLD NATURE'S COURT": "Gurgaon",   // INVR/PDRN spell it "NATURE’S COURT L"
   "SMARTWORLD LE COURTYARD":  "Noida",
   "SMARTWORLD RESIDENCIES":   "Noida",
   "SMARTWORLD SUITES":        "Noida",
@@ -176,8 +177,12 @@ export const PROJECT_LOCATION: Record<string, string> = {
 /** Distinct locations, in display order. */
 export const LOCATIONS: string[] = [...new Set(Object.values(PROJECT_LOCATION))];
 
+/** names differ between exports (curly vs straight apostrophe, a stray trailing " L", spacing):
+ *  compare on a normalised key so a spelling variant never drops a project from its city */
+const locKey = (n: string) => n.toUpperCase().replace(/[\u2018\u2019`´]/g, "'").replace(/\s+L$/, "").replace(/\s+/g, " ").trim();
+const LOC_BY_KEY = new Map(Object.entries(PROJECT_LOCATION).map(([k, v]) => [locKey(k), v]));
 export function projectLocation(name: string): string | null {
-  return PROJECT_LOCATION[name] ?? null;
+  return PROJECT_LOCATION[name] ?? LOC_BY_KEY.get(locKey(name)) ?? null;
 }
 
 function recordInPeriod(r: SalesRecord, period: PeriodFilter): boolean {
