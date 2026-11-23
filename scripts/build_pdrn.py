@@ -68,6 +68,26 @@ def fnum(v):
     return int(f) if f == int(f) else f
 
 
+def dedupe_active(R):
+    """One ACTIVE row per project + unit. The PDRN export sometimes carries a second active row for
+    the same unit (e.g. Nature's Court T4-1104, an undated duplicate) — every page reads this file,
+    so without this Bookings, Collections and P&L count the unit twice while Overview does not.
+    Keep the dated row (latest booking day); drop the rest. Cancelled rows are untouched."""
+    best = {}
+    for i, r in enumerate(R):
+        if r[13] != 0:
+            continue
+        k = (r[0], str(r[9]).strip().upper())
+        j = best.get(k)
+        if j is None or (r[18], r[7]) > (R[j][18], R[j][7]):
+            best[k] = i
+    keep = set(best.values())
+    dropped = [R[i] for i, r in enumerate(R) if r[13] == 0 and i not in keep]
+    for r in dropped:
+        print(f"  duplicate active row dropped: project {r[0]} unit {r[9]} ({r[10]})")
+    return [r for i, r in enumerate(R) if r[13] != 0 or i in keep]
+
+
 def main(src, as_on):
     df = pd.read_excel(src)
     P = sorted(df["Project Name"].dropna().astype(str).unique(), key=str.lower)
@@ -115,6 +135,7 @@ def main(src, as_on):
             num(r["Total BSP Net Value (With Tax)"]),
         ])
 
+    R = dedupe_active(R)
     out = {
         "P": P, "TW": TW, "FL": FL, "CFG": CFG, "CP": CP, "R": R,
         "meta": {

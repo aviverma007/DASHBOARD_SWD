@@ -16,7 +16,7 @@
  * where "unsold" means currently unsold regardless of when it was counted).
  */
 
-import { PDRN_ACTIVE as salesRaw } from "../data/pdrnActive";
+import { PDRN_ACTIVE as salesRaw, PDRN_CANCELLED } from "../data/pdrnActive";
 import invRaw from "../data/smartworldInventory.json";
 
 export interface SalesRecord {
@@ -221,11 +221,17 @@ export function calcProjectStats(
   const pdrnSoldNos = pdrnProjIdx >= 0
     ? new Set(PDRN.R.filter((r) => r.projIdx === pdrnProjIdx).map((r) => r.unitNo))
     : new Set<string>();
-  const isSold = (u: (number | string)[]) => pdrnSoldNos.has(u[12] as string) || (u[8] as number) === 1;
+  /* INVR "Booked" only stands in for a booking the PDRN does not have yet. If the PDRN has CANCELLED
+     that unit (and no active row), the newer PDRN wins — an older INVR export must not resurrect it. */
+  const pdrnCancelledNos = new Set(PDRN_CANCELLED
+    .filter(r => String(salesRaw.P[r[0] as number] ?? "").toUpperCase() === name.toUpperCase())
+    .map(r => String(r[9])));
+  const invBooked = (u: (number | string)[]) => (u[8] as number) === 1 && !pdrnCancelledNos.has(u[12] as string);
+  const isSold = (u: (number | string)[]) => pdrnSoldNos.has(u[12] as string) || invBooked(u);
   // INVR-booked units with no PDRN row: no booking date, so they only
   // count toward SOLD in the all-time view.
   const bookedNoSale = period.type === "all"
-    ? invUnits.filter((u) => (u[8] as number) === 1 && !pdrnSoldNos.has(u[12] as string))
+    ? invUnits.filter((u) => invBooked(u) && !pdrnSoldNos.has(u[12] as string))
     : [];
 
   const invArea = new Map(invUnits.map((u) => [u[12] as string, u[6] as number]));
