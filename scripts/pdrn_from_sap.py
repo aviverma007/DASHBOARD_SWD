@@ -284,6 +284,13 @@ def main(argv):
             print(f"  company {b}: {len(rows)} rows in {secs:.0f}s")
             raw.extend(rows)
 
+    # every SAP field the dashboard uses must still exist - a renamed/removed column in ZSD_PDRN must
+    # stop the refresh, not silently turn amounts into 0
+    present = set().union(*(r.keys() for r in raw)) if raw else set()
+    gone = sorted({f for f in list(TEXT.values()) + list(NUM.values()) + list(DATE.values())} - present)
+    if gone:
+        raise RuntimeError(f"ZSD_PDRN no longer returns field(s) {gone} - report changed? "
+                           f"Update the field map in scripts/pdrn_from_sap.py. Not loading.")
     recs = [to_record(r) for r in raw]
     bad = {r["Booking Status"] for r in recs} - {"ACTIVE", "CANCELLED"}
     if bad:
