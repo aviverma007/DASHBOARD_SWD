@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 __pycache__/
+
+# live PDRN settings (SAP login) - never commit
+pdrn.env

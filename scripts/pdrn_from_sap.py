@@ -17,7 +17,9 @@ What it does
 Only needs Python 3 + requests (no pandas). On server .28 use C:\\VendorGlobe_API\\python312\\python.exe.
 Normally started by scripts/refresh_pdrn_live.ps1 (scheduled 1 PM and 5 PM).
 
-Settings (environment variables; the password is never written to disk or logs):
+Settings: put them in pdrn.env in the dashboard folder (copy pdrn.env.example; git-ignored, so
+git pull never touches it and it is never pushed). Machine environment variables work too; values in
+pdrn.env win. The password is never printed or logged.
   VG_PDRN_USER / VG_PDRN_PASSWORD  SAP Production user with ZSD_PDRN access   REQUIRED
   VG_PDRN_URL      default https://vhsmwps4ci.sap.smartworlddevelopers.com:20400/sap/zpdrn
   VG_PDRN_CLIENT   sap-client (default: the system's default client)
@@ -84,6 +86,29 @@ DATE = {
     "SFDC Booking Date": "SFDC_DATE",
     "BBA Date": "BBAL_DAT",
 }
+
+
+ENV_FILE = os.environ.get("VG_PDRN_ENV_FILE") or os.path.join(HERE, "..", "pdrn.env")
+
+
+def load_env_file(path=ENV_FILE):
+    """Read KEY=VALUE lines from pdrn.env in the dashboard folder (git-ignored, never pushed).
+    Values in the file win over machine environment variables. '#' starts a comment only at the
+    beginning of a line, so passwords may contain '#'. Surrounding quotes are removed."""
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8-sig") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1]
+            if k:
+                os.environ[k] = v
+    return True
 
 
 def env(k, d=""):
@@ -156,7 +181,8 @@ def fetch(bukrs, save_dir=None):
     import requests
     user, pw = env("VG_PDRN_USER"), os.environ.get("VG_PDRN_PASSWORD", "")
     if not user or not pw:
-        raise SystemExit("VG_PDRN_USER / VG_PDRN_PASSWORD are not set on this machine.")
+        raise SystemExit("VG_PDRN_USER / VG_PDRN_PASSWORD are empty - fill them in pdrn.env "
+                         "in the dashboard folder (copy pdrn.env.example to pdrn.env).")
     verify = env("VG_PDRN_VERIFY", "0") == "1"
     if not verify:
         import urllib3
@@ -202,6 +228,8 @@ def current_active():
 
 
 def main(argv):
+    if load_env_file():
+        print(f"  settings from {os.path.abspath(ENV_FILE)}")
     check_only = "--check" in argv
     save_dir = argv[argv.index("--save") + 1] if "--save" in argv else None
     files = []

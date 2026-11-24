@@ -157,8 +157,9 @@ SAP PRD /sap/zpdrn  (ZSD_PDRN report as JSON, read-only, transport DS4K913636)
 - Safety: if any company fails or returns 0 rows, Booking Status has an unknown value, or active
   bookings drop below 90 % of the current data, **nothing changes** — the dashboard keeps its last
   data. Every run is written to `logs/pdrn_refresh.log`.
-- Credentials: machine environment variables `VG_PDRN_USER` / `VG_PDRN_PASSWORD`
-  (`-SetCredentials` asks for them; never in git). Other settings: see the top of `pdrn_from_sap.py`.
+- Credentials: `pdrn.env` in the dashboard folder (copy `pdrn.env.example`, fill `VG_PDRN_USER` /
+  `VG_PDRN_PASSWORD`). It is git-ignored, so it is never pushed and `git pull` never touches it.
+  Machine environment variables also work; values in `pdrn.env` win.
 - The refresh rewrites `cpAnalytics.json`, `smartworldInventory.json`, `tvAnalytics.json` and
   `src/config/dataInfo.ts`, so deploy with `.\scripts\refresh_pdrn_live.ps1 -Pull` instead of a
   plain `git pull` (it resets those files, pulls, refreshes from SAP and builds).

@@ -2,7 +2,8 @@
   Live PDRN refresh for the dashboard on server .28 - SAP Production (ZSD_PDRN service) -> dashboard.
 
   One-time setup (admin PowerShell, in the dashboard folder):
-    .\scripts\refresh_pdrn_live.ps1 -SetCredentials   # asks for the SAP service user + password
+    copy pdrn.env.example pdrn.env ; notepad pdrn.env  # fill VG_PDRN_USER / VG_PDRN_PASSWORD
+      (or .\scripts\refresh_pdrn_live.ps1 -SetCredentials to use machine environment variables)
     .\scripts\refresh_pdrn_live.ps1 -Test             # fetch + check only, changes nothing
     .\scripts\refresh_pdrn_live.ps1                   # first real refresh + build
     .\scripts\refresh_pdrn_live.ps1 -Install          # schedule it daily at 1:00 PM and 5:00 PM
