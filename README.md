@@ -140,6 +140,30 @@ Both pages read from the same underlying `smartworldInventory.json` — Overview
 `smartworldLogic.ts`. Refreshing the data (re-running `scripts/convert_invr_export.py`
 against a new export) updates both pages at once.
 
+## Bookings (PDRN) live from SAP — 1 PM and 5 PM
+
+`src/data/cpAnalytics.json` (Overview, Bookings, Target vs Actual, Channel Partners, Collections
+"Booking-wise", P&L, TV, mobile) is refreshed from SAP Production twice a day on server .28:
+
+```
+SAP PRD /sap/zpdrn  (ZSD_PDRN report as JSON, read-only, transport DS4K913636)
+   └─ scripts/pdrn_from_sap.py   fetch per company → checks → build_pdrn.build() → build_tva.py
+        └─ scripts/refresh_pdrn_live.ps1   + npm run build   (Task Scheduler 13:00 / 17:00)
+```
+
+- Same build code as the Excel refresh (`build_pdrn.py`), so the numbers are computed identically;
+  a test feeding the 23-Nov merged Excel through the SAP path gave the same cpAnalytics.json
+  (only difference: a broker name with a stray line break is now trimmed).
+- Safety: if any company fails or returns 0 rows, Booking Status has an unknown value, or active
+  bookings drop below 90 % of the current data, **nothing changes** — the dashboard keeps its last
+  data. Every run is written to `logs/pdrn_refresh.log`.
+- Credentials: machine environment variables `VG_PDRN_USER` / `VG_PDRN_PASSWORD`
+  (`-SetCredentials` asks for them; never in git). Other settings: see the top of `pdrn_from_sap.py`.
+- The refresh rewrites `cpAnalytics.json`, `smartworldInventory.json`, `tvAnalytics.json` and
+  `src/config/dataInfo.ts`, so deploy with `.\scripts\refresh_pdrn_live.ps1 -Pull` instead of a
+  plain `git pull` (it resets those files, pulls, refreshes from SAP and builds).
+- The Excel path still works: `python scripts/build_pdrn.py <merged.xlsx> "<DD Mon YYYY>"`.
+
 ## Development
 
 ```bash
