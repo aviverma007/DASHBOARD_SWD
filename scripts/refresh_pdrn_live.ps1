@@ -1,18 +1,20 @@
 <#
-  Live PDRN refresh for the dashboard on server .28 - SAP Production (ZSD_PDRN service) -> dashboard.
+  Dashboard bookings refresh on server .28:
+      SAP PRD (ZSD_PDRN) --13:00/17:00--> SQL PDRN.dbo.SAP_PDRN   (VendorGlobe API, app/pdrn_sync.py)
+      SQL --this script, every 10 min 13:10-19:10--> dashboard data + npm run build
+  The dashboard is rebuilt only when SQL holds a NEW load, so the extra checks cost nothing.
+  The SAP login lives in C:\VendorGlobe_API\pdrn.env (API side), not here.
 
   One-time setup (admin PowerShell, in the dashboard folder):
-    copy pdrn.env.example pdrn.env ; notepad pdrn.env  # fill VG_PDRN_USER / VG_PDRN_PASSWORD
-      (or .\scripts\refresh_pdrn_live.ps1 -SetCredentials to use machine environment variables)
-    .\scripts\refresh_pdrn_live.ps1 -Test             # fetch + check only, changes nothing
-    .\scripts\refresh_pdrn_live.ps1                   # first real refresh + build
-    .\scripts\refresh_pdrn_live.ps1 -Install          # schedule it daily at 1:00 PM and 5:00 PM
+    .\scripts\refresh_pdrn_live.ps1 -Test        # read SQL via the API + check, changes nothing
+    .\scripts\refresh_pdrn_live.ps1              # first refresh + build
+    .\scripts\refresh_pdrn_live.ps1 -Install     # schedule it
 
   Deploying new code from now on (instead of plain "git pull"):
-    .\scripts\refresh_pdrn_live.ps1 -Pull             # reset data files, git pull, live refresh, build
+    .\scripts\refresh_pdrn_live.ps1 -Pull        # reset data files, git pull, refresh, build
 
-  If SAP is down or the data looks wrong, nothing changes: the dashboard keeps its last data and
-  the reason is written to logs\pdrn_refresh.log.
+  If the API / SQL is unavailable or the data looks wrong, nothing changes: the dashboard keeps its
+  last data and the reason is written to logs\pdrn_refresh.log.
 #>
 param(
     [switch]$SetCredentials,
@@ -29,7 +31,8 @@ $Root = Split-Path -Parent $PSScriptRoot
 $LogDir = Join-Path $Root "logs"
 $Log = Join-Path $LogDir "pdrn_refresh.log"
 $Lock = Join-Path $LogDir "pdrn_refresh.lock"
-$TaskNames = @("Dashboard PDRN refresh 1PM", "Dashboard PDRN refresh 5PM")
+$TaskName = "Dashboard PDRN refresh"
+$OldTaskNames = @("Dashboard PDRN refresh 1PM", "Dashboard PDRN refresh 5PM")
 # files the refresh rewrites (git sees them as changed between deploys)
 $DataFiles = @("src/data/cpAnalytics.json", "src/data/smartworldInventory.json",
                "src/data/tvAnalytics.json", "src/config/dataInfo.ts")
@@ -66,7 +69,7 @@ if ($SetCredentials) {
 
 # ---------------- schedule: 1:00 PM and 5:00 PM every day ----------------
 if ($Uninstall) {
-    foreach ($t in $TaskNames) { Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction SilentlyContinue }
+    foreach ($t in @($TaskName) + $OldTaskNames) { Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction SilentlyContinue }
     Write-Host "Scheduled refreshes removed."
     exit 0
 }
@@ -78,13 +81,15 @@ if ($Install) {
     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
                 -MultipleInstances IgnoreNew
-    $times = @("13:00", "17:00")
-    for ($i = 0; $i -lt 2; $i++) {
-        $trigger = New-ScheduledTaskTrigger -Daily -At $times[$i]
-        Register-ScheduledTask -TaskName $TaskNames[$i] -Action $action -Trigger $trigger `
-            -Principal $principal -Settings $settings -Force | Out-Null
-    }
-    Write-Host "Scheduled: '$($TaskNames[0])' 13:00 and '$($TaskNames[1])' 17:00 (runs as SYSTEM)."
+    foreach ($t in $OldTaskNames) { Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction SilentlyContinue }
+    # daily 13:10, then every 10 minutes for 6 hours (covers the 13:00 and 17:00 SQL loads)
+    $trigger = New-ScheduledTaskTrigger -Daily -At "13:10"
+    $rep = New-ScheduledTaskTrigger -Once -At "13:10" -RepetitionInterval (New-TimeSpan -Minutes 10) `
+           -RepetitionDuration (New-TimeSpan -Hours 6)
+    $trigger.Repetition = $rep.Repetition
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+        -Principal $principal -Settings $settings -Force | Out-Null
+    Write-Host "Scheduled '$TaskName': daily 13:10-19:10 every 10 min, rebuilds only on a new SQL load (runs as SYSTEM)."
     Write-Host "npm: $Npm    python: $Python    log: $Log"
     exit 0
 }
@@ -110,14 +115,17 @@ try {
 
     $pyArgs = @("scripts/pdrn_from_sap.py")
     if ($Test) { $pyArgs += "--check" }
-    Log ("SAP fetch started" + $(if ($Test) { " (test only)" } else { "" }))
+    if ($Pull) { $pyArgs += "--force" }   # data files were reset - rebuild from SQL even if same load
+    Log ("PDRN refresh started" + $(if ($Test) { " (test only)" } else { "" }))
     $r = Invoke-Native $Python $pyArgs
     $code = $r.Code
     $r.Out | ForEach-Object { Log "  $_" }
 
     if ($Test) { Log "test finished (exit $code) - nothing changed"; exit $code }
 
-    if ($code -ne 0) {
+    if ($code -eq 3 -and -not $Pull) { exit 0 }     # same SQL load already on the dashboard
+
+    if ($code -ne 0 -and $code -ne 3) {
         if ($Pull) {
             Log "SAP refresh failed - building the pulled code with the repository data instead"
         } else {
@@ -131,7 +139,7 @@ try {
     $bcode = $b.Code
     $b.Out | Select-Object -Last 15 | ForEach-Object { Log "  $_" }
     if ($bcode -ne 0) { throw "npm run build failed - the previous build is still being served" }
-    if ($code -eq 0) { Log "done - dashboard rebuilt with live SAP data" }
+    if ($code -eq 0 -or $code -eq 3) { Log "done - dashboard rebuilt with live SAP data" }
     else { Log "done - dashboard rebuilt (repository data; SAP refresh failed, see above)" }
 }
 catch {

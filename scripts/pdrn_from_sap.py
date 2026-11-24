@@ -1,41 +1,31 @@
 #!/usr/bin/env python3
-"""Refresh the dashboard's bookings data (src/data/cpAnalytics.json) LIVE from SAP Production,
-instead of the manual ZSD_PDRN Excel export + merge.
+"""Refresh the dashboard's bookings data (src/data/cpAnalytics.json) from SAP Production.
 
-Source: the read-only SICF service /sap/zpdrn (class ZCL_PDRN_JSON_HANDLER, transport DS4K913636),
-which runs report ZRSD_PROPERTY_DETAIL_REPORT (T-code ZSD_PDRN) and returns its ALV table as JSON.
+Normal flow (server .28):
+  VendorGlobe API (app/pdrn_sync.py) loads ZSD_PDRN from SAP into SQL PDRN.dbo.SAP_PDRN at 13:00 and
+  17:00 -> this script reads that SQL snapshot through http://127.0.0.1:5002/pdrn/rows -> maps the
+  fields to the PDRN Excel column names -> build_pdrn.build() (the SAME code as the Excel refresh)
+  -> build_tva.py. scripts/refresh_pdrn_live.ps1 runs it every 10 min 13:10-19:10 and rebuilds the
+  dashboard only when SQL holds a new load (exit code 3 = nothing new).
 
-What it does
-  1. Calls the service once per company code (status=all = the report's "All" radio button).
-  2. Checks the answer: every company must answer, Booking Status must be ACTIVE / CANCELLED,
-     and the active-booking count may not fall below VG_PDRN_MIN_RATIO of the current data.
-     ANY failure -> nothing is written, the dashboard keeps the last good data, exit code 1.
-  3. Maps the service fields to the PDRN Excel column names and runs build_pdrn.build() - the
-     same code the Excel refresh uses, so every page computes exactly as before.
-  4. Runs build_tva.py (which first syncs inventory booking status with the PDRN).
+Checks before anything is written: Booking Status ACTIVE / CANCELLED only, every row has
+Project/Tower/Floor/BHK, known floor labels, active bookings >= VG_PDRN_MIN_RATIO of the current
+data. Any failure -> nothing written, the dashboard keeps its last data, exit code 1.
 
-Only needs Python 3 + requests (no pandas). On server .28 use C:\\VendorGlobe_API\\python312\\python.exe.
-Normally started by scripts/refresh_pdrn_live.ps1 (scheduled 1 PM and 5 PM).
+Only needs Python 3 + requests (no pandas). On .28: C:\\VendorGlobe_API\\python312\\python.exe.
 
-Settings: put them in pdrn.env in the dashboard folder (copy pdrn.env.example; git-ignored, so
-git pull never touches it and it is never pushed). Machine environment variables work too; values in
-pdrn.env win. The password is never printed or logged.
-  VG_PDRN_USER / VG_PDRN_PASSWORD  SAP Production user with ZSD_PDRN access   REQUIRED
-  VG_PDRN_URL      default https://vhsmwps4ci.sap.smartworlddevelopers.com:20400/sap/zpdrn
-  VG_PDRN_CLIENT   sap-client (default: the system's default client)
-  VG_PDRN_BUKRS    company codes, comma separated (default 1010,1070,2010,2070,3070)
-  VG_PDRN_WERKS    project codes (default the 8 dashboard projects; "*" = every project of
-                   those companies - new launches then appear on the dashboard automatically)
-  VG_PDRN_STATUS   all | book | inproc (default all)
-  VG_PDRN_VERIFY   "1" to verify TLS (default off: SAP's internal certificate)
-  VG_PDRN_TIMEOUT  seconds per company call (default 1800)
-  VG_PDRN_MIN_RATIO  default 0.9
+Settings: pdrn.env in the dashboard folder (see pdrn.env.example; git-ignored) or environment:
+  VG_PDRN_SOURCE    sql (default, via the API) | sap (emergency: call SAP directly)
+  VG_PDRN_API_URL   default http://127.0.0.1:5002/pdrn/rows ;  VG_PDRN_API_TOKEN (remote API only)
+  VG_PDRN_MIN_RATIO default 0.9
+  source=sap only: VG_PDRN_USER / VG_PDRN_PASSWORD, VG_PDRN_URL, VG_PDRN_CLIENT, VG_PDRN_BUKRS,
+                   VG_PDRN_WERKS, VG_PDRN_STATUS, VG_PDRN_VERIFY, VG_PDRN_TIMEOUT
 
 Usage
-  python scripts/pdrn_from_sap.py                    live refresh
-  python scripts/pdrn_from_sap.py --check            fetch + validate only, write nothing
+  python scripts/pdrn_from_sap.py                    refresh (exit 3 = SQL load already built)
+  python scripts/pdrn_from_sap.py --force            rebuild even if the SQL load is the same
+  python scripts/pdrn_from_sap.py --check            read + validate only, write nothing
   python scripts/pdrn_from_sap.py --file a.json ...  build from saved service answers (testing)
-  python scripts/pdrn_from_sap.py --save DIR         also save each company's raw JSON into DIR
 """
 import datetime
 import json
@@ -50,6 +40,9 @@ sys.path.insert(0, HERE)
 import build_pdrn  # noqa: E402
 
 DEFAULT_URL = "https://vhsmwps4ci.sap.smartworlddevelopers.com:20400/sap/zpdrn"
+# normal source: the SQL snapshot PDRN.dbo.SAP_PDRN, served by the VendorGlobe API on this server
+# (app/pdrn_sync.py loads it from SAP at 13:00 / 17:00)
+DEFAULT_API = "http://127.0.0.1:5002/pdrn/rows"
 # the companies / projects the dashboard covers (same 8 projects as the Excel merge):
 #   1010 One DXP Street 1011, One DXP Phase-2 1013 · 1070 Sky Arc 1070, Trump Residences 1072
 #   2010 The Edition 2010 · 2070 Nature's Court 2071 · 3070 Le Courtyard 3072, Suites 3073
@@ -217,6 +210,31 @@ def fetch(bukrs, save_dir=None):
     return answer, secs
 
 
+# ---------- from SQL (VendorGlobe API) ----------
+
+def fetch_api():
+    import requests
+    url = env("VG_PDRN_API_URL", DEFAULT_API)
+    hdr = {"Accept": "application/json"}
+    if env("VG_PDRN_API_TOKEN"):
+        hdr["X-PDRN-Token"] = env("VG_PDRN_API_TOKEN")
+    r = requests.get(url, headers=hdr, timeout=300)
+    if r.status_code != 200:
+        raise RuntimeError(f"{url} -> HTTP {r.status_code}: {r.text[:200]}")
+    ans = r.json()
+    if not ans.get("rows"):
+        raise RuntimeError("SQL table PDRN.dbo.SAP_PDRN is empty - has the API loaded from SAP yet? "
+                           "(see /pdrn/health)")
+    return ans
+
+
+def last_built_load():
+    try:
+        return json.load(open(build_pdrn.OUT, encoding="utf-8"))["meta"].get("loadId")
+    except Exception:
+        return None
+
+
 # ---------- main ----------
 
 def current_active():
@@ -237,7 +255,21 @@ def main(argv):
         files = [a for a in argv[argv.index("--file") + 1:] if not a.startswith("--")]
 
     raw = []
-    if files:
+    as_on = None
+    load_id = None
+    source = env("VG_PDRN_SOURCE", "sql").lower()
+    if not files and source == "sql":
+        ans = fetch_api()
+        load_id = ans.get("loadId")
+        if load_id is not None and load_id == last_built_load() and "--force" not in argv \
+                and not check_only:
+            print(f"  SQL load #{load_id} is already on the dashboard - nothing new, no rebuild")
+            return 3
+        raw = rows_of(ans)
+        t = datetime.datetime.fromisoformat(ans["asOn"]) if ans.get("asOn") else datetime.datetime.now()
+        as_on = f"{t:%d %b %Y}, {t:%I:%M %p}".replace(", 0", ", ")
+        print(f"  SQL snapshot #{load_id}: {len(raw)} rows, loaded from SAP {as_on}")
+    elif files:
         for f in files:
             raw.extend(rows_of(json.load(open(f, encoding="utf-8"))))
             print(f"  {f}: {len(raw)} rows so far")
@@ -270,9 +302,15 @@ def main(argv):
         print("check OK - nothing written (--check)")
         return 0
 
-    now = datetime.datetime.now()
-    as_on = f"{now:%d %b %Y}, {now:%I:%M %p}".replace(", 0", ", ")
-    build_pdrn.build(recs, as_on, "SAP live (ZSD_PDRN service)")
+    if as_on is None:
+        now = datetime.datetime.now()
+        as_on = f"{now:%d %b %Y}, {now:%I:%M %p}".replace(", 0", ", ")
+    out = build_pdrn.build(recs, as_on, "SAP live (ZSD_PDRN via SQL PDRN.dbo.SAP_PDRN)"
+                           if load_id is not None else "SAP live (ZSD_PDRN service)")
+    if load_id is not None:                       # remember which SQL load is on the dashboard
+        out["meta"]["loadId"] = load_id
+        json.dump(out, open(build_pdrn.OUT, "w", encoding="utf-8"), separators=(",", ":"),
+                  ensure_ascii=False)
     subprocess.run([sys.executable, os.path.join(HERE, "build_tva.py")], check=True)
     print(f"PDRN refreshed live from SAP - data as on {as_on}")
     return 0
