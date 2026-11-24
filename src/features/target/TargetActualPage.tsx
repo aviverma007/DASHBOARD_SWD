@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { msSetToggle, msSetAllClick, msSetIsNone, NONE_STR } from "../../utils/multiSelect";
 import { Zoomable } from "../../components/common/Zoomable";
 import { LOCATIONS, projectLocation } from "../../utils/pdrnLogic";
-import { DATA_AS_ON } from "../../config/dataInfo";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import { motion } from "framer-motion";
 import { AnimatedNumber } from "../../components/common/AnimatedNumber";
 import rawTarget from "../../data/targetData.json";
@@ -835,7 +835,7 @@ export function TargetActualPage() {
           of staying pinned to the real viewport. */}
       <div className="tv-zoom-desktop" style={{ overflowX: "hidden" } as React.CSSProperties}>
       {/* Filter bar */}
-      <PageBanner title="Target vs Actual" sub={<>AOP targets against achieved units, value and rates · data as on {DATA_AS_ON}</>}>
+      <PageBanner title="Target vs Actual" sub={<>AOP targets against achieved units, value and rates · <LiveDataBadge /></>}>
         <LocationSelect locations={LOCATIONS} value={location} onChange={handleLocationChange} />
         <ProjectMultiSelect projects={availableNames} selected={selectedProjects} onChange={setSelectedProjects} />
 

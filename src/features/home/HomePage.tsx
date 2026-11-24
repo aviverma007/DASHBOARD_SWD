@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { canAccess } from "../../config/users";
-import { DATA_AS_ON } from "../../config/dataInfo";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import { IsoTower, DuskSkyline } from "./HomeArt";
 import "./home.css";
 
@@ -109,7 +109,7 @@ export function HomePage() {
               )}
               <button type="button" className="hm-btn hm-btn--ghost" onClick={openAssistant}><Sparkles /> Ask SmartDB</button>
             </motion.div>
-            <motion.div className="hm-asof" {...rise(4)}>Data refreshed on {DATA_AS_ON}</motion.div>
+            <motion.div className="hm-asof" {...rise(4)}><LiveDataBadge variant="home" /></motion.div>
           </div>
 
           <motion.div className="hm-collage" aria-hidden {...rise(3)}>

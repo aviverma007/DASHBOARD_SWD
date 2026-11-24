@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { msSetToggle, msSetAllClick, msSetIsNone, NONE_STR, NONE_NUM } from "../../utils/multiSelect";
 import { Zoomable } from "../../components/common/Zoomable";
-import { DATA_AS_ON } from "../../config/dataInfo";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import {
   CP, summariseByChannelPartner, topByUnits, topByArea, topByTsv, topByCancelled,
   monthlyTrend, cancelledRebookingSummary, filterRecords, CP_YEAR_OPTIONS,
@@ -202,7 +202,7 @@ export function ChannelPartnerPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       <div className="tv-zoom-desktop">
       {/* Header + filter bar */}
-      <PageBanner title="Channel Partners" sub={<>Broker performance, trends and cancellations · data as on {DATA_AS_ON}</>}>
+      <PageBanner title="Channel Partners" sub={<>Broker performance, trends and cancellations · <LiveDataBadge /></>}>
         <CpProjectMultiSelect projects={CP.P} selected={selectedProjects} onChange={setSelectedProjects} />
         <CpSearchMultiSelect selected={selectedCps} onChange={setSelectedCps} />
 

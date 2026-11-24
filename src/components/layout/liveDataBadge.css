@@ -1,0 +1,16 @@
+.ldb { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ldb b { font-weight: 600; }
+.ldb-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; position: relative; background: #9aa4b2; }
+.ldb-live .ldb-dot { background: #22c55e; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); animation: ldb-pulse 2s ease-out infinite; }
+.ldb-stale .ldb-dot { background: #f59e0b; }
+.ldb-banner.ldb-live b { color: #86efac; }
+.ldb-banner.ldb-stale b { color: #fcd34d; }
+.ldb-home.ldb-live b { color: #22c55e; }
+.ldb-home.ldb-stale b { color: #d97706; }
+@keyframes ldb-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ldb-live .ldb-dot { animation: none; } }
+@media (max-width: 760px) { .ldb { white-space: normal; } }

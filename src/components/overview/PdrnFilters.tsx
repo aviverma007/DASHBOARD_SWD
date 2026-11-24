@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { msSetToggle, msSetAllClick, msSetIsNone, NONE_STR } from "../../utils/multiSelect";
-import { DATA_AS_ON } from "../../config/dataInfo";
+import { LiveDataBadge } from "../layout/LiveDataBadge";
 import { PageBanner, BANNER_LBL, BANNER_CTL } from "../layout/PageBanner";
 
 interface PdrnFiltersProps {
@@ -37,7 +37,7 @@ export function PdrnFilters({ projects, selectedProjects, onProjectsChange, loca
     : `${selectedProjects.size} projects`;
 
   return (
-    <PageBanner title="Overview" sub={<>Portfolio snapshot across projects and locations · data as on {DATA_AS_ON}</>}>
+    <PageBanner title="Overview" sub={<>Portfolio snapshot across projects and locations · <LiveDataBadge /></>}>
       {/* Location — single-select, placed before Project since it narrows it */}
       <div>
         <label style={LBL}>Location</label>

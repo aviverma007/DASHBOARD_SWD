@@ -37,7 +37,7 @@ const GUIDE: GuideSection[] = [
       { term: "Blocked units", body: "Units held back by the developer and not open for sale (previously labelled \u201Cmanagement units\u201D). Shown in red everywhere." },
       { term: "Absorption", body: "The share of total stock that has been booked/sold.", formula: "Absorption % = Booked units ÷ Total units × 100" },
       { term: "Project codes ED · LC · RES · SA · ST · TR", body: "Short codes for The Edition, Le Courtyard, Residencies, Sky Arc, Suites and Trump Residences — used where space is tight." },
-      { term: "Data as on", body: `The date of the underlying inventory/booking extract (currently ${DATA_AS_ON}). Every number in the app reflects that snapshot, not live data.` },
+      { term: "Data as on", body: `When the bookings data was last loaded (currently ${DATA_AS_ON}). With the green "Live from SAP" dot, bookings are loaded automatically from SAP (ZSD_PDRN) every day at 1 PM and 5 PM; reload the page to see a new load. An amber dot means a scheduled refresh was missed.` },
     ],
   },
   {

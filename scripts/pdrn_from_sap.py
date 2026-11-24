@@ -256,6 +256,7 @@ def main(argv):
 
     raw = []
     as_on = None
+    loaded_iso = None
     load_id = None
     source = env("VG_PDRN_SOURCE", "sql").lower()
     if not files and source == "sql":
@@ -267,6 +268,7 @@ def main(argv):
             return 3
         raw = rows_of(ans)
         t = datetime.datetime.fromisoformat(ans["asOn"]) if ans.get("asOn") else datetime.datetime.now()
+        loaded_iso = t.isoformat(timespec="seconds")
         as_on = f"{t:%d %b %Y}, {t:%I:%M %p}".replace(", 0", ", ")
         print(f"  SQL snapshot #{load_id}: {len(raw)} rows, loaded from SAP {as_on}")
     elif files:
@@ -305,8 +307,9 @@ def main(argv):
     if as_on is None:
         now = datetime.datetime.now()
         as_on = f"{now:%d %b %Y}, {now:%I:%M %p}".replace(", 0", ", ")
+        loaded_iso = now.isoformat(timespec="seconds")
     out = build_pdrn.build(recs, as_on, "SAP live (ZSD_PDRN via SQL PDRN.dbo.SAP_PDRN)"
-                           if load_id is not None else "SAP live (ZSD_PDRN service)")
+                           if load_id is not None else "SAP live (ZSD_PDRN service)", loaded_iso)
     if load_id is not None:                       # remember which SQL load is on the dashboard
         out["meta"]["loadId"] = load_id
         json.dump(out, open(build_pdrn.OUT, "w", encoding="utf-8"), separators=(",", ":"),

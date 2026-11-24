@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import "../../components/inventory/smartworldInventory.css";
 import { PageBanner, BannerPills, BANNER_LBL } from "../../components/layout/PageBanner";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 
 const SELLBL: React.CSSProperties = BANNER_LBL;
 
@@ -182,7 +183,7 @@ export function BookingsPage() {
     <div className="sw-inv" style={{ minHeight: "100vh" }}>
       <div className="tv-zoom-desktop">
       {/* Header */}
-      <PageBanner title="Bookings" sub={<>{fN(ROWS.length)} active bookings · data as on {AS_ON}</>}>
+      <PageBanner title="Bookings" sub={<>{fN(ROWS.length)} active bookings · <LiveDataBadge /></>}>
           <div ref={projRef} style={{ position: "relative" }}>
             <div style={SELLBL}>Projects</div>
             <button onClick={() => setProjOpen(v => !v)}

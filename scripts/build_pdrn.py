@@ -107,8 +107,9 @@ def _cats(rows, col, key=None):
     return sorted({_s(r[col]) for r in rows if not _missing(r[col])}, key=key or str.lower)
 
 
-def build(rows, as_on, source):
-    """rows: list of dicts keyed by PDRN column names. Writes cpAnalytics.json + DATA_AS_ON."""
+def build(rows, as_on, source, loaded_iso=None):
+    """rows: list of dicts keyed by PDRN column names. Writes cpAnalytics.json + DATA_AS_ON.
+    loaded_iso: time of the live SAP load (None = Excel upload) -> DATA_LIVE / DATA_LOADED_ISO."""
     P = _cats(rows, "Project Name")
     TW = _cats(rows, "Tower")
     FL = _cats(rows, "Floor", floor_num)
@@ -158,7 +159,7 @@ def build(rows, as_on, source):
         "P": P, "TW": TW, "FL": FL, "CFG": CFG, "CP": CP, "R": R,
         "meta": {
             "rows": len(R), "source": source,
-            "asOn": as_on,
+            "asOn": as_on, "live": bool(loaded_iso), "loadedAt": loaded_iso or "",
             "fields15plus": "15 recWithTax · 16 tcvWithTaxAfterAdj · 17 dueInclTax · 18 bookingDay · 19 recExclTax · 20 bspNetExclTax · 21 demandExclTax · 22 demandWithTax · 23 bbaDay(-1 none) · 24 netRecInclTax · 25 pendingClearance · 26 bspNetWithTax",
         },
     }
@@ -168,6 +169,8 @@ def build(rows, as_on, source):
     if os.path.exists(info):
         t = open(info, encoding="utf-8").read()
         t = re.sub(r'export const DATA_AS_ON = ".*?";', f'export const DATA_AS_ON = "{as_on}";', t)
+        t = re.sub(r'export const DATA_LIVE = \w+;', f'export const DATA_LIVE = {"true" if loaded_iso else "false"};', t)
+        t = re.sub(r'export const DATA_LOADED_ISO = ".*?";', f'export const DATA_LOADED_ISO = "{loaded_iso or ""}";', t)
         open(info, "w", encoding="utf-8").write(t)
     n_act = sum(1 for r in R if r[13] == 0)
     n_reb = sum(1 for r in R if r[14] == 1)
