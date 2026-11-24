@@ -41,6 +41,9 @@ New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 # Python prints Rs / curly-quote project names; make it UTF-8 on Windows (also for file reads)
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
+# read Python/npm output as UTF-8 so the rupee sign and curly quotes show correctly in the window and log
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 # run a program, return its output lines + exit code (stderr warnings must not stop the script)
 function Invoke-Native([string]$exe, [string[]]$argList) {
