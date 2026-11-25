@@ -135,7 +135,12 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
     if (bn) { if (!poByBanfn.has(bn)) poByBanfn.set(bn, []); poByBanfn.get(bn)!.push(p); }
   });
   const vgByNo = new Map<string, R>();
-  data.vg.forEach(v => { if (v.EPR_No) vgByNo.set(String(v.EPR_No), v); });
+  data.vg.forEach(v => {
+    /* business rule: a Draft NFA has not been submitted yet, so it sits with
+       whoever raised it - QMS still reports the first approval level there */
+    if (String(v.NFA_Status_Desc || "").trim().toLowerCase() === "draft") v.NFA_Pending_With = "NFA Initiator";
+    if (v.EPR_No) vgByNo.set(String(v.EPR_No), v);
+  });
 
   // group SAP PR lines to header
   const sapByNo = new Map<string, R[]>();
