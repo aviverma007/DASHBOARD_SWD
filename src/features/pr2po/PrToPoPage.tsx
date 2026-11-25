@@ -122,6 +122,9 @@ export interface Journey {
 const poCancelled = (pos: Rec[]) =>
   pos.length > 0 && pos.every(p =>
     p.CANCELLED === "1" || p.LOEKZ === "L" || p.LOEKZ === "X" || p.LOEKZ === "1" || p.LOEKZ === "True");
+/** SAP PR line deletion flag (EBAN-LOEKZ) as the OData / mirror send it */
+export const lineDeleted = (l: Record<string, unknown>) =>
+  ["x", "l", "1", "true"].includes(String(l.Loekz ?? l.LOEKZ ?? "").trim().toLowerCase());
 const goneOf = (pos: Rec[], k: "ITEMS_GONE" | "ITEMS_SEEN") =>
   pos.reduce((s, p) => s + (parseInt(String(p[k] ?? "0"), 10) || 0), 0);
 
@@ -275,14 +278,20 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
     out.push(j);
   };
 
-  sapByNo.forEach((lines, banfn) => {
+  sapByNo.forEach((allLines, banfn) => {
     seen.add(banfn);
+    /* business rule: deleted line items don't count. A PR whose every line
+       is deleted in SAP is dropped completely (no status, no list, not in
+       Total PRs); a PR with some lines deleted stays, built from its live
+       lines only (value, release, PO links). */
+    const lines = allLines.filter(l => !lineDeleted(l));
+    if (!lines.length) return;
+    if (!ebelnsAny(lines) && SAP_PR_END[banfn]?.[0] === "Deleted") return;
     // Badat is the true requisition date; this extract's Erdat is a
     // refresh date (often later, sometimes after Frgdt).
     const erdats = lines.map(l => pDate(l.Badat) ?? pDate(l.Erdat)).filter((x): x is number => x !== null);
     const v = vgByNo.get(banfn) ?? null;
     const first = lines[0];
-    const deleted = lines.every(l => l.Loekz === "True" || l.Loekz === "1");
     /* SAP release refused: processing status 08 on every line (live once PR_DATASet sends BANPR in Procstat) */
     const rejected = lines.every(l => ["8", "08"].includes(String(l.Procstat ?? "").trim()));
     /* SAP's own end state from the EBAN export (rejected / closed / deleted, PRs without a PO) */
@@ -331,7 +340,7 @@ export function buildJourneys(data: { sap_pr: Rec[]; sap_po: Rec[]; vg: Rec[] })
       vendor: String(pos[0]?.NAME1 || v?.Vendor_Name || "—"),
       value: poVal || parseFloat(String(v?.Amount_Including_Tax)) || lineVal,
       m, reached,
-      exception: deleted ? "PR Deleted in SAP" : rejected ? "PR Rejected in SAP" : sapEnd ? `PR ${sapEnd} in SAP` : poCancelled(pos) ? "PO Cancelled in SAP" : null,
+      exception: rejected ? "PR Rejected in SAP" : sapEnd ? `PR ${sapEnd} in SAP` : poCancelled(pos) ? "PO Cancelled in SAP" : null,
       stageIdx: 0, done: false, pendingWith: "", pendingSince: null,
       pendingLevel: null, relStatus: String(first.Frgkz || ""),
       vg: v, po: pos[0] ?? poFallback,
