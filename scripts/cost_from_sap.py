@@ -271,6 +271,15 @@ def load_np(force, check, ratio):
         print(f"  ZALR Non-Project SQL load #{load_id} is already on the dashboard - nothing new")
         return 3
     as_on, iso = sl.load_time(ans)
+    # only the WBS of the fiscal year (…-F26-…), as the manual FY exports - the API also filters this
+    # way; this keeps older loads (WBS without an FY tag) off the page too
+    t = datetime.datetime.now()
+    fy = sl.env("VG_ZALR_NP_FY", f"{(t.year if t.month >= 4 else t.year - 1) % 100:02d}")
+    tag = re.compile(rf"F{fy}(?!\d)")
+    before = len(rows)
+    rows = [r for r in rows if tag.search(sl.to_text(r.get("PSPNR")) or "")]
+    if len(rows) != before:
+        print(f"  kept the {len(rows)} rows of FY{fy} WBS, left out {before - len(rows)} rows of other WBS")
     by_view = {}
     for r in rows:
         # CALL_KEY "np_po HO1000-RE1040": view, then the definitions of that call
