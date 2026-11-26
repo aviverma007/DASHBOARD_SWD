@@ -118,7 +118,9 @@ def main(argv):
     gone = sorted(NEEDED - set().union(*(r.keys() for r in rows)))
     if gone:
         raise RuntimeError(f"ZREC no longer returns field(s) {gone} - report changed? Not loading.")
-    per_co = Counter(sl.to_text(r.get("CALL_KEY")) or "?" for r in rows)
+    company = lambda r: ((sl.to_text(r.get("CALL_KEY")) or "").split(" ")[0]   # "1010 2024" -> 1010
+                         or sl.to_text(r.get("COMP_CODE")) or "x")
+    per_co = Counter(company(r) for r in rows)
     print(f"  ZREC SQL snapshot #{load_id}: {len(rows)} receipts, loaded from SAP {as_on} · "
           + ", ".join(f"{k}: {v}" for k, v in sorted(per_co.items())))
 
@@ -146,7 +148,7 @@ def main(argv):
         paths = []
         groups = defaultdict(list)
         for r in rows:
-            groups[sl.to_text(r.get("CALL_KEY")) or sl.to_text(r.get("COMP_CODE")) or "x"].append(r)
+            groups[company(r)].append(r)
         for co, rs in sorted(groups.items()):
             rs.sort(key=lambda r: (str(r.get("RECEIPT_DATE") or ""), str(r.get("BELNR") or "")))
             p = os.path.join(tmp, f"{co}.xlsx")          # file name = company (the builders use it)
