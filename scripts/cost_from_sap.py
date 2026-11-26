@@ -273,7 +273,8 @@ def load_np(force, check, ratio):
     as_on, iso = sl.load_time(ans)
     by_view = {}
     for r in rows:
-        by_view.setdefault(sl.to_text(r.get("CALL_KEY")), []).append(r)
+        # CALL_KEY "np_po HO1000-RE1040": view, then the definitions of that call
+        by_view.setdefault((sl.to_text(r.get("CALL_KEY")) or "").split(" ")[0], []).append(r)
     print(f"  ZALR Non-Project SQL snapshot #{load_id}, loaded from SAP {as_on}: "
           + ", ".join(f"{v} {len(by_view.get(v, []))}" for v, _ in NP_FILES))
     for v, _ in NP_FILES:
