@@ -859,6 +859,33 @@ function NonProjectView({ rows, scope, gst }: { rows: NpRow[]; scope: Set<number
                 </tr>
               </thead>
               <tbody>
+                {/* totals of every WBS in scope (not only the 400 shown), pinned under the header */}
+                {(() => {
+                  const t = { budget: 0, po: 0, nonpo: 0, actual: 0, commit: 0, avail: 0, assigned: 0, o: 0, d: 0 };
+                  tblWbs.forEach(w => {
+                    const v = w.v[gi], p = poByWbs.get(w.w);
+                    if (w.has) { t.budget += v.budget; t.avail += v.avail; t.assigned += v.assigned; }
+                    t.po += v.po; t.nonpo += v.nonpo; t.actual += v.actual; t.commit += v.commit;
+                    if (p) { t.o += p.o; t.d += p.d; }
+                  });
+                  const c = (x: React.ReactNode, extra?: React.CSSProperties) => <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 800, background: "#f3efe4", borderBottom: "2px solid #d8d0bd", position: "sticky", top: 33, zIndex: 1, ...extra }}>{x}</td>;
+                  return (
+                    <tr>
+                      {c("Total", { textAlign: "left", color: "var(--ink)" })}
+                      {c(`${fN(tblWbs.length)} WBS`, { textAlign: "left", color: "var(--mut)", fontWeight: 700 })}
+                      {c(fMoney(t.budget))}
+                      {c(fMoney(t.po))}
+                      {c(fMoney(t.nonpo), { color: t.nonpo < 0 ? RED : undefined })}
+                      {c(fMoney(t.actual))}
+                      {c(fMoney(t.commit), { color: AMBER })}
+                      {c(fMoney(t.avail), { color: t.avail < 0 ? RED : GREEN })}
+                      {c(fMoney(t.o))}
+                      {c(fMoney(t.d), { color: TEAL })}
+                      {c(t.budget > 0 ? `${pctOf(t.assigned, t.budget).toFixed(1)}%` : "—", { color: "var(--mut)" })}
+                      {c("", { textAlign: "left" })}
+                    </tr>
+                  );
+                })()}
                 {tblWbs.slice(0, 400).map(w => {
                   const v = w.v[gi], po = poByWbs.get(w.w);
                   const stat = w.has ? statusOf(v.budget, v.assigned) : "nobudget";
