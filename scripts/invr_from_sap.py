@@ -4,6 +4,7 @@
 Normal flow (server .28), same as the bookings refresh:
   VendorGlobe API (app/pdrn_sync.py, feed "invr") loads ZSD_INVR from SAP into SQL
   PDRN.dbo.SAP_INVR at 13:00 and 17:00 (only with VG_INVR_ENABLED=1 in the API's pdrn.env)
+  (ZSD_INVR "Unit" and "In Transit" for every project - a cancelled unit in transit is still stock)
   -> this script reads that snapshot through http://127.0.0.1:5002/invr/rows -> maps the SAP fields
   to the INVR Excel column names -> build_invr (the SAME code as the Excel upload) -> build_tva.py
   (which first makes the INVR booking status follow the PDRN, see sync_inventory_with_pdrn.py).
@@ -109,6 +110,20 @@ def main(argv):
     if gone:
         raise RuntimeError(f"ZSD_INVR no longer returns field(s) {gone} - report changed? "
                            f"Update the field map in scripts/invr_from_sap.py. Not loading.")
+    # ZSD_INVR "Unit" + "In Transit" (CALL_KEY "1070 transit"): both are stock and count in the project
+    # total; a unit listed under both is kept once (its "Unit" row)
+    raw.sort(key=lambda r: str(r.get("CALL_KEY") or "").endswith("transit"))
+    seen, kept, transit = set(), [], 0
+    for r in raw:
+        key = (str(r.get("NAME1") or "").strip().upper(), str(r.get("MAKTX") or "").strip().upper())
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(r)
+        transit += str(r.get("CALL_KEY") or "").endswith("transit")
+    if transit or len(kept) != len(raw):
+        print(f"  {transit} In Transit unit(s) counted as stock; {len(raw) - len(kept)} duplicate row(s) dropped")
+    raw = kept
     units = [to_unit(r) for r in raw]
 
     # fill rates - so a PRD master-data gap is visible before it reaches the dashboard
