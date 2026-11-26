@@ -102,6 +102,59 @@ def learn_profit_centers(rows, known_prefixes):
     return learned, unsure
 
 
+def place_short_profit_centers(rows, bc, be, company):
+    """Receipts with a SHORT or blank profit center ('1070', '') in a company with several projects
+    (1010 One DXP Street / Phase-2, 1070 Sky Arc / Trump, 3070 Le Courtyard / Suites) would all fall to
+    the company default (1070 -> Trump). When the receipt's unit is an active or cancelled PDRN unit of
+    exactly one project of that company, give the row that project's full profit center instead (a
+    stand-in "SW…" code where SAP has none we know). Rows without a unit keep the builders' rules
+    (the customer's other receipts, then the company default)."""
+    import json
+    try:
+        cp = json.load(open(os.path.join(sl.DATA, "cpAnalytics.json"), encoding="utf-8"))
+    except Exception:
+        return Counter()
+    units = defaultdict(set)                            # (company, unit) -> {pdrn project}
+    for r in cp["R"]:
+        p = cp["P"][r[0]]
+        co = company_of(p)
+        if co:
+            units[(co, unit_key(r[9]))].add(p)
+    per_co = defaultdict(set)
+    for (co, _), ps in units.items():
+        per_co[co] |= ps
+    multi = {co for co, ps in per_co.items() if len(ps) > 1}
+    # project -> full profit center the builders know (else a stand-in code, added to both builders)
+    pc_of = {}
+    for pc, fr in bc.PC_PROJECT:
+        pd_name = bc.PDRN_PROJECT.get(fr)
+        if pd_name and len(pc) >= 6:
+            pc_of.setdefault(pd_name.upper(), pc)
+    known = [p for p, _ in bc.PC_PROJECT if len(p) >= 6]
+    moved = Counter()
+    for r in rows:
+        co = company(r)
+        if co not in multi:
+            continue
+        pc = sl.to_text(r.get("ZPRCTR")) or ""
+        if len(pc) >= 6 and any(pc.startswith(k) for k in known):
+            continue                                    # a full, known profit center: keep it
+        cands = units.get((co, unit_key(r.get("UNIT_ADD"))))
+        if not cands or len(cands) != 1:
+            continue
+        proj = next(iter(cands))
+        code = pc_of.get(proj.upper())
+        if not code:
+            code = "SW" + re.sub(r"[^A-Z0-9]", "", proj.upper())[-8:]
+            pc_of[proj.upper()] = code
+            bc.PC_PROJECT.append((code, friendly(proj)))
+            bc.PDRN_PROJECT.setdefault(friendly(proj), proj)
+            be.PC_PROJECT.append((code, proj.upper()))
+        r["ZPRCTR"] = code
+        moved[friendly(proj)] += 1
+    return moved
+
+
 def main(argv):
     force, check = "--force" in argv, "--check" in argv
     ans = sl.fetch_rows("zrec")
@@ -135,6 +188,9 @@ def main(argv):
         print(f"  profit center {pc} -> {friendly(pdrn)} (matched by unit against the PDRN)")
     for pc, why in sorted(unsure.items()):
         print(f"  profit center {pc}: project not certain ({why}) - its customers use their other receipts / company default")
+    moved = place_short_profit_centers(rows, bc, be, company)
+    if moved:
+        print("  short/blank profit centers placed by unit: " + ", ".join(f"{k} {v}" for k, v in sorted(moved.items())))
 
     import json
     col_json, eoi_json = (os.path.join(sl.DATA, n) for n in ("collections.json", "eoiData.json"))
@@ -144,7 +200,7 @@ def main(argv):
         old_n = 0
     ratio = float(sl.env("VG_ZREC_MIN_RATIO", "0.9"))
 
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:   # Windows: builders may still hold the files
         paths = []
         groups = defaultdict(list)
         for r in rows:

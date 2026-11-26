@@ -48,7 +48,7 @@ PC_PROJECT = [
 COMPANY_DEFAULT = {"1070": "TRUMP RESIDENCES GURGAON", "2010": "SMARTWORLD THE EDITION",
                    "2070": "SMARTWORLD NATURE'S COURT"}
 # file-name hint -> fallback project when Profit Center is blank
-FILE_COMPANY = [("201301", "2010"), ("2010", "2010"), ("1072", "1070"), ("1070", "1070"),
+FILE_COMPANY = [("201301", "2010"), ("2010", "2010"), ("1010", "1010"), ("1072", "1070"), ("1070", "1070"),
                 ("2070", "2070"), ("3070", "3070")]
 FILE_PROJECT = [
     ("trump", "TRUMP RESIDENCES GURGAON"),

@@ -297,7 +297,7 @@ def load_np(force, check, ratio):
         print("  Non-Project check OK - nothing written (--check)")
         return 0
     import build_cost_np
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:   # Windows: builders may still hold the files
         paths = []
         for v, fn in NP_FILES:
             p = os.path.join(tmp, fn)
@@ -341,7 +341,7 @@ def load_pj(force, check, ratio):
         return 0
     import build_cost_pj
     layout = LAYOUTS["project"][:1] + [("Expense", "_EXPENSE", "t")] + LAYOUTS["project"][1:]
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:   # Windows: builders may still hold the files
         p = os.path.join(tmp, "Merged_Project_ZALR.xlsx")
         sl.write_xlsx(p, layout, rows)
         _guarded("costProject.json", lambda: build_cost_pj.main(p, as_on_date(ans)), ratio)

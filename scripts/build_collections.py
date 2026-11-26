@@ -80,7 +80,7 @@ PC_PROJECT = [("107202", "Trump Residences"), ("107101", "Sky Arc"), ("201301", 
               ("207101", "Nature's Court"), ("207301", "Nature's Court"),
               ("307301", "Suites"), ("307201", "Le Courtyard"), ("307101", "Residential Noida")]
 COMPANY_DEFAULT = {"1070": "Trump Residences", "2010": "The Edition", "2070": "Nature's Court"}
-FILE_COMPANY = [("201301", "2010"), ("2010", "2010"), ("1072", "1070"), ("1071", "1070"), ("1070", "1070"),
+FILE_COMPANY = [("201301", "2010"), ("2010", "2010"), ("1010", "1010"), ("1072", "1070"), ("1071", "1070"), ("1070", "1070"),
                 ("2070", "2070"), ("3070", "3070"), ("1013", "1013")]
 GATEWAYS = re.compile(r"easebuzz|paytm|m-swipe|mswipe|cc ?avenue|razorpay|payu|billdesk", re.I)
 
