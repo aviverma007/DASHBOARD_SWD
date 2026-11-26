@@ -33,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "loandetails", label: "Loan Details", path: "/loan-details", icon: "Landmark", status: "active", section: "CRM" },
   { key: "collection", label: "Collection", path: "/collections", icon: "Banknote", status: "active", section: "CRM" },
   { key: "sapcollection", label: "SAP Collection", path: "/sap-collections", icon: "IndianRupee", status: "active", section: "CRM" },
+  { key: "dueundue", label: "Due / Undue", path: "/due-undue", icon: "CalendarClock", status: "active", section: "CRM" },
   { key: "cost", label: "Cost", path: "/cost", icon: "Wallet", status: "active", section: "Procurement" },
   { key: "pr2po", label: "PR to PO", path: "/pr-to-po", icon: "Workflow", status: "active", section: "Procurement" },
   { key: "pnl", label: "Profit vs Loss", path: "/profit-loss", icon: "Scale", status: "active", section: "P&L" },

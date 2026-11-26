@@ -38,7 +38,8 @@ PDRN_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"
 # collection project -> PDRN project name
 PDRN_PROJECT = {"The Edition": "SMARTWORLD THE EDITION", "Trump Residences": "Trump Residences Gurgaon",
                 "Nature's Court": "Smartworld Nature\u2019s Court l", "Le Courtyard": "Smartworld Le Courtyard",
-                "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc"}
+                "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc",
+                "One DXP Street": "SMARTWORLD ONE DXP STREET", "One DXP Phase-2": "SMARTWORLD ONE DXP PHASE-2"}
 unit_key = lambda u: re.sub(r"\s+", "", str(u or "")).upper()
 
 

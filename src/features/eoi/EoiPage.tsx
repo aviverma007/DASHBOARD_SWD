@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import { Zoomable } from "../../components/common/Zoomable";
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import "../../components/inventory/smartworldInventory.css";
@@ -339,7 +340,7 @@ export function EoiPage() {
 
   return (
     <div className="sw-inv" style={{ minHeight: "100vh", background: "#f6f4ef", display: "flex", flexDirection: "column" }}>
-      <PageBanner bleed title="EOI / Advance" sub={<>allotment-pending customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded</>}>
+      <PageBanner bleed title="EOI / Advance" sub={<>allotment-pending customers whose money is still in hand · RERA projects = Advance, Code 67 = EOI (RERA awaited) · data as on {D.meta.asOn} · bounced instruments excluded · <LiveDataBadge feed="zrec" /></>}>
         <EoiProjectSelect selected={projF} onChange={handleProjects} />
         <div>
           <label style={BANNER_LBL}>Money type</label>

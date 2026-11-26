@@ -13,3 +13,14 @@ export const DATA_REFRESH_TIMES = "1 PM & 5 PM";
 export const INVR_AS_ON = "23 Nov 2026";
 export const INVR_LIVE = false;
 export const INVR_LOADED_ISO = "";
+/** Collections + EOI (ZREC_PRINT), Cost (ZALR) and Due / Undue (ZSD_DAPP) - same three values each.
+ * Written by scripts/zrec_from_sap.py, cost_from_sap.py and dapp_from_sap.py (live SAP via SQL). */
+export const ZREC_AS_ON = "";
+export const ZREC_LIVE = false;
+export const ZREC_LOADED_ISO = "";
+export const ZALR_AS_ON = "";
+export const ZALR_LIVE = false;
+export const ZALR_LOADED_ISO = "";
+export const DAPP_AS_ON = "";
+export const DAPP_LIVE = false;
+export const DAPP_LOADED_ISO = "";

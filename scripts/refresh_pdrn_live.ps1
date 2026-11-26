@@ -2,8 +2,9 @@
   Dashboard bookings refresh on server .28:
       SAP PRD (ZSD_PDRN) --13:00/17:00--> SQL PDRN.dbo.SAP_PDRN   (VendorGlobe API, app/pdrn_sync.py)
       SAP PRD (ZSD_INVR) --13:00/17:00--> SQL PDRN.dbo.SAP_INVR   (same API, once VG_INVR_ENABLED=1)
+      SAP PRD (ZREC_PRINT, ZALR, ZSD_DAPP) --13:00/17:00--> SQL SAP_ZREC, SAP_ZALR_NP/_PJ, SAP_ZDAPP
       SQL --this script, every 10 min 13:10-19:10--> dashboard data + npm run build
-          (scripts/invr_from_sap.py, then scripts/pdrn_from_sap.py)
+          (invr_from_sap.py, pdrn_from_sap.py, zrec_from_sap.py, cost_from_sap.py, dapp_from_sap.py)
   The dashboard is rebuilt only when SQL holds a NEW load, so the extra checks cost nothing.
   The SAP login lives in C:\VendorGlobe_API\pdrn.env (API side), not here.
 
@@ -37,7 +38,9 @@ $TaskName = "Dashboard PDRN refresh"
 $OldTaskNames = @("Dashboard PDRN refresh 1PM", "Dashboard PDRN refresh 5PM")
 # files the refresh rewrites (git sees them as changed between deploys)
 $DataFiles = @("src/data/cpAnalytics.json", "src/data/smartworldInventory.json",
-               "src/data/tvAnalytics.json", "src/config/dataInfo.ts")
+               "src/data/tvAnalytics.json", "src/data/collections.json", "src/data/eoiData.json",
+               "src/data/costProject.json", "src/data/costNonProject.json", "src/data/dappData.json",
+               "src/config/dataInfo.ts")
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 # Python prints Rs / curly-quote project names; make it UTF-8 on Windows (also for file reads)
@@ -119,20 +122,24 @@ try {
     }
 
     # INVR (inventory) first, then PDRN (bookings): build_tva.py, run by both, makes the inventory
-    # booking status follow the PDRN, so the PDRN step must see the newest inventory
+    # booking status follow the PDRN, so the PDRN step must see the newest inventory.
+    # ZREC (Collections + EOI) after PDRN: Collections links receipts to the PDRN bookings.
     $flags = @()
     if ($Test) { $flags += "--check" }
     if ($Pull) { $flags += "--force" }   # data files were reset - rebuild from SQL even if same load
     Log ("SAP refresh started" + $(if ($Test) { " (test only)" } else { "" }))
     $codes = @{}
-    foreach ($step in @(@("INVR", "scripts/invr_from_sap.py"), @("PDRN", "scripts/pdrn_from_sap.py"))) {
+    $steps = @(@("INVR", "scripts/invr_from_sap.py"), @("PDRN", "scripts/pdrn_from_sap.py"),
+               @("ZREC", "scripts/zrec_from_sap.py"), @("COST", "scripts/cost_from_sap.py"),
+               @("DAPP", "scripts/dapp_from_sap.py"))
+    foreach ($step in $steps) {
         Log "$($step[0]):"
         $r = Invoke-Native $Python (@($step[1]) + $flags)
         $r.Out | ForEach-Object { Log "  $_" }
         $codes[$step[0]] = $r.Code
     }
     $code = $codes["PDRN"]
-    $summary = "INVR exit $($codes['INVR']), PDRN exit $code (0 = new data, 3 = nothing new, 1 = failed)"
+    $summary = (($steps | ForEach-Object { "$($_[0]) $($codes[$_[0]])" }) -join ", ") + " (0 = new data, 3 = nothing new, 1 = failed)"
 
     if ($Test) { Log "test finished - $summary - nothing changed"; exit $code }
 

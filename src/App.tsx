@@ -29,6 +29,7 @@ const load = {
   loans: () => import("./features/loans/LoanDetailsPage"),
   collections: () => import("./features/collections/CollectionPage"),
   sapcollections: () => import("./features/sapcollections/SapCollectionsPage"),
+  dueundue: () => import("./features/dueundue/DueUnduePage"),
   settings: () => import("./features/settings/SettingsPage"),
   changePw: () => import("./features/settings/ChangePasswordPage"),
   notes: () => import("./features/workspace/NotesPage"),
@@ -51,6 +52,7 @@ const ProjectTrackerPage = lazy(load.tracker);
 const LoanDetailsPage = lazy(load.loans);
 const CollectionPage = lazy(load.collections);
 const SapCollectionsPage = lazy(() => load.sapcollections().then(m => ({ default: m.SapCollectionsPage })));
+const DueUnduePage = lazy(load.dueundue);
 const SettingsPage = lazy(() => load.settings().then(m => ({ default: m.SettingsPage })));
 const ChangePasswordPage = lazy(() => load.changePw().then(m => ({ default: m.ChangePasswordPage })));
 const NotesPage = lazy(() => load.notes().then(m => ({ default: m.NotesPage })));
@@ -107,6 +109,7 @@ function App() {
           <Route path="/case-management" element={<RequireAccess path="/case-management"><Dual mobile={MCases} desktop={<CaseManagementPage />} /></RequireAccess>} />
           <Route path="/loan-details" element={<RequireAccess path="/loan-details"><Dual mobile={MLoans} desktop={<LoanDetailsPage />} /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess path="/collections"><Dual mobile={MCollection} desktop={<CollectionPage />} /></RequireAccess>} />
+          <Route path="/due-undue" element={<RequireAccess path="/due-undue"><DueUnduePage /></RequireAccess>} />
           <Route path="/sap-collections" element={<RequireAccess path="/sap-collections"><Dual mobile={MCollections} desktop={<SapCollectionsPage />} /></RequireAccess>} />
           <Route path="/gallery-footfall" element={<RequireAccess path="/gallery-footfall"><Dual mobile={MFootfall} desktop={<LeadConversionPage key="footfall" mode="footfall" />} /></RequireAccess>} />
           <Route path="/digital-leads" element={<RequireAccess path="/digital-leads"><Dual mobile={MDigital} desktop={<LeadConversionPage key="digital" mode="digital" />} /></RequireAccess>} />

@@ -188,6 +188,27 @@ SAP PRD /sap/zinvr  (ZSD_INVR / ZSDR_UNIT as JSON, type=units, transport DS4K913
   keeps the Excel data. The page badge (`INVR_*` in dataInfo.ts) turns green on the first live load.
 - `python scripts/invr_from_sap.py --check` shows fill rates per field without writing anything.
 
+## Collections, EOI, Cost and Due / Undue live from SAP — same route, same schedule
+
+| Page(s) | SAP report (service) | SQL table (API feed) | Script | Builder |
+|---|---|---|---|---|
+| SAP Collections, EOI / Advance | ZREC_PRINT (/sap/zrec), all companies | SAP_ZREC (zrec) | zrec_from_sap.py | build_collections.py + build_eoi.py, unchanged |
+| Cost — Non-Project | ZALR (/sap/zalr) Item Wise PO + Summary + Total Actual, FY 2024 → now | SAP_ZALR_NP (zalr_np) | cost_from_sap.py | build_cost_np.py, unchanged |
+| Cost — Project | ZALR Project run, every Project definition (view=projlist) | SAP_ZALR_PJ (zalr_pj) | cost_from_sap.py | build_cost_pj.py, unchanged |
+| Due / Undue (new) | ZSD_DAPP (/sap/zdapp), Due and Undue per company | SAP_ZDAPP (zdapp) | dapp_from_sap.py | itself → dappData.json |
+
+- `sap_live.py` turns the SQL rows back into the exact Excel layout of the manual exports (ALV
+  headings, real dates/amounts, ids without leading zeros), so the numbers are computed by the same
+  builders as before. Tested: the 30-Oct/31-Oct exports give identical collections, EOI, Non-Project
+  and Project data through both routes (except the Project "Expense" head, below).
+- Collections / EOI: all five companies. Profit centers the builders do not know (e.g. One DXP) are
+  placed by matching their units against the PDRN; anything uncertain is listed in the log.
+- Project "Expense" head: SAP does not return the manual column, so it is taken from the CN41 WBS
+  hierarchy (level-4 name, tower/area prefixes removed); 95% of the 31-Oct WBS land in the same head.
+- The cost builders need pandas on the server: `C:\VendorGlobe_API\python312\python.exe -m pip install pandas`.
+- Each script: exit 0 rebuilt · 3 nothing new · 1 failed (that page keeps its last data, the others
+  still refresh). `--check` reads and validates without writing.
+
 ## Development
 
 ```bash

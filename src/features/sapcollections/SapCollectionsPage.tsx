@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { msToggle, msAllClick, msIsNone, NONE_STR } from "../../utils/multiSelect";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import { ReceiptsView } from "./ReceiptsView";
 import { PROJECTS_RC, RC } from "./rcData";
 import { showTip, hideTip } from "../../components/common/hoverTip";
@@ -354,8 +355,8 @@ export function SapCollectionsPage() {
         title="SAP Collections"
         center={<BannerPills size="lg" items={[["receipts", "Collections"], ["bookings", "Booking-wise"]] as const} value={view} onChange={setView} />}
         sub={view === "receipts"
-          ? <>dated receipts from SAP's receipt register (ZREC) · cash = cleared receipts · data as on {RC.meta.asOn}</>
-          : <>{fN(ROWS.length)} active bookings · PDRN export · data as on {CD.meta.asOn} · Received = net received (incl. tax) − pending clearance</>}
+          ? <>dated receipts from SAP's receipt register (ZREC) · cash = cleared receipts · data as on {RC.meta.asOn} · <LiveDataBadge feed="zrec" /></>
+          : <>{fN(ROWS.length)} active bookings · PDRN export · data as on {CD.meta.asOn} · Received = net received (incl. tax) − pending clearance · <LiveDataBadge /></>}
       >
         {view === "receipts" ? <>
         <MultiProj selected={rcProj} onChange={setRcProj} options={PROJECTS_RC} />

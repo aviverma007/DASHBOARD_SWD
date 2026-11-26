@@ -6,6 +6,7 @@ import {
 } from "../../components/cost/costShared";
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
 import { NonProjectView, NP, NP_ROWS, npScope, npAvail } from "../../components/cost/NonProjectView";
 import { ProjectView, PJ, PJ_ROWS, pjScope, pjAvail } from "../../components/cost/ProjectView";
@@ -264,9 +265,9 @@ export default function CostPage() {
       <PageBanner title="Cost — Budget Control"
         center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["pj", "Project"], ["ageing", "Vendor Ageing"]] as const} value={view} onChange={setView} />}
         sub={view === "np"
-          ? <>{fN(NP.B.length)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} PO lines · FY 2026-27 · data as on {NP.meta.asOn}</>
+          ? <>{fN(NP.B.length)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} PO lines · FY 2026-27 · data as on {NP.meta.asOn} · <LiveDataBadge feed="zalr" /></>
           : view === "pj"
-          ? <>{fN(PJ.B.length)} project WBS · {fN(PJ.meta.pos)} POs · {fN(PJ.meta.lines)} PO lines · project-to-date · with GST · data as on {PJ.meta.asOn}</>
+          ? <>{fN(PJ.B.length)} project WBS · {fN(PJ.meta.pos)} POs · {fN(PJ.meta.lines)} PO lines · project-to-date · with GST · data as on {PJ.meta.asOn} · <LiveDataBadge feed="zalr" /></>
           : <>{fN(WBS_ROWS.length)} WBS elements · {fN(PO_ROWS.length)} PO lines · data as on {CB.meta.asOn} · utilized = actual + commitment</>}>
         {view === "np" ? (<>
           <div>

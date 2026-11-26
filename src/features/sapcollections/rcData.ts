@@ -142,6 +142,7 @@ const PDRN_OF: Record<string, string> = {
   "The Edition": "SMARTWORLD THE EDITION", "Trump Residences": "Trump Residences Gurgaon",
   "Nature's Court": "Smartworld Nature\u2019s Court l", "Le Courtyard": "Smartworld Le Courtyard",
   "Suites": "Smartworld Suites", "Sky Arc": "Smartworld Sky Arc",
+  "One DXP Street": "SMARTWORLD ONE DXP STREET", "One DXP Phase-2": "SMARTWORLD ONE DXP PHASE-2",
 };
 const unitKey = (u: string) => String(u ?? "").replace(/\s+/g, "").toUpperCase();
 const PDRN_REC = new Map<string, number>(), PDRN_UNITS = new Map<string, Set<string>>();
