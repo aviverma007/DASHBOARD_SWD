@@ -165,6 +165,29 @@ SAP PRD /sap/zpdrn  (ZSD_PDRN report as JSON, read-only, transport DS4K913636)
   plain `git pull`.
 - The Excel path still works: `python scripts/build_pdrn.py <merged.xlsx> "<DD Mon YYYY>"`.
 
+## Inventory (INVR) live from SAP — same route, same schedule
+
+`src/data/smartworldInventory.json` (Inventory, Projects, stack plans, TV, P&L) comes from SAP
+Production the same way, once `VG_INVR_ENABLED=1` is set in `C:\VendorGlobe_API\pdrn.env`:
+
+```
+SAP PRD /sap/zinvr  (ZSD_INVR / ZSDR_UNIT as JSON, type=units, transport DS4K913664)
+  └─ VendorGlobe API app/pdrn_sync.py, 13:00 + 17:00 (before PDRN) → SQL PDRN.dbo.SAP_INVR
+       └─ scripts/refresh_pdrn_live.ps1 runs scripts/invr_from_sap.py first, then pdrn_from_sap.py
+            └─ /invr/rows → build_invr.repair() + build() → build_tva.py (INVR status follows PDRN)
+```
+
+- `build_invr.py` is the shared, pandas-free builder; `convert_invr_export.py` (Excel upload) now
+  uses it too — the 14-Oct export gives a byte-identical smartworldInventory.json.
+- SAP field map: NAME1 project · MAKTX unit no. · VMSTB status · BEZEI1 unit type · BEZEI4 floor ·
+  BEZEI5 BHK · BEZEI2 tower · TOTAL_SUPER_AREA · LV_SUM total unit cost.
+- Checks: fields present, project/unit/status filled, Tower/Floor/BHK/Unit Type filled or
+  repairable, known floor/BHK texts, unit count ≥ 90% of the current data. Fail → Inventory keeps
+  its last data; the PDRN part still runs.
+- Until the API has an INVR load, `invr_from_sap.py` exits 3 ("nothing new") and the Inventory page
+  keeps the Excel data. The page badge (`INVR_*` in dataInfo.ts) turns green on the first live load.
+- `python scripts/invr_from_sap.py --check` shows fill rates per field without writing anything.
+
 ## Development
 
 ```bash

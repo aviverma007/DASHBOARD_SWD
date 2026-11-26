@@ -32,11 +32,13 @@ import re
 import sys
 import pandas as pd
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import build_invr  # noqa: E402
+
 # Usage: python scripts/convert_invr_export.py <INVR export .xlsx>
 if len(sys.argv) < 2:
     sys.exit("usage: convert_invr_export.py <INVR export .xlsx>")
 SOURCE_XLSX = sys.argv[1]
-OUTPUT_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "smartworldInventory.json")
 
 df = pd.read_excel(SOURCE_XLSX, sheet_name="Sheet1")
 
@@ -64,165 +66,18 @@ if _bad.any():
     fixed = pd.DataFrame(fixed_rows, columns=df.columns)
     df = pd.concat([df[~_bad], fixed], ignore_index=True)
 
-# ---- Drop blank phantom duplicates ----
-# 14-Oct v1 export carried a second, attribute-less "Available" copy of
-# booked unit RES-2070-T14-1704. A row with blank Tower/Floor/BHK/Unit
-# Type whose unit already exists as a complete row is a phantom: drop it.
-_blank = df[["Tower", "Floor", "BHK", "Unit Type"]].isna().any(axis=1)
-_complete = set(zip(df.loc[~_blank, "Project Name"], df.loc[~_blank, "Unit Description"]))
-_phantom = _blank & pd.Series([(p, u) in _complete for p, u in zip(df["Project Name"], df["Unit Description"])], index=df.index)
-if _phantom.any():
-    print("Dropping blank duplicate rows:", df.loc[_phantom, "Unit Description"].tolist())
-    df = df[~_phantom].reset_index(drop=True)
-
-# ---- Repair hand-appended units with blank Tower/Floor/BHK/Unit Type ----
-# 14-Oct export: Nature's Court I unit RES-2070-T14-1704 arrives with those
-# four columns empty. Derive them from the unit description ("T14-1704" →
-# tower T14, floor 17) and from sibling units with the same project+area
-# (BHK type / unit type). Anything we cannot derive still fails loudly.
-_miss = df[["Tower", "Floor", "BHK", "Unit Type"]].isna().any(axis=1)
-for ix in df.index[_miss]:
-    m = re.match(r"^(T\d+)-(\d+?)(\d{2})$", str(df.at[ix, "Unit Description"]))
-    if not m:
-        raise ValueError(f"Cannot repair row {ix}: {df.loc[ix, 'Unit Description']!r}")
-    fl = int(m.group(2))
-    suf = "th" if 10 <= fl % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(fl % 10, "th")
-    sib = df[(~_miss) & (df["Project Name"] == df.at[ix, "Project Name"])
-             & (df["Total Super Area"] == df.at[ix, "Total Super Area"])]
-    if sib.empty:
-        raise ValueError(f"No sibling units to infer BHK for row {ix}")
-    df.at[ix, "Tower"] = m.group(1)
-    df.at[ix, "Floor"] = f"{fl}{suf} Floor"
-    df.at[ix, "BHK"] = sib["BHK"].mode().iloc[0]
-    df.at[ix, "Unit Type"] = sib["Unit Type"].mode().iloc[0]
-    print("Repaired blank-attribute unit:", df.at[ix, "Unit Description"], "->",
-          df.at[ix, "Tower"], df.at[ix, "Floor"], df.at[ix, "BHK"], df.at[ix, "Unit Type"])
-
-# Oct 2026 export switched to mixed-case project names ("Smartworld Le
-# Courtyard"); the PDRN↔INVR project join (pdrnActive.ts uppercases PDRN
-# names, pdrnLogic matches ===) requires the all-caps form the old
-# exports used. Normalize here so the join keeps working.
-df["Project Name"] = df["Project Name"].astype(str).str.upper()
-
-# ---- Lookup tables, built in a stable, sorted order ----
-projects = sorted(df["Project Name"].unique().tolist())
-towers = sorted(df["Tower"].unique().tolist())
-floors_raw = df["Floor"].unique().tolist()
-
-
-def floor_num(label: str) -> float:
-    """Numeric floor value for sorting/banding. Verified against all 55
-    distinct floor labels in this source with zero unparsed rows."""
-    s = str(label).strip()
-    sl = s.lower()
-    if sl == "ground floor":
-        return 0.0
-    if sl == "upper ground floor":
-        return 0.5
-    if sl == "second floor":
-        # Le Courtyard's SF- tower level (mezzanine/retail, above ground) -
-        # distinct from the ordinal "2nd Floor".
-        return 1.5
-    m = re.match(r"(\d+)-a\s*floor", sl)
-    if m:
-        return int(m.group(1)) + 0.5
-    m = re.match(r"(\d+)", sl)
-    if m:
-        return float(m.group(1))
-    raise ValueError(f"Unparsed floor label: {label!r}")
-
-
-# Sort floor labels by their numeric value for a stable FL[] index order.
-floors = sorted(floors_raw, key=floor_num)
-
-
-def derive_cfg(bhk_text: str) -> str:
-    """Derive a clean configuration bucket from the free-text BHK column.
-    Verified against all 50 distinct BHK values in this source with zero
-    'Unspecified' fallback rows."""
-    text = str(bhk_text).upper()
-    if "RETAIL SHOP" in text or "SHOP" in text or "ANCHOR STORE" in text or "RESTAURANT" in text:
-        # Oct 2026: ONE DXP STREET adds "Anchor Store" / "Restaurant" —
-        # retail commercial space like the shop units.
-        return "Commercial"
-    m = re.search(r"(\d+)\s*BHK", text)
-    if m:
-        return f"{m.group(1)} BHK"
-    raise ValueError(f"Unparsed BHK value: {bhk_text!r}")
-
-
-df["_cfg"] = df["BHK"].apply(derive_cfg)
-cfgs = sorted(df["_cfg"].unique().tolist(), key=lambda c: (c == "Commercial", c))
-
-unit_types = sorted(df["Unit Type"].unique().tolist())
-
-# Status mapping: 0 Available, 1 Booked, 2 Management (includes "N/A for Sale").
-def status_code_for(status_text: str) -> int:
-    """0 Available, 1 Booked, 2 Management — anything that isn't
-    literally "Available" or "Booked" folds into Management, per
-    standing rule #2 above. This is deliberately permissive so a future
-    export introducing yet another status string (not just
-    "Management Unit" / "N/A for Sale") doesn't need code changes."""
-    s = str(status_text).strip().lower()
-    if s == "available":
-        return 0
-    if s == "booked":
-        return 1
-    return 2
-
-
-project_idx = {p: i for i, p in enumerate(projects)}
-tower_idx = {t: i for i, t in enumerate(towers)}
-floor_idx = {f: i for i, f in enumerate(floors)}
-cfg_idx = {c: i for i, c in enumerate(cfgs)}
-unit_type_idx = {u: i for i, u in enumerate(unit_types)}
-
-units = []
-for _, row in df.iterrows():
-    status_code = status_code_for(row["Status"])
-    # Management sub-category: fold everything into bucket 2 ("Management
-    # unit") since this source doesn't distinguish on-hold vs in-progress.
-    mgmt_sub = 2 if status_code == 2 else 0
-
-    units.append(
-        [
-            project_idx[row["Project Name"]],
-            tower_idx[row["Tower"]],
-            floor_num(row["Floor"]),
-            floor_idx[row["Floor"]],
-            cfg_idx[row["_cfg"]],
-            unit_type_idx[row["Unit Type"]],
-            int(row["Total Super Area"]),
-            float(row["Total Unit Cost"]),
-            status_code,
-            mgmt_sub,
-            -1,  # payment plan index - no source column
-            0,   # rate band index - no source column, unused (see SwDrawer.tsx)
-            str(row["Unit Description"]),
-        ]
-    )
-
-dataset = {
-    "P": projects,
-    "TW": towers,
-    "FL": floors,
-    "CFG": cfgs,
-    "UT": unit_types,
-    "PP": [],
-    "RB": [],
-    "U": units,
-    "HY": {
-        "rows_in": len(df),
-        "rows_out": len(units),
-        "source_file": re.sub(r"^[0-9a-f]{8}-", "", os.path.basename(SOURCE_XLSX)),
-        "projects_included": len(projects),
-    },
-}
-
-with open(OUTPUT_JSON, "w") as f:
-    json.dump(dataset, f)
-
-print(f"Wrote {len(units)} units across {len(projects)} projects to {OUTPUT_JSON}")
-print("Projects:", projects)
-print("Configs:", cfgs)
-print("Unit types:", unit_types)
+# ---- Everything after the Excel-specific column-shift repair is shared with the live SAP
+# refresh (scripts/invr_from_sap.py): phantom-duplicate drop, blank-attribute repair, project
+# name upper-casing, lookup tables, status/config mapping -> scripts/build_invr.py
+COLS = ["Project Name", "Tower", "Floor", "BHK", "Unit Type", "Total Super Area",
+        "Total Unit Cost", "Status", "Unit Description"]
+units = [{c: (None if pd.isna(r[c]) else r[c]) for c in COLS} for _, r in df[COLS].iterrows()]
+units = build_invr.repair(units)
+build_invr.build(units, {
+    "rows_in": len(df),
+    "rows_out": len(units),
+    "source_file": re.sub(r"^[0-9a-f]{8}-", "", os.path.basename(SOURCE_XLSX)),
+    "projects_included": len({str(u["Project Name"]).upper() for u in units}),
+})
+# Excel upload -> the Inventory badge shows "data as on", not "Live from SAP"
+build_invr.set_data_info(pd.Timestamp.now().strftime("%d %b %Y"), None)

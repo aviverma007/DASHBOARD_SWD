@@ -1,7 +1,9 @@
 <#
   Dashboard bookings refresh on server .28:
       SAP PRD (ZSD_PDRN) --13:00/17:00--> SQL PDRN.dbo.SAP_PDRN   (VendorGlobe API, app/pdrn_sync.py)
+      SAP PRD (ZSD_INVR) --13:00/17:00--> SQL PDRN.dbo.SAP_INVR   (same API, once VG_INVR_ENABLED=1)
       SQL --this script, every 10 min 13:10-19:10--> dashboard data + npm run build
+          (scripts/invr_from_sap.py, then scripts/pdrn_from_sap.py)
   The dashboard is rebuilt only when SQL holds a NEW load, so the extra checks cost nothing.
   The SAP login lives in C:\VendorGlobe_API\pdrn.env (API side), not here.
 
@@ -116,34 +118,39 @@ try {
         if ($g.Code -ne 0) { throw "git pull failed" }
     }
 
-    $pyArgs = @("scripts/pdrn_from_sap.py")
-    if ($Test) { $pyArgs += "--check" }
-    if ($Pull) { $pyArgs += "--force" }   # data files were reset - rebuild from SQL even if same load
-    Log ("PDRN refresh started" + $(if ($Test) { " (test only)" } else { "" }))
-    $r = Invoke-Native $Python $pyArgs
-    $code = $r.Code
-    $r.Out | ForEach-Object { Log "  $_" }
-
-    if ($Test) { Log "test finished (exit $code) - nothing changed"; exit $code }
-
-    if ($code -eq 3 -and -not $Pull) { exit 0 }     # same SQL load already on the dashboard
-
-    if ($code -ne 0 -and $code -ne 3) {
-        if ($Pull) {
-            Log "SAP refresh failed - building the pulled code with the repository data instead"
-        } else {
-            Log "SAP refresh failed - dashboard keeps its last data, no rebuild"
-            exit 1
-        }
+    # INVR (inventory) first, then PDRN (bookings): build_tva.py, run by both, makes the inventory
+    # booking status follow the PDRN, so the PDRN step must see the newest inventory
+    $flags = @()
+    if ($Test) { $flags += "--check" }
+    if ($Pull) { $flags += "--force" }   # data files were reset - rebuild from SQL even if same load
+    Log ("SAP refresh started" + $(if ($Test) { " (test only)" } else { "" }))
+    $codes = @{}
+    foreach ($step in @(@("INVR", "scripts/invr_from_sap.py"), @("PDRN", "scripts/pdrn_from_sap.py"))) {
+        Log "$($step[0]):"
+        $r = Invoke-Native $Python (@($step[1]) + $flags)
+        $r.Out | ForEach-Object { Log "  $_" }
+        $codes[$step[0]] = $r.Code
     }
+    $code = $codes["PDRN"]
+    $summary = "INVR exit $($codes['INVR']), PDRN exit $code (0 = new data, 3 = nothing new, 1 = failed)"
+
+    if ($Test) { Log "test finished - $summary - nothing changed"; exit $code }
+
+    $newData = ($codes.Values | Where-Object { $_ -eq 0 }).Count -gt 0
+    $failed = ($codes.Values | Where-Object { $_ -ne 0 -and $_ -ne 3 }).Count -gt 0
+    if (-not $newData -and -not $Pull) {
+        if ($failed) { Log "$summary - dashboard keeps its last data, no rebuild"; exit 1 }
+        exit 0                                       # same SQL loads already on the dashboard
+    }
+    if ($failed) { Log "$summary - building with what did refresh; the failed part keeps its last data" }
 
     Log "building dashboard (npm run build)"
     $b = Invoke-Native $Npm @("run", "build")
     $bcode = $b.Code
     $b.Out | Select-Object -Last 15 | ForEach-Object { Log "  $_" }
     if ($bcode -ne 0) { throw "npm run build failed - the previous build is still being served" }
-    if ($code -eq 0 -or $code -eq 3) { Log "done - dashboard rebuilt with live SAP data" }
-    else { Log "done - dashboard rebuilt (repository data; SAP refresh failed, see above)" }
+    if (-not $failed) { Log "done - dashboard rebuilt with live SAP data ($summary)" }
+    else { Log "done - dashboard rebuilt ($summary; see above)" }
 }
 catch {
     Log "ERROR: $($_.Exception.Message)"

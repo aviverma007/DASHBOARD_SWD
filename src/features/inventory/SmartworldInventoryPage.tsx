@@ -1,6 +1,7 @@
 import { showTip, hideTip } from "../../components/common/hoverTip";
 import { useMemo, useState } from "react";
 import rawData from "../../data/smartworldInventory.json";
+import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
 import type { RawInventoryDataset, RawUnit, ScopeCondition, FilterState } from "../../types/smartworldRaw";
 import {
   makeCatOf,
@@ -152,7 +153,7 @@ export function SmartworldInventoryPage() {
   return (
     <div className="sw-inv">
       <div className="tv-zoom-desktop">
-      <PageBanner title="Inventory" sub={<>{RD.P.length} projects · {RD.U.length.toLocaleString("en-IN")} units · availability, bookings and blocks by tower</>}>
+      <PageBanner title="Inventory" sub={<>{RD.P.length} projects · {RD.U.length.toLocaleString("en-IN")} units · availability, bookings and blocks by tower · <LiveDataBadge feed="invr" /></>}>
         <SwFilters P={P} CFG={CFG} state={filterState} onChangeState={setFilterState} />
       </PageBanner>
 

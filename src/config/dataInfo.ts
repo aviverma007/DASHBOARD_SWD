@@ -8,3 +8,8 @@ export const DATA_LIVE = false;
 export const DATA_LOADED_ISO = "";
 /** Scheduled SAP loads, shown next to the live dot. */
 export const DATA_REFRESH_TIMES = "1 PM & 5 PM";
+/** Inventory (INVR) data: same idea as the three DATA_* lines, for the Inventory page badge.
+ * Written by scripts/convert_invr_export.py (Excel) and scripts/invr_from_sap.py (live SAP via SQL). */
+export const INVR_AS_ON = "23 Nov 2026";
+export const INVR_LIVE = false;
+export const INVR_LOADED_ISO = "";
