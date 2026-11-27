@@ -26,11 +26,11 @@ export function greeting(): Section {
 }
 
 export async function freshness(): Promise<Section> {
-  const [cp, ev, ff, dg, cv, eo, ln, tr, cs, cb] = await Promise.all([
+  const [cp, ev, ff, dg, cv, eo, ln, tr, cs, cb, va] = await Promise.all([
     import("../../../data/cpAnalytics.json"), import("../../../data/smartworldInventory.json"), import("../../../data/footfallVisits.json"),
     import("../../../data/digitalEnquiries.json"), import("../../../data/cpGalleryVisits.json"), import("../../../data/eoiData.json"),
     import("../../../data/loanData.json"), import("../../../data/projectTracker.json"), import("../../../data/caseManagement.json"),
-    import("../../../data/costBudget.json"),
+    import("../../../data/costBudget.json"), import("../../../data/vendorAgeing.json"),
   ]);
   const as = (m: unknown) => String((m as { default: { meta?: { asOn?: string } } }).default.meta?.asOn ?? "—");
   void ev;
@@ -41,7 +41,7 @@ export async function freshness(): Promise<Section> {
       rowsOf(["Dataset", "As on"], [
         ["Bookings / PDRN, SAP Collection", as(cp)], ["Inventory (INVR)", DATA_AS_ON], ["Gallery footfall", as(ff)], ["Digital leads", as(dg)],
         ["CP gallery visits", as(cv)], ["EOI / Advance", as(eo)], ["Loan details", as(ln)], ["Project tracker", as(tr)],
-        ["Case management (snapshot)", as(cs)], ["Cost / budget", as(cb)], ["PR to PO", "Live from SAP / QMS"],
+        ["Case management (snapshot)", as(cs)], ["Cost / budget", as(cb)], ["Vendor ageing", as(va)], ["PR to PO", "Live from SAP / QMS"],
       ]),
       kv([["Relative dates", `“Last month”, “this month” etc. are read against ${DATA_AS_ON}, the date of the latest sales data.`]]),
     ],

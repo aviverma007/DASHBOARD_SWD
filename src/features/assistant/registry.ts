@@ -54,6 +54,11 @@ export const DOMAINS: DomainDef[] = [
     run: c => import("./domains/cost").then(m => m.runCost(c)),
   },
   {
+    id: "vendors", label: "Vendor payables", tab: "Cost → Vendor Ageing", paths: ["/cost"],
+    keywords: [[/\b(payables?|ageing|aging|vendor dues?|owe|owed|supplier dues?|vendor outstanding|vendors? (balance|payments?))\b/, 5], [/\b(vendors?|suppliers?)\b/, 2]],
+    run: c => import("./domains/vendors").then(m => m.runVendors(c)),
+  },
+  {
     id: "pr2po", label: "PR to PO", tab: "PR to PO", paths: ["/pr-to-po"],
     keywords: [[/\b(prs?|purchase requisitions?|purchase requests?|nfa|qms|pr to po|pr po)\b/, 5], [/\bpos?\b.*\b(pending|stuck|stage|approval|level|released|status|created|approved)\b|\b(pending|stuck|stage|approval|level|released|status|created|approved)\b.*\bpos?\b/, 4]],
     run: c => import("./domains/pr2po").then(m => m.runPr2Po(c)),

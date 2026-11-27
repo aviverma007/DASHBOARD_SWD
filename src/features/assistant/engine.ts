@@ -36,6 +36,7 @@ function pick(c: Ctx): string[] {
   /* disambiguation */
   if (has("cpvisits", 5)) { sc.delete("cp"); if (!/\bfootfall\b/.test(c.nq)) sc.delete("footfall"); sc.delete("sales"); sc.delete("digital"); }
   if (has("pr2po", 4)) { sc.delete("cost"); sc.delete("cases"); sc.delete("collections"); if (!/\bpo ?9\d{9}/.test(c.raw)) sc.delete("sales"); }
+  if (has("vendors", 5)) { sc.delete("cp"); if (!/\bbudget\b/.test(c.nq)) sc.delete("cost"); }
   if (has("cost", 5) && !/\b(sales|sold|booking)/.test(c.nq.replace(SALES_DEPT_RX, " "))) sc.delete("sales");
   if (has("inventory", 4) && sc.has("sales")) { if (!c.period.explicit || /\b(unsold|inventory|stock|available|total units)\b/.test(c.nq)) { if (!/\b(sales|bookings?|revenue|tsv)\b/.test(c.nq)) sc.delete("sales"); } }
   if (has("inventory", 3) && /\b(sell|sold|sale|sales|booked|bookings?)\b/.test(c.nq) && c.period.explicit && !/\b(unsold|inventory|stock|available)\b/.test(c.nq)) sc.delete("inventory");
@@ -70,7 +71,7 @@ function followUps(domain: string, c: Ctx): string[] {
     case "inventory": return P ? [`${P} sold units last month`, `${P} unsold by configuration`, `${P} net due`, `${P} construction progress`] : ["Unsold units by project", "Which project has the most unsold units?", "Inventory by configuration"];
     case "target": return P ? [`${P} sales last month`, `${P} target vs actual month-wise`] : ["Target vs actual last month", "Target vs actual by project this FY"];
     case "collections": return P ? [`${P} sales this FY`, `${P} budget`, `${P} home loans sanctioned`] : ["Which project has the highest net due?", "Collections by project"];
-    case "cost": return P ? [`${P} sales last month`, `${P} budget utilisation`, `${P} PRs pending`] : ["Which entity has the highest budget?", "WBS lines over budget", "Marketing budget"];
+    case "cost": return P ? [`${P} sales last month`, `${P} vendor payables`, `${P} PRs pending`] : ["Which entity has the highest budget?", "WBS lines over budget", "Marketing budget"];
     case "pr2po": return ["Which PRs are waiting longest?", "How many PRs are pending at NFA approval?", q("PRs pending")];
     case "cases": return P ? [`${P} complaints last month`, `${P} cases beyond TAT`] : ["Open complaints by project", "Cases beyond TAT", "Cases raised last month"];
     case "footfall": return P ? [`${P} footfall by source`, `${P} digital leads last month`] : ["Footfall by project last month", "Gallery visits by source this year"];

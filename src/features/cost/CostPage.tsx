@@ -7,8 +7,10 @@ import {
 import { CostDrillDrawer, type CostDrillSeed, type CostChip } from "../../components/cost/CostDrillDrawer";
 import { PageBanner, BannerPills, BANNER_LBL, BANNER_CTL } from "../../components/layout/PageBanner";
 import { LiveDataBadge } from "../../components/layout/LiveDataBadge";
+import { VendorAgeingView } from "../../components/cost/VendorAgeingView";
 import { NonProjectView, NP, NP_ROWS, npScope, npAvail } from "../../components/cost/NonProjectView";
 import { ProjectView, PJ, PJ_ROWS, pjScope, pjAvail } from "../../components/cost/ProjectView";
+import { VA, VA_ROWS } from "../../components/cost/vendorAgeingShared";
 
 /* IT Budget Control reference, generalised company-wide, house style. */
 const CARD: React.CSSProperties = { background: "#fff", border: "1px solid #eae6da", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 4px rgba(20,33,61,.05), 0 8px 22px rgba(20,33,61,.07)" };
@@ -75,7 +77,7 @@ function MSFilter({ label, options, sel, onChange, width = 190 }: {
 }
 
 export default function CostPage() {
-  const [view, setView] = useState<"np" | "pj" | "budget" | "po">("np"); // budget/po legacy views await project data // Budget Control vs Actual-vs-Commitment (PO) view
+  const [view, setView] = useState<"np" | "pj" | "budget" | "po" | "ageing">("np"); // budget/po legacy views await project data // Budget Control vs Actual-vs-Commitment (PO) view
   const [typF, setTypF] = useState(-1); // -1 all · 0 non-project · 1 project
   const [depts, setDepts] = useState<(number | string)[]>([]);
   const [projs, setProjs] = useState<(number | string)[]>([]);
@@ -95,6 +97,8 @@ export default function CostPage() {
   const [pjRoots, setPjRoots] = useState<(number | string)[]>([]);
   const [pjBhs, setPjBhs] = useState<(number | string)[]>([]);
   const [pjQ, setPjQ] = useState("");
+  const [vaQ, setVaQ] = useState("");   // vendor-ageing vendor search
+  const [vaRecon, setVaRecon] = useState<(number | string)[]>([]);
   const [qOpen, setQOpen] = useState(false);
   const qRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -148,6 +152,15 @@ export default function CostPage() {
     if (b.length !== pjBhs.length) setPjBhs(b);
   }, [pjAv]);   // eslint-disable-line react-hooks/exhaustive-deps
   const pjRows = useMemo(() => PJ_ROWS.filter(r => pjScopeSet.has(r.wbs)), [pjScopeSet]);
+
+  const vaRows = useMemo(() => VA_ROWS.filter(r =>
+    (vaRecon.length === 0 || vaRecon.includes(r.recon)) &&
+    (!vaQ.trim() || VA.VEND[r.vend].toLowerCase().includes(vaQ.trim().toLowerCase()))
+  ), [vaQ, vaRecon]);
+  const vaScopeLabel = [
+    vaRecon.length ? `${vaRecon.length} recon G/L` : "All payables",
+    vaQ.trim() ? `“${vaQ.trim()}”` : null,
+  ].filter(Boolean).join(" · ");
 
   const wSet = useMemo(() => new Set(rows.map(w => w.i)), [rows]);
   const poRows = useMemo(() => PO_ROWS.filter(p => (typF < 0 || p.typ === typF) && p.w >= 0 && wSet.has(p.w)), [wSet, typF]);
@@ -250,7 +263,7 @@ export default function CostPage() {
       <div className="tv-zoom-desktop">
       {/* Header + filters in the banner */}
       <PageBanner title="Cost — Budget Control"
-        center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["pj", "Project"]] as const} value={view} onChange={setView} />}
+        center={<BannerPills size="lg" items={[["np", "Non-Project FY 26-27"], ["pj", "Project"]] as const /* Vendor Ageing hidden from the page; view + data kept */} value={view} onChange={setView} />}
         sub={view === "np"
           ? <>{fN(NP.B.length)} non-project WBS · {fN(NP.meta.pos)} POs · {fN(NP.meta.lines)} PO lines · FY 2026-27 · data as on {NP.meta.asOn} · <LiveDataBadge feed="zalr" /></>
           : view === "pj"
@@ -306,7 +319,7 @@ export default function CostPage() {
             <div style={{ ...BANNER_CTL, width: 96, cursor: "default" }} title="The project export has GST-inclusive budget figures only">With GST</div>
           </div>
           <button onClick={() => { setPjQ(""); setPjDepts([]); setPjPlants([]); setPjRoots([]); setPjBhs([]); }} className="pb-btn">⟲ Reset</button>
-        </>) : (<>
+        </>) : view !== "ageing" ? (<>
           <div>
             <div style={WLBL}>Budget type</div>
             <select style={SEL} value={typF} onChange={e => setTypF(Number(e.target.value))}>
@@ -342,12 +355,20 @@ export default function CostPage() {
             className="pb-btn">
             ⟲ Reset
           </button>
+        </>) : (<>
+          <div>
+            <div style={BANNER_LBL as React.CSSProperties}>Vendor search</div>
+            <input value={vaQ} onChange={e => setVaQ(e.target.value)} placeholder="Vendor name…"
+              style={{ ...BANNER_CTL, width: 240, cursor: "text" }} />
+          </div>
+          <MSFilter label="Recon G/L" options={VA.RECON.map((r, i2) => ({ k: i2, l: r }))} sel={vaRecon} onChange={setVaRecon} width={240} />
+          <button onClick={() => { setVaQ(""); setVaRecon([]); }} className="pb-btn">⟲ Reset</button>
         </>)}
       </PageBanner>
 
       <div style={{ padding: "16px 20px 40px" }}>
         {/* KPI tickets — reference set (budget/PO views only) */}
-        {view !== "np" && view !== "pj" && (
+        {view !== "ageing" && view !== "np" && view !== "pj" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 14 }}>
           <KPI k="Approved budget" v={fMoney(budget)} s={`across ${fN(rows.length)} WBS elements`} col={NAVY} />
           <KPI k="Utilized" v={fMoney(assigned)} s={`of ${fMoney(budget)} · ${util.toFixed(1)}% · ${fN(poRows.length)} PO lines`} col={TEAL} />
@@ -367,6 +388,8 @@ export default function CostPage() {
           <NonProjectView rows={npRows} scope={npScopeSet} gst={npGst} />
         ) : view === "pj" ? (
           <ProjectView rows={pjRows} scope={pjScopeSet} gst={true} />
+        ) : view === "ageing" ? (
+          <VendorAgeingView rows={vaRows} scopeLabel={vaScopeLabel} />
         ) : view === "budget" ? (<>
         {/* Row 1: Approved vs Utilized by project · Monthly PO trend */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))", gap: 14, marginBottom: 14 }}>
