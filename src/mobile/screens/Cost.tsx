@@ -125,7 +125,7 @@ export default function Cost() {
         </>}
       </>}
 
-      <p className="m-sub">Vendor ageing and the non-project PO analysis are available in the full view.</p>
+      <p className="m-sub">The non-project PO analysis is available in the full view.</p>
       <FullViewLink onClick={() => nav(pathname + "?view=full")} />
 
       <Sheet open={!!sel} onClose={() => setSel(null)} title={sel?.desc || sel?.wbs || "WBS"}>
